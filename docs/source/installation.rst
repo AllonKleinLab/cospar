@@ -27,12 +27,6 @@ or::
 
 ``-e`` is short for ``--editable`` and links the package to the original cloned location such that pulled changes are also reflected in the environment.
 
-To contribute to CoSpar, ``cd`` into the cloned directory and
-install the latest packages required for development together with the pre-commit hooks::
-
-    pip install -r requirements-dev.txt
-    pre-commit install
-
 
 Dependencies
 ^^^^^^^^^^^^
