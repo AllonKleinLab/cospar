@@ -40,6 +40,6 @@ def html_page_context(app, pagename, templatename, context, doctree):
 
 
 def setup(app):
-    app.add_config_value("github_nb_repo", "", True)
+    app.add_config_value("github_nb_repo", "", False)
     app.add_config_value("github_repo", "", True)
     app.connect("html-page-context", html_page_context)
