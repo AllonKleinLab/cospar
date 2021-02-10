@@ -1984,7 +1984,7 @@ def infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=
 
         ###############################
         # prepare the similarity matrix with all state info, all subsequent similarity will be down-sampled from this one.
-        if use_full_Smatrix: 
+        if use_full_Smatrix and (joint_optimization or (initialize_method!='OT')): 
 
             temp_str='0'+str(trunca_threshold)[2:]
             round_of_smooth=np.max(smooth_array)
