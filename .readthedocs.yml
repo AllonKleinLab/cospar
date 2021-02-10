@@ -1,4 +1,4 @@
-version: 2
+version: 0.0.7
 formats: []
 
 build:
@@ -11,4 +11,4 @@ sphinx:
 python:
     version: 3.6
     install:
-        - requirements: docs/requirements.txt
+        - requirements: docs/requirements.txt, requirements.txt
