@@ -13,7 +13,7 @@ The methods are based on
 
 Dynamic inference based on single-cell state measurement alone requires serious simplifications. On the other hand, direct dynamic measurement via lineage tracing only captures partial information and is very noisy. CoSpar integrates both state and lineage information to infer the transition map of a development/differentiation system. It gains superior robustness and accuracy by exploiting both the local coherence and sparsity of differentiation transitions, i.e., neighboring initial states share similar yet sparse fate outcomes.  Building around the most popular anndata_ object in the single-cell community, CoSpar is dedicated to building an integrated analysis framework for datasets with both state and lineage information. It offers essential toolkits for analyzing clonal information, state information, or their integration. 
 
-See `<https://cospar.org>`_ for documentation and tutorials.
+See `<https://cospar.readthedocs.io>`_ for documentation and tutorials.
 
 CoSpar's key applications
 -------------------------
@@ -32,7 +32,7 @@ Shou-Wen Wang & Allon M. Klein (2021), Coherent sparsity optimization for dynami
 Support
 -------
 Feel free to submit an `issue <https://github.com/AllonKleinLab/cospar/issues/new/choose>`_
-or send us an `email <mailto:shouwen_wang@hms.harvard.edu>`_.
+or send us an `email <mailto:wangsw09@gmail.com>`_.
 Your help to improve CoSpar is highly appreciated.
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/cospar.svg

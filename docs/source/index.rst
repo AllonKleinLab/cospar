@@ -40,7 +40,7 @@ Shou-Wen Wang & Allon M. Klein (2021), Coherent sparsity optimization for dynami
 Support
 ^^^^^^^
 Feel free to submit an `issue <https://github.com/AllonKleinLab/cospar/issues/new/choose>`_
-or send us an `email <mailto:shouwen_wang@hms.harvard.edu>`_.
+or send us an `email <mailto:wangsw09@gmail.com>`_.
 Your help to improve CoSpar is highly appreciated.
 
 
