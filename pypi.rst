@@ -1,7 +1,7 @@
 |PyPI| |Docs|
 
-CoSpar - dynamic inference by integrating transcriptome and lineage information
-===============================================================================
+CoSpar - dynamic inference by integrating state and lineage information
+=======================================================================
 
 .. image:: https://user-images.githubusercontent.com/4595786/104988296-b987ce00-59e5-11eb-8dbe-a463b355a9fd.png
    :width: 300px
@@ -18,16 +18,16 @@ See `<https://cospar.readthedocs.io>`_ for documentation and tutorials.
 CoSpar's key applications
 -------------------------
 - infer transition maps from lineage data, state measurements, or their integration. 
-- identify early fate bias or commitment. 
-- infer differentiation trajectories leading to a fate.
-- infer gene expression dynamics along the trajectory. 
-- infer putative driver genes.
-- infer fate coupling.
+- predict early fate bias or commitment. 
+- learn differentiation trajectories leading to a fate.
+- predict gene expression dynamics along the trajectory. 
+- predict putative driver genes.
+- estimate fate coupling.
 
 
 Reference
 ---------
-Shou-Wen Wang & Allon M. Klein (2021), Coherent sparsity optimization for dynamic inference by integrating state and lineage information,
+Shou-Wen Wang & Allon M. Klein (2021), Learning clonal dynamics by coherent sparse optimization,
 `ToBeSubmitted <https://doi.org/xxx>`_.
 
 Support
@@ -42,5 +42,8 @@ Your help to improve CoSpar is highly appreciated.
 .. |Docs| image:: https://readthedocs.org/projects/cospar/badge/?version=latest
    :target: https://cospar.readthedocs.io
 
+Acknowledgment
+--------------
+Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthedocs.io/>`_ for inspiring him to make this website during a simulated discussion. He also wants to acknowledge the community that maintains `scanpy <https://scanpy.readthedocs.io/>`_ and `scvelo <https://scvelo.readthedocs.io/>`_. He learned a lot about code documentation and how to make a technical website from these two packages. Finally, he wants to thank Allon Klein for his mentorship and thoughtful suggestions, and Tal Debrobrah Scully and Qiu Wu for testing the package and making suggestions.   
 
 .. _anndata: https://anndata.readthedocs.io

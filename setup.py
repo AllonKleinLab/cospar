@@ -4,7 +4,7 @@ from pathlib import Path
 setup(
     name = "cospar",
     packages = ['cospar'],
-    version = '0.0.8',
+    version = '0.0.9',
     python_requires=">=3.6",
     install_requires=[
         l.strip() for l in Path("requirements.txt").read_text("utf-8").splitlines()

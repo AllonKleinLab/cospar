@@ -1,7 +1,7 @@
 |PyPI| |Docs|
 
-CoSpar - dynamic inference by incorporating lineage information
-===============================================================
+CoSpar - dynamic inference by integrating state and lineage information
+=======================================================================
 
 .. image:: https://user-images.githubusercontent.com/4595786/104988296-b987ce00-59e5-11eb-8dbe-a463b355a9fd.png
    :width: 300px
@@ -17,7 +17,7 @@ CoSpar's key application
 ^^^^^^^^^^^^^^^^^^^^^^^^
 - infer transition maps from lineage data, state measurements, or their integration. 
 - predict early fate bias or commitment. 
-- infer differentiation trajectories leading to a fate.
+- learn differentiation trajectories leading to a fate.
 - predict gene expression dynamics along the trajectory. 
 - predict putative driver genes.
 - estimate fate coupling.
