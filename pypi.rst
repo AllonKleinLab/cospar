@@ -11,18 +11,19 @@ CoSpar - dynamic inference by integrating transcriptome and lineage information
 The methods are based on
 `S.-W. Wang & A.M. Klein (ToBeSubmitted, 2021) <https://doi.org/xxx>`_.
 
-Dynamic inference based on single-cell state measurement alone requires serious simplifications. On the other hand, direct dynamic measurement via lineage tracing only captures partial information and is very noisy. CoSpar integrates both state and lineage information to infer the transition map of a development/differentiation system. It gains superior robustness and accuracy by exploiting both the local coherence and sparsity of differentiation transitions, i.e., neighboring initial states share similar yet sparse fate outcomes.  Building around the most popular anndata_ object in the single-cell community, CoSpar is dedicated to building an integrated analysis framework for datasets with both state and lineage information. It offers essential toolkits for analyzing clonal information, state information, or their integration. 
+Dynamic inference based on single-cell state measurement alone requires serious simplifications. On the other hand, direct dynamic measurement via lineage tracing only captures partial information and is very noisy. CoSpar integrates both state and lineage information to infer the transition map of a development/differentiation system. It gains superior robustness and accuracy by exploiting both the local coherence and sparsity of differentiation transitions, i.e., neighboring initial states share similar yet sparse fate outcomes.  Building around the most popular anndata_ object in the single-cell community, CoSpar provides an integrated analysis framework for datasets with both state and lineage information. It offers essential toolkits for analyzing lineage data, state information, or their integration. 
 
 See `<https://cospar.readthedocs.io>`_ for documentation and tutorials.
 
 CoSpar's key applications
 -------------------------
-- infer transition maps using only clonal information, state information, or their integration. 
-- identify early fate bias/commitment of a cell 
+- infer transition maps from lineage data, state measurements, or their integration. 
+- identify early fate bias or commitment. 
 - infer differentiation trajectories leading to a fate.
 - infer gene expression dynamics along the trajectory. 
 - infer putative driver genes.
 - infer fate coupling.
+
 
 Reference
 ---------

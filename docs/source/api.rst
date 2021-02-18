@@ -22,6 +22,8 @@ Preprocessing
    :toctree: .
 
    pp.initialize_adata_object
+   pp.get_highly_variable_genes
+   pp.remove_cell_cycle_correlated_genes
    pp.get_X_pca
    pp.get_X_emb
    pp.get_state_info
@@ -86,12 +88,10 @@ Plotting
 .. autosummary::
    :toctree: .
 
-   pl.fate_map
    pl.single_cell_transition
-   pl.fate_bias_intrinsic
-   pl.fate_bias_from_binary_competition
-   pl.dynamic_trajectory_from_intrinsic_bias
-   pl.dynamic_trajectory_from_competition_bias
+   pl.fate_map
+   pl.binary_fate_bias
+   pl.dynamic_trajectory_from_binary_fate_bias
    pl.dynamic_trajectory_via_iterative_mapping
    pl.gene_expression_dynamics
    pl.fate_coupling_from_Tmap
@@ -123,8 +123,8 @@ Datasets
    datasets.hematopoiesis_subsampled
    datasets.hematopoiesis_all
    datasets.lung
-   datasets.reprogramming_no_merge_tags
-   datasets.reprogramming_merge_tags
+   datasets.reprogramming_static_BC
+   datasets.reprogramming_dynamic_BC
    datasets.synthetic_bifurcation_static_BC
    datasets.synthetic_bifurcation_dynamic_BC
 
@@ -142,6 +142,7 @@ Help functions
    hf.load_saved_adata_with_key
    hf.check_adata_structure
    hf.check_available_choices
+   hf.update_time_ordering
 
 
 ..

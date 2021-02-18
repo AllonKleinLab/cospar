@@ -15,14 +15,18 @@ For better visualization you can change the matplotlib settings to our defaults 
     
     cs.settings.set_figure_params()
 
+If you want to adjust parameters for a particular plot, just pass the parameters into this function. 
+
 Initialization
 ''''''''''''''
 Given the gene expression matrix, clonal matrix, and other information, initialize the anndata object using::
     
-    adata = cs.initialize_adata_object(RNA_count_matrix,gene_names,time_info,
+    adata = cs.pp.initialize_adata_object(RNA_count_matrix,gene_names,time_info,
     X_clone=[],X_pca=[],X_emb=[],state_info=[],data_des='cospar')
 
 The :class:`~anndata.AnnData` object adata stores the count matrix (``adata.X``), gene names (``adata.var_names``), and temporal annotation of cells (``adata.obs['time_info']``).  The clonal matrix ``X_clone`` is optional and will be stored at  ``adata.obsm['X_clone']``.  If not provided, you can still infer transition map based on state information alone, and proceed with the analysis. You can also provide the selected PCA matrix `X_pca`,  the embedding matrix ``X_emb``, and the state annotation ``state_info``, which will be stored at ``adata.obsm['X_pca']``, ``adata.obsm['X_emb']``, and ``adata.obs['state_info']``, respectively.  ``data_des`` is a string to label a dataset (``adata.uns['data_des']``), and should be unique for each dataset to avoid conflicts.  
+
+Sometimes, you may have many useful annotations attached to your own preprocessed adata object, and you may not want to run cs.pp.initialize_adata_object, which erases these annotations. In this case, you can just attach the above information (``time_info`` etc.) into the corresponding field of your own adata object.
 
 .. raw:: html
 
@@ -74,7 +78,7 @@ Transition map inference
 ''''''''''''''''''''''''
 The core of the software is the efficient and robust inference of a transition map by integrating state and clonal information. If the dataset has multiple clonal time points, you can run::
     
-    adata=cs.tmap.infer_Tmap_from_multitime_clones(adata_orig,selected_clonal_time_points,**params) 
+    adata=cs.tmap.infer_Tmap_from_multitime_clones(adata_orig,clonal_time_points,**params) 
 
 It subsamples the input data according to selected time points (at least 2) with clonal information, computes the transition map (stored at ``adata.uns['transition_map']``), and returns the subsampled adata object. The inferred map allows transitions between neighboring time points. For example, if selected_clonal_time_points=['day1', 'day2', 'day3'], then it computes transitions for pairs ('day1', 'day2') and ('day2', 'day3'), but not ('day1', 'day3'). As a byproduct, it also returns a transition map that allows only intra-clone transitions (``adata.uns['intraclone_transition_map']``). The intra-clone transition map can also be computed from ``adata.uns['transition_map']``) at preferred parameters by running:: 
     
@@ -107,7 +111,9 @@ Finally, each of the computed transition maps can be explored on state embedding
 
 * ``selected_fates`` (``list`` of ``str``). Selected clusters to aggregate differentiation dynamics and visualize fate bias etc.. It allows a nested structure, e.g., ``selected_fates``=['a', ['b', 'c']] selects two clusters:  cluster 'a' and the other that combines 'b' and 'c'. 
 
-* ``map_backwards`` (``bool``).  We can analyze either the forward transitions, i.e., where the selected states or clusters are going (``map_backwards=False``), or the backward transitions, i.e., where these selected states or clusters came from (``map_backwards=False``). The latter is more useful and is the default. 
+* ``map_backwards`` (``bool``, default ``True``).  We can analyze either the forward transitions, i.e., where the selected states or clusters are going (``map_backwards=False``), or the backward transitions, i.e., where these selected states or clusters came from (``map_backwards=False``). The latter is more useful and is the default. 
+
+* ``normalize_by_fate_size`` (``bool``, default ``False``). Normalize the fate probability Prob(X) towards a cluster X by the expected probability, i.e., the fraction of cells within the targeted cluster X at the corresponding time point.
 
 Below, we frame the task in the language of analyzing backward transitions (map_backwards=True) for convenience. To see where a cell came from, run:: 
     
@@ -119,23 +125,20 @@ To see the probability of initial cell states to give rise to given fate cluster
 
 To infer the relative fate bias of initial cell states towards given fate clusters, run::
     
-    cs.pl.fate_bias_intrinsic(adata,**params)
-    cs.pl.fate_bias_from_binary_competition(adata,**params)
+    cs.pl.binary_fate_bias(adata,**params)
 
-The first method (``fate_bias_intrinsic``) quantifies the fate bias of a state towards each designated cluster by normalizing the predicted fate probability with the expected fate bias,
-the fraction of cells in this cluster at the corresponding time point. The second method evaluates the fate bias of a state towards one cluster over the other.
+The fate bias of initial states are defined by competition between two fate clusters A and B, i.e., how strongly A is favored than B. 
 
 To infer the dynamic trajectory towards given fate clusters, run::
 
-    cs.pl.dynamic_trajectory_from_intrinsic_bias(adata,**params)
-    cs.pl.dynamic_trajectory_from_competition_bias(adata,**params)
+    cs.pl.dynamic_trajectory_from_binary_fate_bias(adata,**params)
     cs.pl.dynamic_trajectory_via_iterative_mapping(adata,**params)
 
-The first two methods assume two input fate clusters and infer each trajectory by thresholding the corresponding fate bias using either the intrinsic method or the binary competition method. They export the selected ancestor state for the two fate clusters at ``adata.obs['cell_group_A']`` and ``adata.obs['cell_group_B']``, which can be used to infer the driver genes for fate bifurcation by running::
+The first method assumes two input fate clusters and infer each trajectory by thresholding the corresponding fate bias. It exports the selected ancestor states for the two fate clusters at ``adata.obs['cell_group_A']`` and ``adata.obs['cell_group_B']``, which can be used to infer the driver genes for fate bifurcation by running::
     
     cs.pl.differential_genes(adata,**params)
 
-The last method (``dynamic_trajectory_via_iterative_mapping``) infers the trajectory by iteratively tracing a selected fate cluster all the way back to the initial time point. For all three methods,  the inferred trajectory for each fate will be saved at ``adata.uns['dynamic_trajectory'][fate_name]``, and we can explore the gene expression dynamics along this trajectory using:: 
+The second method (``dynamic_trajectory_via_iterative_mapping``) infers the trajectory by iteratively tracing a selected fate cluster all the way back to the initial time point. For both methods,  the inferred trajectory for each fate will be saved at ``adata.uns['dynamic_trajectory'][fate_name]``, and we can explore the gene expression dynamics along this trajectory using:: 
 
     cs.pl.gene_expression_dynamics(adata,selected_fate,gene_name_list,**params)
 

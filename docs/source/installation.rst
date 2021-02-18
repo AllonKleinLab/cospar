@@ -1,7 +1,9 @@
 Installation
 ------------
 
-CoSpar requires Python 3.6 or later. We recommend using Miniconda_.
+CoSpar requires Python 3.6 or later. We recommend using Miniconda_ for package management. For a computer that does not have a package management tool yet, please install Miniconda_ first, and activate it by running the following command in the terminal::
+
+	source ~/.bash_profile
 
 PyPI
 ^^^^
@@ -12,6 +14,13 @@ Install CoSpar from PyPI_ using::
 
 If you get a ``Permission denied`` error, use ``pip install --upgrade cospar --user`` instead.
 
+If you get errors related to 'gcc', try to specify the following gcc path for installation::
+	
+	env CXX=/usr/local/Cellar/gcc/8.2.0/bin/g++-8 CC=/usr/local/Cellar/gcc/8.2.0/bin/gcc-8 pip install  cospar
+
+If you get errors for version conflicts with existing packages, try::
+	
+	    pip install --ignore-installed --upgrade cospar 
 
 Development Version
 ^^^^^^^^^^^^^^^^^^^
@@ -55,3 +64,27 @@ If you run into issues, do not hesitate to approach us or raise a `GitHub issue`
 .. _PyPI: https://pypi.org/project/cospar
 .. _Github: https://github.com/AllonKleinLab/cospar/
 .. _`Github issue`: https://github.com/AllonKleinLab/cospar/issues/new/choose
+
+
+Testing CoSpar in a new environment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In case you want to test cospar without affecting exisiting python packages, you can create a new conda environment and install CoSpar there::
+
+	conda create -n test_cospar python=3.6
+	source activate test_cospar
+	pip install cospar
+
+Now, install jupyter notebook in this environment::
+
+	pip install --user ipykernel
+
+If you encounter an error related to ``nbconvert``, run (this is optional)::
+
+	pip3 install --upgrade --user nbconvert
+
+Finally, install the jupyter notebook kernal related to this environment::
+
+	python -m ipykernel install --user --name=test_cospar
+
+Now, you can open jupyter notebook by running ``jupyter notebook`` in the terminal, and select the kernel ``test_cospar`` to run CoSpar.

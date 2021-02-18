@@ -38,6 +38,7 @@ def initialize_adata_object(cell_by_gene_matrix,gene_names,time_info,
     X_clone: `sp.spmatrix` or `np.ndarray`, optional (default: None)        
         The clonal data matrix, with the row in cell id, and column in barcode id.
         For evolvable barcoding, a cell may carry several different barcode id. 
+        Currently, we assume each entry is 0 or 1. 
     X_pca: `np.ndarray`, optional (default: None)
         A matrix of the shape n_cell*n_pct. Used for computing similarity matrices.
     X_emb: `np.ndarray`, optional (default: None)
@@ -72,7 +73,8 @@ def initialize_adata_object(cell_by_gene_matrix,gene_names,time_info,
         logg.info(f'creating directory {figure_path}/ for saving figures')
         Path(figure_path).mkdir(parents=True)
 
-
+    
+    time_info=np.array(time_info)
     time_info=time_info.astype(str)
 
     #!mkdir -p $data_path
@@ -118,6 +120,12 @@ def initialize_adata_object(cell_by_gene_matrix,gene_names,time_info,
     logg.info(f"All time points: {set(adata.obs['time_info'])}")
     logg.info(f"Time points with clonal info: {set(adata.uns['clonal_time_points'])}")
             
+
+
+    time_ordering=np.sort(list(set(adata.obs['time_info'])))
+    logg.warn(f"Default ascending ordering of time points are: {time_ordering}. If not correct, run cs.hf.update_time_ordering for correction.")
+    adata.uns['time_ordering']=np.array(time_ordering)
+
     return adata
 
 
@@ -360,13 +368,13 @@ def refine_state_info_by_leiden_clustering(adata,selected_time_points=[],
     """
 
     time_info=adata.obs['time_info']
-    availabel_time_points=list(set(time_info))
+    available_time_points=list(set(time_info))
     
     if len(selected_time_points)==0:
-        selected_time_points=availabel_time_points
+        selected_time_points=available_time_points
 
-    if np.sum(np.in1d(selected_time_points,availabel_time_points))!=len(selected_time_points):
-        logg.error(f"Selected time points not available. Please select from {availabel_time_points}")
+    if np.sum(np.in1d(selected_time_points,available_time_points))!=len(selected_time_points):
+        logg.error(f"Selected time points not available. Please select from {available_time_points}")
 
     else:
         sp_idx=np.zeros(adata.shape[0],dtype=bool)
@@ -441,10 +449,10 @@ def refine_state_info_by_marker_genes(adata,marker_genes,express_threshold=0.1,
     time_info=adata.obs['time_info']
     x_emb=adata.obsm['X_emb'][:,0]
     y_emb=adata.obsm['X_emb'][:,1]
-    availabel_time_points=list(set(time_info))
+    available_time_points=list(set(time_info))
     
     if len(selected_time_points)==0:
-        selected_time_points=availabel_time_points
+        selected_time_points=available_time_points
         
     sp_idx=np.zeros(adata.shape[0],dtype=bool)
     for xx in selected_time_points:
@@ -476,9 +484,10 @@ def refine_state_info_by_marker_genes(adata,marker_genes,express_threshold=0.1,
         # add neighboring cells to smooth selected cells (in case the expression is sparse)
         selected_states_idx=hf.add_neighboring_cells_to_a_map(selected_states_idx,adata,neighbor_N=add_neighbor_N)
 
-        fig=plt.figure(figsize=(4,3));ax=plt.subplot(1,1,1)
+        fig_width=settings.fig_width; fig_height=settings.fig_height;
+        fig=plt.figure(figsize=(fig_width,fig_height));ax=plt.subplot(1,1,1)
         CSpl.customized_embedding(x_emb,y_emb,selected_states_idx,ax=ax)
-        ax.set_title(f"{tot_name}; Selected #: {np.sum(selected_states_idx)}")
+        ax.set_title(f"{tot_name}; Cell #: {np.sum(selected_states_idx)}")
         #print(f"Selected cell state number: {np.sum(selected_states_idx)}")
 
 

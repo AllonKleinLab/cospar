@@ -23,6 +23,10 @@ For example 'png', 'pdf' or 'svg'. Many other formats work as well (see
 `matplotlib.pyplot.savefig`).
 """
 
+fig_width=4
+fig_height=3.5
+fig_point_size=2
+
 
 logfile = ""
 """Name of logfile. By default is set to '' and writes to standard output."""
@@ -128,12 +132,12 @@ def set_rcParams_cospar(fontsize=12, color_map=None, frameon=None):
 def set_figure_params(
     style="cospar",
     dpi=100,
-    dpi_save=150,
     frameon=None,
     vector_friendly=True,
     transparent=True,
-    fontsize=12,
+    fontsize=14,
     figsize=None,
+    pointsize=2,
     color_map=None,
     facecolor=None,
     format="pdf",
@@ -199,11 +203,15 @@ def set_figure_params(
     # Overwrite style options if given
     if figsize is not None:
         rcParams["figure.figsize"] = figsize
+        global fig_width
+        global fig_height
+        fig_width=figsize[0]
+        fig_height=figsize[1]
     if dpi is not None:
         rcParams["figure.dpi"] = dpi
-    if dpi_save is not None:
-        rcParams["savefig.dpi"] = dpi_save
+        rcParams["savefig.dpi"] = dpi
 
+    fig_point_size=pointsize
 
 def set_rcParams_defaults():
     """Reset `matplotlib.rcParams` to defaults."""

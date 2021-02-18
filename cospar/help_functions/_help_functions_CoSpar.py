@@ -1156,7 +1156,7 @@ def save_map(adata):
 
 
     # need to remove these, otherwise, it does not work
-    for xx in  ['fate_trajectory', 'multiTime_cell_id_t1', 'multiTime_cell_id_t2', 'fate_map']:
+    for xx in  ['fate_trajectory', 'multiTime_cell_id_t1', 'multiTime_cell_id_t2', 'fate_map','binary_fate_bias']:
         if xx in adata.uns.keys():
             adata.uns.pop(xx)
 
@@ -1165,6 +1165,32 @@ def save_map(adata):
     print(f"Saved file: data_des='{data_des}'")
 
 
+
+def update_time_ordering(adata,updated_ordering=[]):
+    """
+    Update the ordering of time points at adata.uns['time_ordering']
+
+    Parameters
+    ----------
+    updated_ordering: `list`, optional (default: none) 
+        A list of distinct time points in ascending order.
+        If not provided, sort the time variable directly.
+        However, these time variables are string. Their sorting
+        may not be correct.   
+    """
+
+    if len(updated_ordering)>0:
+        time_info=list(set(adata.obs['time_info']))
+        N_match=np.sum(np.in1d(time_info,updated_ordering))
+        if (len(updated_ordering)!=N_match) or (len(updated_ordering)!=len(time_info)):
+            logg.error("The provided time points are not correct (wrong length, or invalid value)")
+            logg.info(f"Please provide an ordering of all time points in ascending order. Available time points are: {time_info}")
+        else:
+            adata.uns['time_ordering']=np.array(updated_ordering)
+    else:
+        time_ordering=np.sort(list(set(adata.obs['time_info'])))
+        logg.info(f"Current time ordering from simple sorting: {time_ordering}")
+        adata.uns['time_ordering']=np.array(time_ordering)
 
 def check_adata_structure(adata):
     """
@@ -1320,8 +1346,8 @@ def check_available_choices(adata):
     clonal_time_points=adata.uns['clonal_time_points']
 
     print("Available transition maps:",available_map)
-    print("Availabel clusters:", list(set(adata.obs['state_info'])))
-    print("Availabel time points:", list(set(adata.obs['time_info'])))
+    print("Available clusters:", list(set(adata.obs['state_info'])))
+    print("Available time points:", list(set(adata.obs['time_info'])))
     print("Clonal time points:",clonal_time_points)
 
 def compute_pca(m1, m2, n_components):

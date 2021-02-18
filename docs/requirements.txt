@@ -14,7 +14,6 @@ leidenalg>=0.7.0
 
 
 # Just until rtd.org understands pyproject.toml
-scanpy
 setuptools
 setuptools_scm
 typing_extensions

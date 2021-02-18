@@ -236,7 +236,7 @@ def select_time_points(adata_orig,time_point=['day_1','day_2'],extend_Tmap_space
     time_info_orig=np.array(adata_orig.obs['time_info'])
     clone_annot_orig=adata_orig.obsm['X_clone']
     if len(time_point)==0: # use all clonally labelled cell states 
-        time_point=np.sort(list(set(time_info_orig)))
+        time_point=np.sort(list(set(time_info_orig))) # this automatic ordering may not work
 
     if (len(time_point)<2):
         logg.error("Must select more than 1 time point!")
@@ -614,7 +614,7 @@ def refine_Tmap_through_cospar_noSmooth(MultiTime_cell_id_array_t1,
 
 ###############
 
-def infer_Tmap_from_multitime_clones(adata_orig,selected_clonal_time_points,
+def infer_Tmap_from_multitime_clones(adata_orig,clonal_time_points,
     smooth_array=[15,10,5],CoSpar_KNN=20,noise_threshold=0.1,demulti_threshold=0.05,
     normalization_mode=1,extend_Tmap_space=False,save_subset=True,use_full_Smatrix=True,
     trunca_threshold=0.001,compute_new=False):
@@ -628,7 +628,7 @@ def infer_Tmap_from_multitime_clones(adata_orig,selected_clonal_time_points,
     the transition map. 
 
     The inferred map allows transitions between neighboring time points. 
-    For example, if selected_clonal_time_points=['day1','day2','day3'], 
+    For example, if clonal_time_points=['day1','day2','day3'], 
     then it computes transitions for pairs (day1, day2) and (day2, day3), 
     but not (day1, day3).
 
@@ -636,7 +636,7 @@ def infer_Tmap_from_multitime_clones(adata_orig,selected_clonal_time_points,
     ------------
     adata_orig: :class:`~anndata.AnnData` object
         Should be prepared from our anadata initialization.
-    selected_clonal_time_points: `list` of `str`
+    clonal_time_points: `list` of `str`
         List of time points to be included for analysis. 
         We assume that each selected time point has clonal measurements. 
         It should be in ascending order: 'day_1','day_2'.... 
@@ -688,22 +688,35 @@ def infer_Tmap_from_multitime_clones(adata_orig,selected_clonal_time_points,
 
     t0=time.time()
     hf.check_available_clonal_info(adata_orig)
-    for xx in selected_clonal_time_points:
-        if xx not in adata_orig.uns['clonal_time_points']:
-            logg.error(f"'selected_clonal_time_points' contain time points without clonal information. Please set clonal_time_point to be at least two of {adata_orig.uns['clonal_time_points']}. If there is only one clonal time point, plesae run ----cospar.tmap.infer_Tmap_from_one_time_clones----")
-            return adata_orig
+    time_info_orig=np.array(adata_orig.uns['clonal_time_points'])
+    if len(time_info_orig)<2:
+        logg.error("There are no multi-time clones. Abort the inference.")
+        return
+
+    else:
+        N_valid_time=np.sum(np.in1d(time_info_orig,clonal_time_points))
+        if (N_valid_time!=len(clonal_time_points)) or (N_valid_time<2): 
+            logg.error(f"Selected time points are not all among {time_info_orig}, or less than 2 time points are selected. Computation aborted!")
+              
+            return 
 
     if save_subset:
         if not (np.all(np.diff(smooth_array)<=0) and np.all(np.array(smooth_array)%5==0)):
             logg.error("The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
              "The correct form is like [20,15,10], or [10,10,10,5]. Its length determines the number of iteration.\n"
               "You can also set save_subset=False to explore arbitrary smooth_array structure. However, it would be much slower.")
-            return adata_orig
+            return 
 
 
     logg.info("-------Step 1: Select time points---------")
     data_path=settings.data_path
-    adata=select_time_points(adata_orig,time_point=selected_clonal_time_points,extend_Tmap_space=extend_Tmap_space)
+
+    if 'time_ordering' not in adata_orig.uns.keys():
+        hf.update_time_ordering(adata_orig)
+    time_ordering=adata_orig.uns['time_ordering']
+    sel_idx_temp=np.in1d(time_ordering,clonal_time_points)
+    clonal_time_points=time_ordering[sel_idx_temp]
+    adata=select_time_points(adata_orig,time_point=clonal_time_points,extend_Tmap_space=extend_Tmap_space)
 
     
     logg.info("-------Step 2: Compute the full Similarity matrix if necessary---------")
@@ -1828,7 +1841,7 @@ def infer_Tmap_from_state_info_alone(adata_orig,initial_time_points,target_time_
 
     for xx in initial_time_points:
         if xx not in list(set(adata_orig.obs['time_info'])):
-            print(f"the 'initial_time_points' are not valid. Please select from {list(set(adata_orig.obs['time_info']))}")
+            logg.error(f"the 'initial_time_points' are not valid. Please select from {list(set(adata_orig.obs['time_info']))}")
             return adata_orig
 
     if save_subset and method!='OT':
@@ -2046,7 +2059,65 @@ def infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=
         return adata
 
 
-def infer_Tmap_from_clonal_info_alone(adata,method='naive'):
+# def infer_Tmap_from_clonal_info_alone(adata,method='naive',selected_fates=[]):
+#     """
+#     Compute transition map using only the lineage information.
+
+#     We simply average transitions across all clones, assuming that
+#     the intra-clone transition is uniform within the same clone. This
+#     function also assumes that the dataset has clones with multiple time
+#     points, and that it has been run through other transition map inference
+#     methods that define the initial and later time points of the map.
+    
+#     Parameters
+#     ----------
+#     adata: :class:`~anndata.AnnData` object
+#         It should have been preprocessed by :func:`.select_time_points`
+#     method: `str`, optional (default: 'naive')
+#         Method used to compute the transition map. Choice: {'naive', 
+#         'weinreb'}. For the naive method, we simply average transitions 
+#         across all clones, assuming that the intra-clone transitions are 
+#         uniform within the same clone. For the 'weinreb' method, we first 
+#         find uni-potent clones, then compute the transition map by simply 
+#         averaging across all clonal transitions as the naive method. 
+    
+#     Returns
+#     -------
+#     Update `adata` with the attributes adata.uns['clonal_transition_map']
+#     """
+
+#     hf.check_available_clonal_info(adata)
+#     if len(adata.uns['clonal_time_points'])<2:
+#         logg.error("There are no multi-time clones. Abort the inference.")
+#     else:
+#         if ('Tmap_cell_id_t1' not in adata.uns.keys()) or ('Tmap_cell_id_t2' not in adata.uns.keys()):
+#             logg.error("Initial time points Tmap_cell_id_t1 or later time points Tmap_cell_id_t2 not defined yet.\n"
+#                        "Please run other transition map inference methods first!")
+#         else:
+#             cell_id_t2=adata.uns['Tmap_cell_id_t2']
+#             cell_id_t1=adata.uns['Tmap_cell_id_t1']
+#             clone_annot=adata.obsm['X_clone']
+
+#             if method=='naive':
+#                 logg.info("Use all clones (naive method)")
+#                 T_map=clone_annot[cell_id_t1]*clone_annot[cell_id_t2].T
+
+#             else:
+#                 logg.info("Use only uni-potent clones (weinreb method)")
+#                 state_annote=np.array(adata.obs['state_info'])
+#                 fate_array=list(set(state_annote))
+#                 potential_vector_clone, fate_entropy_clone=hf.compute_state_potential(clone_annot[cell_id_t2].T,state_annote[cell_id_t2],fate_array,fate_count=True)
+
+#                 sel_unipotent_clone_id=np.array(list(set(np.nonzero(fate_entropy_clone==1)[0])))
+#                 clone_annot_unipotent=clone_annot[:,sel_unipotent_clone_id]
+#                 T_map=clone_annot_unipotent[cell_id_t1]*clone_annot_unipotent[cell_id_t2].T
+#                 logg.info(f"Used uni-potent clone fraction {len(sel_unipotent_clone_id)/clone_annot.shape[1]}")
+
+#             T_map=T_map.astype(int)
+#             adata.uns['clonal_transition_map']=ssp.csr_matrix(T_map)
+
+
+def infer_Tmap_from_clonal_info_alone(adata,method='naive',selected_fates=[]):
     """
     Compute transition map using only the lineage information.
 
@@ -2059,8 +2130,6 @@ def infer_Tmap_from_clonal_info_alone(adata,method='naive'):
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
-        It should have been preprocessed by :func:`.select_time_points`
-
     method: `str`, optional (default: 'naive')
         Method used to compute the transition map. Choice: {'naive', 
         'weinreb'}. For the naive method, we simply average transitions 
@@ -2068,38 +2137,69 @@ def infer_Tmap_from_clonal_info_alone(adata,method='naive'):
         uniform within the same clone. For the 'weinreb' method, we first 
         find uni-potent clones, then compute the transition map by simply 
         averaging across all clonal transitions as the naive method. 
+    selected_fates: `list`, optional (default: all selected)
+        List of targeted fate clusters to define uni-potent clones for the 
+        weinreb method, which are used to compute the transition map. 
 
     Returns
     -------
-    Update `adata` with the attributes adata.uns['naive_transition_map']
+    Return a new `adata` object with the attributes adata.uns['clonal_transition_map']
     """
 
     hf.check_available_clonal_info(adata)
-    if len(adata.uns['clonal_time_points'])<2:
+    time_info_orig=np.array(adata.uns['clonal_time_points'])
+    if len(time_info_orig)<2:
         logg.error("There are no multi-time clones. Abort the inference.")
-    else:
-        if ('Tmap_cell_id_t1' not in adata.uns.keys()) or ('Tmap_cell_id_t2' not in adata.uns.keys()):
-            logg.error("Initial time points Tmap_cell_id_t1 or later time points Tmap_cell_id_t2 not defined yet.\n"
-                       "Please run other transition map inference methods first!")
-        else:
-            cell_id_t2=adata.uns['Tmap_cell_id_t2']
-            cell_id_t1=adata.uns['Tmap_cell_id_t1']
-            clone_annot=adata.obsm['X_clone']
 
+    else:
+
+        if 'time_ordering' not in adata.uns.keys():
+            hf.update_time_ordering(adata)
+        time_ordering=adata.uns['time_ordering']
+        sel_idx_temp=np.in1d(time_ordering,time_info_orig)
+        clonal_time_points=time_ordering[sel_idx_temp] # ordered clonal time points
+        adata_1=select_time_points(adata,time_point=clonal_time_points,extend_Tmap_space=True)
+
+
+        if ('Tmap_cell_id_t1' not in adata.uns.keys()) or ('Tmap_cell_id_t2' not in adata.uns.keys()):
+            cell_id_t2_all=adata_1.uns['Tmap_cell_id_t2']
+            cell_id_t1_all=adata_1.uns['Tmap_cell_id_t1']            
+        else: # use the original representation
+            cell_id_t2_all=adata.uns['Tmap_cell_id_t2']
+            cell_id_t1_all=adata.uns['Tmap_cell_id_t1']
+
+        T_map=np.zeros((len(cell_id_t1_all),len(cell_id_t2_all)))
+        clone_annot=adata_1.obsm['X_clone']
+
+        N_points=len(adata_1.uns['multiTime_cell_id_t1'])
+        for k in range(N_points):
+
+            cell_id_t1_temp=adata_1.uns['multiTime_cell_id_t1'][k]
+            cell_id_t2_temp=adata_1.uns['multiTime_cell_id_t2'][k]
             if method=='naive':
                 logg.info("Use all clones (naive method)")
-                T_map=clone_annot[cell_id_t1]*clone_annot[cell_id_t2].T
+                T_map_temp=clone_annot[cell_id_t1_temp]*clone_annot[cell_id_t2_temp].T
 
             else:
                 logg.info("Use only uni-potent clones (weinreb method)")
-                state_annote=np.array(adata.obs['state_info'])
-                fate_array=list(set(state_annote))
-                potential_vector_clone, fate_entropy_clone=hf.compute_state_potential(clone_annot[cell_id_t2].T,state_annote[cell_id_t2],fate_array,fate_count=True)
+                state_annote=np.array(adata_1.obs['state_info'])
+                if len(selected_fates)==0:
+                    selected_fates=list(set(state_annote))
+                potential_vector_clone, fate_entropy_clone=hf.compute_state_potential(clone_annot[cell_id_t2_temp].T,state_annote[cell_id_t2_temp],selected_fates,fate_count=True)
 
                 sel_unipotent_clone_id=np.array(list(set(np.nonzero(fate_entropy_clone==1)[0])))
                 clone_annot_unipotent=clone_annot[:,sel_unipotent_clone_id]
-                T_map=clone_annot_unipotent[cell_id_t1]*clone_annot_unipotent[cell_id_t2].T
+                T_map_temp=clone_annot_unipotent[cell_id_t1_temp]*clone_annot_unipotent[cell_id_t2_temp].T
                 logg.info(f"Used uni-potent clone fraction {len(sel_unipotent_clone_id)/clone_annot.shape[1]}")
 
-            T_map=T_map.astype(int)
-            adata.uns['clonal_transition_map']=ssp.csr_matrix(T_map)
+            idx_t1=np.nonzero(np.in1d(cell_id_t1_all,cell_id_t1_temp))[0]
+            idx_t2=np.nonzero(np.in1d(cell_id_t2_all,cell_id_t2_temp))[0]
+            idx_t1_temp=np.nonzero(np.in1d(cell_id_t1_temp,cell_id_t1_all))[0]
+            idx_t2_temp=np.nonzero(np.in1d(cell_id_t2_temp,cell_id_t2_all))[0]
+            T_map[idx_t1[:,np.newaxis],idx_t2]=T_map_temp[idx_t1_temp][:,idx_t2_temp].A
+            
+        T_map=T_map.astype(int)
+        adata.uns['clonal_transition_map']=ssp.csr_matrix(T_map)
+        adata.uns['Tmap_cell_id_t1']=cell_id_t1_all
+        adata.uns['Tmap_cell_id_t2']=cell_id_t2_all
+        return adata

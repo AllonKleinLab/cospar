@@ -49,7 +49,7 @@ def synthetic_bifurcation_dynamic_BC(data_des='bifur_conBC'):
     data_name='bifurcation_dynamic_BC_adata_preprocessed.h5ad'
     return load_data_core(data_path,figure_path,data_name,data_des)
 
-def reprogramming_merge_tags(data_des='CellTagging'):
+def reprogramming_static_BC(data_des='CellTagging'):
     """
     The reprogramming dataset from 
 
@@ -57,10 +57,10 @@ def reprogramming_merge_tags(data_des='CellTagging'):
 
     This dataset has multiple time points for both the clones and the state measurements. 
 
-    The cells are barcoded over 3 rounds (i.e., 3 tags) during the entire differentiation 
-    process. We treat barcode tags from each round as independent clonal labels 
-    here. In this representation, each cell can have multiple clonal labels 
-    at different time points.
+    The cells are barcoded over 3 rounds during the entire differentiation process. 
+    We combine up to 3 tags from the same cell into a single clonal label in representing 
+    the X_clone matrix. In this representation, each cell has at most one clonal label. 
+    Effectively, we convert the barcodes into static labels that do not carry temporal information.
     
     Parameters
     ----------
@@ -73,7 +73,7 @@ def reprogramming_merge_tags(data_des='CellTagging'):
     data_name='CellTagging_ConcatenateClone_adata_preprocessed.h5ad'
     return load_data_core(data_path,figure_path,data_name,data_des)
 
-def reprogramming_no_merge_tags(data_des='CellTagging_NoConcat'):
+def reprogramming_dynamic_BC(data_des='CellTagging_NoConcat'):
     """
     The reprogramming dataset from 
 
@@ -81,10 +81,9 @@ def reprogramming_no_merge_tags(data_des='CellTagging_NoConcat'):
 
     This dataset has multiple time points for both the clones and the state measurements. 
 
-    The cells are barcoded over 3 rounds (i.e., 3 tags) during the entire differentiation 
-    process. We treat barcode tags from each round as independent clonal labels here. 
-    In this representation, each cell has at most one clonal label. Effectively, 
-    we convert the barcodes into static labels that do not carry temporal information.
+    The cells are barcoded over 3 rounds during the entire differentiation process. 
+    We treat barcode tags from each round as independent clonal label here. In this 
+    representation, each cell can have multiple clonal labels at different time points.
     
     Parameters
     ----------
