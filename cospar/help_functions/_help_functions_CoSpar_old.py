@@ -806,7 +806,7 @@ def mapout_trajectories(transition_map,state_prob_t2,threshold=0.1,cell_id_t1=[]
 
 
 # v1, the new methods, more options.
-def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances',limit=np.inf, method='umap'):
+def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances',limit=np.inf, method='umap',normalize=True):
     """
     Compute shortest path distance from raw data.
 
@@ -833,6 +833,8 @@ def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances'
         The method to construct the KNN graph. Options: {'umap','gauss','others'}. 
         The frist two methods are based on sc.pp.neighbors, while the last is from 
         kneighbors_graph.
+    normalize: `bool`, optional (default: True)
+        Normalize the distance matrix by its maximum value.
 
     Returns
     -------
@@ -865,7 +867,12 @@ def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances'
     ShortPath_dis[ShortPath_dis > ShortPath_dis_max] = ShortPath_dis_max #set threshold for shortest paths
 
     # Set normalized cost matrices based on shortest paths matrices at target and source spaces
-    return ShortPath_dis / ShortPath_dis.max()
+    if normalize:
+        ShortPath_dis_final=ShortPath_dis / ShortPath_dis.max()
+    else:
+        ShortPath_dis_final=ShortPath_dis
+
+    return  ShortPath_dis_final
 
 
 # v0, the new methods, more options.

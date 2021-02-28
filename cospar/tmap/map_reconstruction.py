@@ -8,7 +8,7 @@ import scanpy as sc
 import scipy.sparse as ssp 
 
 from .. import help_functions as hf
-from .. import plotting as CSpl
+from .. import plotting as pl
 from .optimal_transport import *
 from .. import settings
 from .. import logging as logg
@@ -21,7 +21,7 @@ from .. import logging as logg
 ####################
 
 
-def generate_similarity_matrix(adata,file_name,round_of_smooth=10,neighbor_N=20,beta=0.1,truncation_threshold=0.001,save_subset=True,compute_new_Smatrix=False):
+def generate_similarity_matrix(adata,file_name,round_of_smooth=10,neighbor_N=20,beta=0.1,truncation_threshold=0.001,save_subset=True,use_existing_KNN_graph=False,compute_new_Smatrix=False):
     """
     Generate similarity matrix (Smatrix) through graph diffusion
 
@@ -51,6 +51,9 @@ def generate_similarity_matrix(adata,file_name,round_of_smooth=10,neighbor_N=20,
     save_subset: `bool`, optional (default: True)
         If true, save only Smatrix at smooth round [5,10,15,...];
         Otherwise, save Smatrix at each round. 
+    use_existing_KNN_graph: `bool`, optional (default: False)
+        If true and adata.obsp['connectivities'], use the existing knn graph to build
+        the similarity matrix, regardless of neighbor_N. 
     compute_new_Smatrix: `bool`, optional (default: False)
         If true, compute a new Smatrix, even if there is pre-computed Smatrix with the 
         same parameterization.  
@@ -70,20 +73,11 @@ def generate_similarity_matrix(adata,file_name,round_of_smooth=10,neighbor_N=20,
 
         # add a step to compute PCA in case this is not computed 
 
-        # here, we assume that adata already has pre-computed PCA
-        sc.pp.neighbors(adata, n_neighbors=neighbor_N)
-
-        ## compute the similarity matrix (smooth matrix)
-        
-        #nrow = adata.shape[0]
-        #initial_clones = ssp.lil_matrix((nrow, nrow))
-        #initial_clones.setdiag(np.ones(nrow))
-        #similarity_matrix=hf.get_smooth_values_SW(initial_clones, adata_sp.uns['neighbors']['connectivities'], beta=0, n_rounds=round_of_smooth)
-        #similarity_matrix=get_smooth_values_sparseMatrixForm(initial_clones, adata.uns['neighbors']['connectivities'], beta=0, n_rounds=round_of_smooth)
-        # this similarity_matrix is column-normalized, our B here
-
-        
-        #adjacency_matrix=adata.uns['neighbors']['connectivities'];
+        if (not use_existing_KNN_graph) or ('connectivities' not in adata.obsp.keys()):
+            # here, we assume that adata already has pre-computed PCA
+            sc.pp.neighbors(adata, n_neighbors=neighbor_N)
+        else:
+            logg.info("Use existing KNN graph at adata.obsp['connectivities'] for generating the smooth matrix")
         adjacency_matrix=adata.obsp['connectivities'];
 
         ############## The new method
@@ -333,15 +327,15 @@ def select_time_points(adata_orig,time_point=['day_1','day_2'],extend_Tmap_space
         #sp_id=np.nonzero(sp_idx)[0]
         clone_annot=clone_annot_orig[sp_idx][:,barcode_id]
 
-        adata=sc.AnnData(adata_orig.X[sp_idx]);
-        adata.var_names=adata_orig.var_names
-        adata.obsm['X_pca']=adata_orig.obsm['X_pca'][sp_idx]
-        adata.obsm['X_emb']=adata_orig.obsm['X_emb'][sp_idx]
-        adata.obs['state_info']=pd.Categorical(adata_orig.obs['state_info'][sp_idx])
-        adata.obs['time_info']=pd.Categorical(adata_orig.obs['time_info'][sp_idx])
-        
-        
 
+        adata=adata_orig[sp_idx]
+        # adata=sc.AnnData(adata_orig.X[sp_idx]);
+        # adata.var_names=adata_orig.var_names
+        # adata.obsm['X_pca']=adata_orig.obsm['X_pca'][sp_idx]
+        # adata.obsm['X_emb']=adata_orig.obsm['X_emb'][sp_idx]
+        # adata.obs['state_info']=pd.Categorical(adata_orig.obs['state_info'][sp_idx])
+        # adata.obs['time_info']=pd.Categorical(adata_orig.obs['time_info'][sp_idx])
+        
         adata.obsm['X_clone']=clone_annot
         adata.uns['clonal_cell_id_t1']=clonal_cell_id_t1
         adata.uns['clonal_cell_id_t2']=clonal_cell_id_t2
@@ -366,7 +360,7 @@ def select_time_points(adata_orig,time_point=['day_1','day_2'],extend_Tmap_space
             logg.info(f"Cell number={N_cell}, Clone number={N_clone}")
             x_emb=adata.obsm['X_emb'][:,0]
             y_emb=adata.obsm['X_emb'][:,1]
-            CSpl.customized_embedding(x_emb,y_emb,-x_emb)
+            pl.customized_embedding(x_emb,y_emb,-x_emb)
 
         return adata        
 
@@ -413,9 +407,10 @@ def refine_Tmap_through_cospar(MultiTime_cell_id_array_t1,MultiTime_cell_id_arra
         The relative threshold to remove noises in the updated transition map,
         in the range [0,1].
     normalization_mode: `int`, optional (default: 1)
-        Method for normalization. Choice: [0,1].
-        0, single-cell normalization;
-        1, Clone normalization.
+        Normalization method. Choice: [0,1].
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
 
     Returns
     -------
@@ -538,8 +533,9 @@ def refine_Tmap_through_cospar_noSmooth(MultiTime_cell_id_array_t1,
         in the range [0,1]
     normalization_mode: `int`, optional (default: 1)
         Normalization method. Choice: [0,1].
-        0, single-cell normalization;
-        1, Clone normalization.
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
 
     Returns
     -------
@@ -614,7 +610,234 @@ def refine_Tmap_through_cospar_noSmooth(MultiTime_cell_id_array_t1,
 
 ###############
 
-def infer_Tmap_from_multitime_clones(adata_orig,clonal_time_points,
+# v1 version, allows to set later time point
+def infer_Tmap_from_multitime_clones(adata_orig,clonal_time_points=None,
+    later_time_point=None,smooth_array=[15,10,5],CoSpar_KNN=20,noise_threshold=0.1,
+    demulti_threshold=0.05,normalization_mode=1,extend_Tmap_space=False,save_subset=True,
+    use_full_Smatrix=True,trunca_threshold=0.001,compute_new=False):
+    """
+    Infer transition map for clonal data with multiple time points.
+
+    It prepares adata object for cells of targeted time points by 
+    :func:`.select_time_points`, generates the similarity matrix 
+    via :func:`.generate_similarity_matrix`, and iteratively calls 
+    the core function :func:`.refine_Tmap_through_cospar` to update 
+    the transition map. 
+
+    If `later_time_point=None`, the inferred map allows transitions 
+    between neighboring time points. For example, if 
+    clonal_time_points=['day1','day2','day3'], then it computes transitions 
+    for pairs (day1, day2) and (day2, day3), but not (day1, day3).
+
+    If `later_time_point` is specified, the function produces a map 
+    between earlier time points and this later time point. For example, if 
+    `later_time_point='day3`, the map allows transitions for pairs (day1, day3)
+    and (day2, day3), but not (day1,day2).
+
+    Parameters
+    ------------
+    adata_orig: :class:`~anndata.AnnData` object
+        Should be prepared from our anadata initialization.
+    clonal_time_points: `list` of `str`, optional (default: all time points)
+        List of time points to be included for analysis. 
+        We assume that each selected time point has clonal measurements. 
+    later_time_points: `list`, optional (default: None)
+        If specified, the function will produce a map T between these early 
+        time points among `clonal_time_points` and the `later_time_point`.
+        If not specified, it produces a map T between neighboring time points.
+    smooth_array: `list`, optional (default: [15,10,5])
+        List of smooth rounds at each iteration. 
+        The n-th entry determines the smooth round for the Smatrix 
+        at the n-th iteration. Its length determines the number of
+        iterations. It is better to use a number at the multiple of 
+        5, i.e., 5, 10, 15, 20,...
+    CoSpar_KNN: `int`, optional (default: 20)
+        The number of neighbors for KNN graph used for computing the 
+        similarity matrix.
+    trunca_threshold: `float`, optional (default: 0.001)
+        Threshold to reset entries of the computed similarity matrix. 
+        This is only for computational and storage efficiency.
+    noise_threshold: `float`, optional (default: 0.1)
+        The relative threshold to remove noises in the updated transition map,
+        in the range [0,1].
+    demulti_threshold: `float`, optional (default: 0.05)
+        The threshold to remove noises in the demultiplexed (un-smoothed) map,
+        in the range [0,1]
+    normalization_mode: `int`, optional (default: 1)
+        Normalization method. Choice: [0,1].
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
+    extend_Tmap_space: `bool` optional (default: `False`)
+        If true, the initial and later state space for Tmap will be expanded to all cells,
+        whether they have clonal barcodes or not. Otherwise, the initial and later state
+        space of the Tmap will be restricted to cells with multi-time clonal information
+        alone. The latter case usually speeds up the computation. 
+        This option is ignored when `later_time_points` is not None.
+    save_subset: `bool`, optional (default: True)
+        If true, save only Smatrix at smooth round [5,10,15,...];
+        Otherwise, save Smatrix at each round. 
+    use_full_Smatrix: `bool`, optional (default: True)
+        If true, extract the relevant Smatrix from the full Smatrix defined by all cells.
+        This tends to be more accurate. The package is optimized around this choice. 
+    Compute_new: `bool`, optional (default: False)
+        If True, compute Smatrix from scratch, whether it was 
+        computed and saved before or not. This is activated only when
+        `use_full_Smatrix=False`.
+
+    Returns
+    -------
+    adata: :class:`~anndata.AnnData` object
+        Store results at adata.uns['transition_map'] 
+        and adata.uns['intraclone_transition_map']. This adata is different 
+        from the input adata_orig due to subsampling cells. 
+    """
+
+    t0=time.time()
+    hf.check_available_clonal_info(adata_orig)
+    clonal_time_points_0=np.array(adata_orig.uns['clonal_time_points'])
+    if len(clonal_time_points_0)<2:
+        logg.error("There are no multi-time clones. Abort the inference.")
+        return None
+
+    else:
+        if clonal_time_points is None:
+            clonal_time_points=clonal_time_points_0
+
+        N_valid_time=np.sum(np.in1d(clonal_time_points_0,clonal_time_points))
+        if (N_valid_time!=len(clonal_time_points)) or (N_valid_time<2): 
+            logg.error(f"Selected time points are not all among {clonal_time_points_0}, or less than 2 time points are selected. Computation aborted!")
+            return None
+
+        if (later_time_point is not None) and (later_time_point not in clonal_time_points_0):
+            logg.error(f"later_time_point is not all among {clonal_time_points_0}. Computation aborted!")
+            return None 
+
+
+    if save_subset:
+        if not (np.all(np.diff(smooth_array)<=0) and np.all(np.array(smooth_array)%5==0)):
+            logg.error("The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
+             "The correct form is like [20,15,10], or [10,10,10,5]. Its length determines the number of iteration.\n"
+              "You can also set save_subset=False to explore arbitrary smooth_array structure.")
+            return None
+
+    # adjust the order of time points
+    if 'time_ordering' not in adata_orig.uns.keys():
+        hf.update_time_ordering(adata_orig)
+    time_ordering=adata_orig.uns['time_ordering']
+    sel_idx_temp=np.in1d(time_ordering,clonal_time_points)
+    clonal_time_points=time_ordering[sel_idx_temp]
+
+    logg.info("----------Compute the full Similarity matrix if necessary---------")
+    data_path=settings.data_path
+    if use_full_Smatrix: # prepare the similarity matrix with all state info, all subsequent similarity will be down-sampled from this one.
+
+        temp_str='0'+str(trunca_threshold)[2:]
+        round_of_smooth=np.max(smooth_array)
+        data_des=adata_orig.uns['data_des'][0]
+        similarity_file_name=f'{data_path}/{data_des}_Similarity_matrix_with_all_cell_states_kNN{CoSpar_KNN}_Truncate{temp_str}'
+        if not (os.path.exists(similarity_file_name+f'_SM{round_of_smooth}.npz') and (not compute_new)):
+            similarity_matrix_full=generate_similarity_matrix(adata_orig,similarity_file_name,round_of_smooth=round_of_smooth,
+                        neighbor_N=CoSpar_KNN,truncation_threshold=trunca_threshold,save_subset=True,compute_new_Smatrix=compute_new)
+
+    # compute transition map between neighboring time points
+    if later_time_point is None:
+        logg.info("-----------------Infer transition map between neighboring time points-----------------------")
+        logg.info("-------Step 1: Select time points---------")
+        adata=select_time_points(adata_orig,time_point=clonal_time_points,extend_Tmap_space=extend_Tmap_space)
+
+
+        logg.info("-------Step 2: Optimize the transition map recursively---------")
+        infer_Tmap_from_multitime_clones_private(adata,smooth_array=smooth_array,neighbor_N=CoSpar_KNN,noise_threshold=noise_threshold,demulti_threshold=demulti_threshold,normalization_mode=normalization_mode,
+                save_subset=save_subset,use_full_Smatrix=use_full_Smatrix,trunca_threshold=trunca_threshold,compute_new_Smatrix=compute_new)    
+
+
+        logg.info(f"-----------Total used time: {time.time()-t0} s ------------")
+        return adata
+
+    else:
+        # compute transition map between initial time points and the later time point
+        sel_id=np.nonzero(np.in1d(time_ordering,later_time_point))[0][0]
+        initial_time_points=time_ordering[:sel_id]
+
+        time_info_orig=np.array(adata_orig.obs['time_info'])
+        sp_idx=np.zeros(adata_orig.shape[0],dtype=bool)
+        all_time_points=list(initial_time_points)+[later_time_point]
+        label='t'
+        for xx in all_time_points:
+            id_array=np.nonzero(time_info_orig==xx)[0]
+            sp_idx[id_array]=True
+            label=label+'*'+str(xx)
+
+
+        adata=adata_orig[sp_idx]
+        # adata=sc.AnnData(adata_orig.X[sp_idx]);
+        # adata.var_names=adata_orig.var_names
+        # adata.obsm['X_pca']=adata_orig.obsm['X_pca'][sp_idx]
+        # adata.obsm['X_emb']=adata_orig.obsm['X_emb'][sp_idx]
+        # adata.obs['state_info']=pd.Categorical(adata_orig.obs['state_info'][sp_idx])
+        # adata.obs['time_info']=pd.Categorical(adata_orig.obs['time_info'][sp_idx])
+        # clone_annot_orig=adata_orig.obsm['X_clone']        
+        # clone_annot=clone_annot_orig[sp_idx]
+        # adata.obsm['X_clone']=clone_annot
+
+
+        data_des_orig=adata_orig.uns['data_des'][0]
+        data_des_0=adata_orig.uns['data_des'][-1]
+        data_des=data_des_0+f'_MultiTimeClone_{label}'
+        adata.uns['data_des']=[data_des_orig,data_des]
+
+
+        time_info=np.array(adata.obs['time_info'])
+        time_index_t2=time_info==later_time_point
+        time_index_t1=~time_index_t2
+
+        #### used for similarity matrix generation
+        Tmap_cell_id_t1=np.nonzero(time_index_t1)[0]
+        Tmap_cell_id_t2=np.nonzero(time_index_t2)[0]
+        adata.uns['Tmap_cell_id_t1']=Tmap_cell_id_t1
+        adata.uns['Tmap_cell_id_t2']=Tmap_cell_id_t2
+        adata.uns['clonal_cell_id_t1']=Tmap_cell_id_t1
+        adata.uns['clonal_cell_id_t2']=Tmap_cell_id_t2
+        adata.uns['sp_idx']=sp_idx
+        data_path=settings.data_path
+
+        transition_map=np.zeros((len(Tmap_cell_id_t1),len(Tmap_cell_id_t2)))
+        intraclone_transition_map=np.zeros((len(Tmap_cell_id_t1),len(Tmap_cell_id_t2)))
+
+
+        logg.info("-----------------Infer transition map between initial time points and the later time one-----------------------")
+        for yy in initial_time_points:
+            
+            logg.info(f"Current initial time point: {yy}")
+
+            logg.info("-------Step 1: Select time points---------")
+            adata_temp=select_time_points(adata_orig,time_point=[yy,later_time_point],extend_Tmap_space=True) # for this to work, we need to set extend_Tmap_space=True, otherwise for different initial time points, the later Tmap_cell_id_t2 may be different
+
+
+            logg.info("-------Step 2: Optimize the transition map recursively---------")
+            infer_Tmap_from_multitime_clones_private(adata_temp,smooth_array=smooth_array,neighbor_N=CoSpar_KNN,noise_threshold=noise_threshold,demulti_threshold=demulti_threshold,normalization_mode=normalization_mode,
+                    save_subset=save_subset,use_full_Smatrix=use_full_Smatrix,trunca_threshold=trunca_threshold,compute_new_Smatrix=compute_new)    
+
+
+            temp_id_t1=np.nonzero(time_info==yy)[0]
+            sp_id_t1=hf.converting_id_from_fullSpace_to_subSpace(temp_id_t1,Tmap_cell_id_t1)[0]
+            
+
+            transition_map[sp_id_t1,:]=adata_temp.uns['transition_map'].A
+            intraclone_transition_map[sp_id_t1,:]=adata_temp.uns['intraclone_transition_map'].A
+
+
+        adata.uns['transition_map']=ssp.csr_matrix(transition_map)
+        adata.uns['intraclone_transition_map']=ssp.csr_matrix(intraclone_transition_map)
+
+
+        logg.info(f"-----------Total used time: {time.time()-t0} s ------------")
+        return adata
+  
+
+# v0 version. Only neighboring time points are allowed 
+def infer_Tmap_from_multitime_clones_v0(adata_orig,clonal_time_points,
     smooth_array=[15,10,5],CoSpar_KNN=20,noise_threshold=0.1,demulti_threshold=0.05,
     normalization_mode=1,extend_Tmap_space=False,save_subset=True,use_full_Smatrix=True,
     trunca_threshold=0.001,compute_new=False):
@@ -660,8 +883,9 @@ def infer_Tmap_from_multitime_clones(adata_orig,clonal_time_points,
         in the range [0,1]
     normalization_mode: `int`, optional (default: 1)
         Normalization method. Choice: [0,1].
-        0, single-cell normalization;
-        1, Clone normalization.
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
     extend_Tmap_space: `bool` optional (default: `False`)
         If true, the initial and later state space for Tmap will be expanded to all cells,
         whether they have clonal barcodes or not. Otherwise, the initial and later state
@@ -704,7 +928,7 @@ def infer_Tmap_from_multitime_clones(adata_orig,clonal_time_points,
         if not (np.all(np.diff(smooth_array)<=0) and np.all(np.array(smooth_array)%5==0)):
             logg.error("The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
              "The correct form is like [20,15,10], or [10,10,10,5]. Its length determines the number of iteration.\n"
-              "You can also set save_subset=False to explore arbitrary smooth_array structure. However, it would be much slower.")
+              "You can also set save_subset=False to explore arbitrary smooth_array structure.")
             return 
 
 
@@ -774,8 +998,9 @@ def infer_Tmap_from_multitime_clones_private(adata,smooth_array=[15,10,5],neighb
         in the range [0,1]
     normalization_mode: `int`, optional (default: 1)
         Normalization method. Choice: [0,1].
-        0, single-cell normalization;
-        1, Clone normalization.
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
     save_subset: `bool`, optional (default: True)
         If true, save only Smatrix at smooth round [5,10,15,...];
         Otherwise, save Smatrix at each round. 
@@ -822,7 +1047,8 @@ def infer_Tmap_from_multitime_clones_private(adata,smooth_array=[15,10,5],neighb
         similarity_file_name=f'{data_path}/{data_des}_Similarity_matrix_with_all_cell_states_kNN{neighbor_N}_Truncate{temp_str}'
         for round_of_smooth in smooth_array:
             if not os.path.exists(similarity_file_name+f'_SM{round_of_smooth}.npz'):
-                logg.error(f"Similarity matrix at given parameters have not been computed before! Name: {similarity_file_name}")     
+                logg.error(f"Similarity matrix at given parameters have not been computed before! Fiale name: {similarity_file_name}")
+                logg.error(f'Please re-run the function with: compute_new=True. If you want to use smooth round not the multiples of 5, set save_subset=False')     
                 return   
 
     else:
@@ -964,8 +1190,9 @@ def infer_intraclone_Tmap(adata,demulti_threshold=0.05,normalization_mode=1):
         in the range [0,1]
     normalization_mode: `int`, optional (default: 1)
         Normalization method. Choice: [0,1].
-        0, single-cell normalization;
-        1, Clone normalization.
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
 
     Returns
     -------
@@ -1037,8 +1264,9 @@ def Tmap_from_highly_variable_genes(adata,min_counts=3,min_cells=3,
         in the range [0,1].
     normalization_mode: `int`, optional (default: 1)
         Normalization method. Choice: [0,1].
-        0, single-cell normalization;
-        1, Clone normalization.
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
     save_subset: `bool`, optional (default: True)
         If true, save only Smatrix at smooth round [5,10,15,...];
         Otherwise, save Smatrix at each round. 
@@ -1153,9 +1381,9 @@ def Tmap_from_highly_variable_genes(adata,min_counts=3,min_cells=3,
 
 
 
-# this is the new version: v1
+# this is the new version: v1, finally used
 def compute_custom_OT_transition_map(adata,OT_epsilon=0.02,OT_dis_KNN=5,
-    OT_solver='duality_gap',OT_cost='SPD',compute_new=True):
+    OT_solver='duality_gap',OT_cost='SPD',compute_new=True,use_existing_KNN_graph=False):
     """
     Compute Tmap from state info using optimal transport (OT).
 
@@ -1188,6 +1416,9 @@ def compute_custom_OT_transition_map(adata,OT_epsilon=0.02,OT_dis_KNN=5,
     compute_new: `bool`, optional (default: False)
         If True, compute OT_map and also the shortest path distance from scratch, 
         whether it was computed and saved before or not.
+    use_existing_KNN_graph: `bool`, optional (default: False)
+        If true and adata.obsp['connectivities'], use the existing knn graph for constructing
+        the shortest-path distance. This overrides all other parameters. 
 
     Returns
     -------
@@ -1225,7 +1456,7 @@ def compute_custom_OT_transition_map(adata,OT_epsilon=0.02,OT_dis_KNN=5,
                 t=time.time()       
                 #data_matrix=adata.obsm['X_pca']
                 #ShortPath_dis=hf.compute_shortest_path_distance_from_raw_matrix(data_matrix,num_neighbors_target=OT_dis_KNN,mode='distance')
-                ShortPath_dis=hf.compute_shortest_path_distance(adata,num_neighbors_target=OT_dis_KNN,mode='distances',method='umap')
+                ShortPath_dis=hf.compute_shortest_path_distance(adata,num_neighbors_target=OT_dis_KNN,mode='distances',method='umap',use_existing_KNN_graph=use_existing_KNN_graph)
                 
                 idx0=cell_id_array_t1
                 idx1=cell_id_array_t2
@@ -1292,6 +1523,35 @@ def compute_custom_OT_transition_map(adata,OT_epsilon=0.02,OT_dis_KNN=5,
     # adata.uns['data_des']=[data_des_orig,data_des_1]
 
 
+## This is just used for testing WOT
+def compute_custom_OT_transition_map_v0(adata,OT_epsilon=0.02,OT_dis_KNN=5,
+    OT_solver='duality_gap',OT_cost='SPD',compute_new=True):
+    """
+    Test WOT
+
+    Returns
+    -------
+    None. Results are stored at adata.uns['OT_transition_map'].
+    """
+
+    cell_id_array_t1=adata.uns['Tmap_cell_id_t1']
+    cell_id_array_t2=adata.uns['Tmap_cell_id_t2']
+    data_des=adata.uns['data_des'][0]
+    data_path=settings.data_path
+
+    logg.warn("-------------Using WOT----------------")
+    logg.warn(f"epsilon={OT_epsilon}")
+    import wot
+    time_info=np.zeros(adata.shape[0])
+    time_info[cell_id_array_t1]=1
+    time_info[cell_id_array_t2]=2
+    adata.obs['day']=time_info
+    adata.obs['cell_growth_rate']=np.ones(len(time_info))
+    ot_model = wot.ot.OTModel(adata,epsilon = OT_epsilon, lambda1 =1,lambda2 = 50)
+    OT_transition_map = ot_model.compute_transport_map(1,2).X 
+
+    adata.uns['OT_transition_map']=ssp.csr_matrix(OT_transition_map)
+
 
 # We tested that, for clones of all different sizes, where np.argsort gives unique results, 
 # this method reproduces the v01, v1 results, when use_fixed_clonesize_t1=True, and when change
@@ -1319,8 +1579,9 @@ def infer_Tmap_from_one_time_clones_private(adata,initialized_map,Clone_update_i
         Number of iterations for the joint optimization.
     normalization_mode: `int`, optional (default: 1)
         Normalization method. Choice: [0,1].
-        0, single-cell normalization;
-        1, Clone normalization.
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
     smooth_array: `list`, optional (default: [15,10,5])
         List of smooth rounds at each iteration. 
         The n-th entry determines the smooth round for the Smatrix 
@@ -1532,7 +1793,261 @@ def infer_Tmap_from_one_time_clones_private(adata,initialized_map,Clone_update_i
 
 
 
-def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points,clonal_time_point,
+def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points,later_time_point,
+    initialize_method='OT',OT_epsilon=0.02,OT_dis_KNN=5,OT_cost='SPD',
+    HighVar_gene_pctl=85,padding_X_clone=False,Clone_update_iter_N=1,normalization_mode=1,
+    noise_threshold=0.2,CoSpar_KNN=20,use_full_Smatrix=True,smooth_array=[15,10,5],
+    trunca_threshold=0.001,compute_new=False,
+    use_fixed_clonesize_t1=False,sort_clone=1,save_subset=True,use_existing_KNN_graph=False):
+    """
+    Infer transition map from clones with a single time point
+
+    We iteratively infer a transition map between each of the initial 
+    time points ['day_1','day_2',...,] and the time point with clonal 
+    observation. Given the two time points, after initializing the map 
+    by either the OT method or HighVar method, we jointly infer the likely 
+    initial clonal cells and the corresponding transition map.  
+
+    **Summary**
+        
+    * Parameters relevant for cell state selection:  initial_time_points, 
+      later_time_point.
+
+    * Initialization methods:
+
+        * 'OT': optional transport based method. It tends to be more accurate 
+           than `HighVar`, but not reliable under batch differences between 
+           time points.  Key parameters: `OT_epsilon, OT_dis_KNN`. 
+    
+        * 'HighVar': a method that converts highly variable genes into pseudo 
+           clones and run coherent sparsity optimization to generate an initialized 
+           map. Although it is not as accurate as OT, it is robust to batch effect 
+           across time points. Key parameter: `HighVar_gene_pctl`.
+
+    * Key parameters relevant for coherent sparsity optimization itself: 
+      `smooth_array, normalization_mode, CoSpar_KNN, noise_threshold, 
+      Clone_update_iter_N`.
+
+
+    Parameters
+    ----------
+    adata_orig: :class:`~anndata.AnnData` object
+        It is assumed to be preprocessed and has multiple time points.
+    initial_time_points: `list` 
+        List of initial time points to be included for the transition map. 
+        Like ['day_1','day_2']. Entries consistent with adata.obs['time_info']. 
+    later_time_point: `str` 
+        The time point with clonal observation. Its value should be 
+        consistent with adata.obs['time_info']. 
+    initialize_method: `str`, optional (default 'OT') 
+        Method to initialize the transition map from state information. 
+        Choice: {'OT', 'HighVar'}.
+    OT_epsilon: `float`, optional (default: 0.02)  
+        The entropic regularization, >0. A larger value increases 
+        uncertainty of the transition. Relevant when `initialize_method='OT'`.
+    OT_dis_KNN: `int`, optional (default: 5)
+        Number of nearest neighbors to construct the KNN graph for
+        computing the shortest path distance. Relevant when `initialize_method='OT'`. 
+    OT_cost: `str`, optional (default: `SPD`), options {'GED','SPD'}
+        The cost metric. We provide gene expression distance (GED), and also
+        shortest path distance (SPD). GED is much faster, but SPD is more accurate.
+        However, cospar is robust to the initialization. 
+    HighVar_gene_pctl: `int`, optional (default: 85)
+        Percentile threshold to select highly variable genes to construct pseudo-clones. 
+        A higher value selects more variable genes. Range: [0,100]. 
+        Relevant when `initialize_method='HighVar'`.
+    padding_X_clone: `bool`, optional (default: False)
+        If true, select cells at the `later_time_point` yet without any clonal label, and 
+        generate a unique clonal label for each of them. This adds artificial clonal data.
+        However, it will make the best use of the state information, especially when there
+        are very few clonal barcodes in the data. 
+    Clone_update_iter_N: `int`, optional (default: 1)
+        Number of iteration for the joint optimization
+    normalization_mode: `int`, optional (default: 1)
+        Normalization method. Choice: [0,1].
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
+    smooth_array: `list`, optional (default: [15,10,5])
+        List of smooth rounds at each iteration. 
+        The n-th entry determines the smooth round for the Smatrix 
+        at the n-th iteration. Its length determines the number of
+        iterations. It is better to use a number at the multiple of 
+        5, i.e., 5, 10, 15, 20,...
+    CoSpar_KNN: `int`, optional (default: 20)
+        The number of neighbors for KNN graph used for computing the similarity matrix.
+    trunca_threshold: `float`, optional (default: 0.001)
+        Threshold to reset entries of the computed similarity matrix. 
+        This is only for computational and storage efficiency.
+    noise_threshold: `float`, optional (default: 0.1)
+        The relative threshold to remove noises in the updated transition map,
+        in the range [0,1].
+    save_subset: `bool`, optional (default: True)
+        If true, save only Smatrix at smooth round [5,10,15,...];
+        Otherwise, save Smatrix at each round. 
+    use_full_Smatrix: `bool`, optional (default: True)
+        If true, extract the relevant Smatrix from the full Smatrix defined by all cells.
+        This tends to be more accurate. The package is optimized around this choice. 
+    use_fixed_clonesize_t1: `bool`, optional (default: False)
+        If true, fix the number of initial states as the same for all clones
+    sort_clone: `int`, optional (default: 1)
+        The order to infer initial states for each clone: {1,-1,others}.
+        1, sort clones by size from small to large;
+        -1, sort clones by size from large to small;
+        others, do not sort. 
+    compute_new: `bool`, optional (default: False)
+        If True, compute everything (ShortestPathDis, OT_map, etc.) from scratch, 
+        whether it was computed and saved before or not. Regarding the Smatrix, it is 
+        recomputed only when `use_full_Smatrix=False`.
+    use_existing_KNN_graph: `bool`, optional (default: False)
+        If true and adata.obsp['connectivities'], use the existing knn graph
+        to compute the shortest-path distance. Revelant if initialize_method='OT'.
+        This overrides all other relevant parameters for building shortest-path distance. 
+
+    Returns
+    -------
+    adata: :class:`~anndata.AnnData` object
+        Update adata.obsm['X_clone'] and adata.uns['transition_map'],
+        as well as adata.uns['OT_transition_map'] or 
+        adata.uns['HighVar_transition_map'], depending on the initialization.
+        adata.obsm['X_clone'] remains the same. 
+    """
+
+    t0=time.time()
+
+    for xx in initial_time_points:
+        if xx not in list(set(adata_orig.obs['time_info'])):
+            logg.error(f"The 'initial_time_points' are not valid. Please select from {list(set(adata_orig.obs['time_info']))}")
+            return None
+
+    if save_subset:
+        if not (np.all(np.diff(smooth_array)<=0) and np.all(np.array(smooth_array)%5==0)):
+            logg.error("The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
+             "The correct form is like [20,15,10], or [10,10,10,5]. Its length determines the number of iteration.\n"
+              "You can also set save_subset=False to explore arbitrary smooth_array structure.")
+            return None
+
+    hf.check_available_clonal_info(adata_orig)
+    if not (later_time_point in adata_orig.uns['clonal_time_points']):
+        logg.warn(f"'later_time_point' do not contain clonal information. Please set later_time_point to be one of {adata_orig.uns['clonal_time_points']}")
+        return None
+        #logg.info("Consider run ----cs.tmap.CoSpar_NoClonalInfo------")
+        #logg.warn("Keep running but without clonal information")
+        
+
+    if initialize_method not in ['OT','HighVar']:
+        logg.error("initialize_method must be among ['OT','HighVar'].")
+        return None
+
+    if OT_cost not in ['GED','SPD']:
+        logg.error("OT_cost must be among ['GED','SPD'].")
+        return None        
+
+
+    sp_idx=np.zeros(adata_orig.shape[0],dtype=bool)
+    time_info_orig=np.array(adata_orig.obs['time_info'])
+    all_time_points=list(initial_time_points)+[later_time_point]
+    label='t'
+    for xx in all_time_points:
+        id_array=np.nonzero(time_info_orig==xx)[0]
+        sp_idx[id_array]=True
+        label=label+'*'+str(xx)
+
+    adata=adata_orig[sp_idx]
+    # adata=sc.AnnData(adata_orig.X[sp_idx]);
+    # adata.var_names=adata_orig.var_names
+    # adata.obsm['X_pca']=adata_orig.obsm['X_pca'][sp_idx]
+    # adata.obsm['X_emb']=adata_orig.obsm['X_emb'][sp_idx]
+    # adata.obs['state_info']=pd.Categorical(adata_orig.obs['state_info'][sp_idx])
+    # adata.obs['time_info']=pd.Categorical(adata_orig.obs['time_info'][sp_idx])
+    # clone_annot_orig=adata_orig.obsm['X_clone'].copy()      
+    # clone_annot=clone_annot_orig[sp_idx]
+    # adata.obsm['X_clone']=ssp.csr_matrix(clone_annot)
+
+
+    clone_annot_orig=adata_orig.obsm['X_clone'].copy()  
+    data_des_orig=adata_orig.uns['data_des'][0]
+    data_des_0=adata_orig.uns['data_des'][-1]
+    data_des=data_des_0+f'_OneTimeClone_{label}'
+    adata.uns['data_des']=[data_des_orig,data_des]
+
+    time_info=np.array(adata.obs['time_info'])
+    time_index_t2=time_info==later_time_point
+    time_index_t1=~time_index_t2
+
+    ## set cells without a clone ID to have a unique clone ID
+    if padding_X_clone:
+        logg.info("Generate a unique clonal label for each clonally unlabeled cell.")
+        time_index_t2_orig=time_info_orig==later_time_point
+        zero_clone_idx=clone_annot_orig[time_index_t2_orig].sum(1).A.flatten()==0
+        clone_annot_t2_padding=np.diag(np.ones(np.sum(zero_clone_idx)))
+        non_zero_clones_idx=clone_annot_orig[time_index_t2_orig].sum(0).A.flatten()>0
+        M0=np.sum(non_zero_clones_idx)
+        M1=clone_annot_t2_padding.shape[1]
+        clone_annot_new=np.zeros((clone_annot_orig.shape[0],M0+M1))
+        clone_annot_new[:,:M0]=clone_annot_orig[:,non_zero_clones_idx].A
+        sp_id_t2=np.nonzero(time_index_t2_orig)[0]
+        clone_annot_new[sp_id_t2[zero_clone_idx],M0:]=clone_annot_t2_padding         
+    else:
+        clone_annot_new=clone_annot_orig
+    adata_orig.obsm['X_clone']=ssp.csr_matrix(clone_annot_new)
+
+
+    #### used for similarity matrix generation
+    Tmap_cell_id_t1=np.nonzero(time_index_t1)[0]
+    Tmap_cell_id_t2=np.nonzero(time_index_t2)[0]
+    adata.uns['Tmap_cell_id_t1']=Tmap_cell_id_t1
+    adata.uns['Tmap_cell_id_t2']=Tmap_cell_id_t2
+    adata.uns['clonal_cell_id_t1']=Tmap_cell_id_t1
+    adata.uns['clonal_cell_id_t2']=Tmap_cell_id_t2
+    adata.uns['sp_idx']=sp_idx
+    data_path=settings.data_path
+
+    transition_map=np.zeros((len(Tmap_cell_id_t1),len(Tmap_cell_id_t2)))
+    ini_transition_map=np.zeros((len(Tmap_cell_id_t1),len(Tmap_cell_id_t2)))
+
+
+    logg.info("-----------------Infer transition map between initial time points and the later time one-----------------------")
+    for yy in initial_time_points:
+        logg.info(f"Current initial time point: {yy}")
+
+        adata_temp=infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=[yy,later_time_point],
+            initialize_method=initialize_method,OT_epsilon=OT_epsilon,OT_dis_KNN=OT_dis_KNN,
+            OT_cost=OT_cost,HighVar_gene_pctl=HighVar_gene_pctl,
+            Clone_update_iter_N=Clone_update_iter_N,normalization_mode=normalization_mode,
+            noise_threshold=noise_threshold,CoSpar_KNN=CoSpar_KNN,use_full_Smatrix=use_full_Smatrix,smooth_array=smooth_array,
+            trunca_threshold=trunca_threshold,compute_new=compute_new,
+            use_fixed_clonesize_t1=use_fixed_clonesize_t1,sort_clone=sort_clone,save_subset=save_subset,
+            use_existing_KNN_graph=use_existing_KNN_graph)
+
+        temp_id_t1=np.nonzero(time_info==yy)[0]
+        sp_id_t1=hf.converting_id_from_fullSpace_to_subSpace(temp_id_t1,Tmap_cell_id_t1)[0]
+        
+        transition_map_temp=adata_temp.uns['transition_map'].A
+        transition_map[sp_id_t1,:]=transition_map_temp
+
+        if initialize_method=='OT':
+            transition_map_ini_temp=adata_temp.uns['OT_transition_map']
+        else:
+            transition_map_ini_temp=adata_temp.uns['HighVar_transition_map']
+
+        ini_transition_map[sp_id_t1,:]=transition_map_ini_temp.A
+
+
+    adata.uns['transition_map']=ssp.csr_matrix(transition_map)
+    
+    if initialize_method=='OT':
+        adata.uns['OT_transition_map']=ssp.csr_matrix(ini_transition_map)
+    else:
+        adata.uns['HighVar_transition_map']=ssp.csr_matrix(ini_transition_map)
+
+
+    adata_orig.obsm['X_clone']=clone_annot_orig # reset to the original clonal matrix
+    logg.info(f"-----------Total used time: {time.time()-t0} s ------------")
+    return adata
+
+
+def infer_Tmap_from_one_time_clones_V0(adata_orig,initial_time_points,clonal_time_point,
     initialize_method='OT',OT_epsilon=0.02,OT_dis_KNN=5,OT_cost='SPD',
     HighVar_gene_pctl=85,Clone_update_iter_N=1,normalization_mode=1,
     noise_threshold=0.2,CoSpar_KNN=20,use_full_Smatrix=True,smooth_array=[15,10,5],
@@ -1599,8 +2114,9 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points,clonal_time_p
         Number of iteration for the joint optimization
     normalization_mode: `int`, optional (default: 1)
         Normalization method. Choice: [0,1].
-        0, single-cell normalization;
-        1, Clone normalization.
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
     smooth_array: `list`, optional (default: [15,10,5])
         List of smooth rounds at each iteration. 
         The n-th entry determines the smooth round for the Smatrix 
@@ -1639,6 +2155,7 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points,clonal_time_p
         Update adata.obsm['X_clone'] and adata.uns['transition_map'],
         as well as adata.uns['OT_transition_map'] or 
         adata.uns['HighVar_transition_map'], depending on the initialization.
+        adata.obsm['X_clone'] remains the same. 
     """
 
     t0=time.time()
@@ -1646,27 +2163,35 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points,clonal_time_p
     for xx in initial_time_points:
         if xx not in list(set(adata_orig.obs['time_info'])):
             logg.error(f"The 'initial_time_points' are not valid. Please select from {list(set(adata_orig.obs['time_info']))}")
-            return adata_orig
+            return None
 
     if save_subset:
         if not (np.all(np.diff(smooth_array)<=0) and np.all(np.array(smooth_array)%5==0)):
             logg.error("The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
              "The correct form is like [20,15,10], or [10,10,10,5]. Its length determines the number of iteration.\n"
-              "You can also set save_subset=False to explore arbitrary smooth_array structure. However, it would be much slower.")
-            return adata_orig
+              "You can also set save_subset=False to explore arbitrary smooth_array structure.")
+            return None
 
     hf.check_available_clonal_info(adata_orig)
-    with_clonal_info=(clonal_time_point in adata_orig.uns['clonal_time_points'])
-    if not with_clonal_info:
+    if not (clonal_time_point in adata_orig.uns['clonal_time_points']):
         logg.warn(f"'clonal_time_point' do not contain clonal information. Please set clonal_time_point to be one of {adata_orig.uns['clonal_time_points']}")
+        return None
         #logg.info("Consider run ----cs.tmap.CoSpar_NoClonalInfo------")
-        logg.warn("Keep running but without clonal information")
-        #return adata_orig
+        #logg.warn("Keep running but without clonal information")
+        
+
+    if initialize_method not in ['OT','HighVar']:
+        logg.error("initialize_method must be among ['OT','HighVar'].")
+        return None
+
+    if OT_cost not in ['GED','SPD']:
+        logg.error("OT_cost must be among ['GED','SPD'].")
+        return None        
 
 
     sp_idx=np.zeros(adata_orig.shape[0],dtype=bool)
     time_info_orig=np.array(adata_orig.obs['time_info'])
-    all_time_points=initial_time_points+[clonal_time_point]
+    all_time_points=list(initial_time_points)+[clonal_time_point]
     label='t'
     for xx in all_time_points:
         id_array=np.nonzero(time_info_orig==xx)[0]
@@ -1686,10 +2211,14 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points,clonal_time_p
     adata.uns['data_des']=[data_des_orig,data_des]
 
     
-
-
+    ## set cells without a clone ID to have a unique clone ID
     clone_annot_orig=adata_orig.obsm['X_clone']        
     clone_annot=clone_annot_orig[sp_idx]
+    if padding_X_clone:
+        zero_clone_idx=clone_annot.sum(1).A.flatten()==0
+        clone_annot_temp=np.diag(np.ones(adata_orig.shape[0]))
+    adata_orig.obsm['X_clone']=ssp.csr_matrix(X_clone)
+
     adata.obsm['X_clone']=clone_annot
 
     time_info=np.array(adata.obs['time_info'])
@@ -1710,10 +2239,9 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points,clonal_time_p
     ini_transition_map=np.zeros((len(Tmap_cell_id_t1),len(Tmap_cell_id_t2)))
 
 
+    logg.info("-----------------Infer transition map between initial time points and the later time one-----------------------")
     for yy in initial_time_points:
-        
-        logg.info("-------------------------------New Start--------------------------------------------------")
-        logg.info(f"Current time point: {yy}")
+        logg.info(f"Current initial time point: {yy}")
 
         adata_temp=infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=[yy,clonal_time_point],
             initialize_method=initialize_method,OT_epsilon=OT_epsilon,OT_dis_KNN=OT_dis_KNN,
@@ -1726,9 +2254,8 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points,clonal_time_p
         temp_id_t1=np.nonzero(time_info==yy)[0]
         sp_id_t1=hf.converting_id_from_fullSpace_to_subSpace(temp_id_t1,Tmap_cell_id_t1)[0]
         
-        if with_clonal_info:
-            transition_map_temp=adata_temp.uns['transition_map'].A
-            transition_map[sp_id_t1,:]=transition_map_temp
+        transition_map_temp=adata_temp.uns['transition_map'].A
+        transition_map[sp_id_t1,:]=transition_map_temp
 
         if initialize_method=='OT':
             transition_map_ini_temp=adata_temp.uns['OT_transition_map']
@@ -1737,8 +2264,8 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points,clonal_time_p
 
         ini_transition_map[sp_id_t1,:]=transition_map_ini_temp.A
 
-    if with_clonal_info:
-        adata.uns['transition_map']=ssp.csr_matrix(transition_map)
+
+    adata.uns['transition_map']=ssp.csr_matrix(transition_map)
     
     if initialize_method=='OT':
         adata.uns['OT_transition_map']=ssp.csr_matrix(ini_transition_map)
@@ -1750,29 +2277,45 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points,clonal_time_p
     return adata
 
 
-
-def infer_Tmap_from_state_info_alone(adata_orig,initial_time_points,target_time_point,
-    method='OT',OT_epsilon=0.02,OT_dis_KNN=5,OT_cost='SPD',
-    HighVar_gene_pctl=85,normalization_mode=1,noise_threshold=0.2,
-    CoSpar_KNN=20,use_full_Smatrix=True,smooth_array=[15,10,5],
-    trunca_threshold=0.001,compute_new=False,save_subset=True):
+# updated version: v1, we initialize the X_clone as isolated cells
+def infer_Tmap_from_state_info_alone(adata_orig,initial_time_points,later_time_point,
+    initialize_method='OT',OT_epsilon=0.02,OT_dis_KNN=5,OT_cost='SPD',
+    HighVar_gene_pctl=85,Clone_update_iter_N=1,normalization_mode=1,
+    noise_threshold=0.2,CoSpar_KNN=20,use_full_Smatrix=True,smooth_array=[15,10,5],
+    trunca_threshold=0.001,compute_new=False,
+    use_fixed_clonesize_t1=False,sort_clone=1,save_subset=True,
+    use_existing_KNN_graph=False):
     """
     Infer transition map from state information alone.
 
     We iteratively infer a transition map between each of the initial 
-    time points ['day_1','day_2',...,] and the targeted time point.
-    Given each two-time pair, we infer the map by either 'OT' method 
-    or 'HighVar' method:
+    time points ['day_1','day_2',...,] and the time point with clonal 
+    observation. We artificially generate an X_clone matrix where each 
+    cell is labeled by a distinct barcode. Given the two time points, 
+    after initializing the map by either the OT method or HighVar method, 
+    we jointly infer the likely initial clonal cells and the corresponding 
+    transition map.  
 
-    * 'OT': optional transport based method. It tends to be more accurate 
-       than 'HighVar', but not reliable under batch differences between 
-       time points.  Key parameters: `OT_epsilon, OT_dis_KNN`. 
+    **Summary**
+        
+    * Parameters relevant for cell state selection:  initial_time_points, 
+      later_time_point.
 
-    * 'HighVar': a method that converts highly variable genes into pseudo 
-       clones and run coherent sparsity optimization to generate an initialized 
-       map. Although it is not as accurate as OT, it is robust to batch effect 
-       across time points. Key parameter: `HighVar_gene_pctl`, `smooth_array, 
-       normalization_mode, CoSpar_KNN, noise_threshold, Clone_update_iter_N`.
+    * Initialization methods:
+
+        * 'OT': optional transport based method. It tends to be more accurate 
+           than `HighVar`, but not reliable under batch differences between 
+           time points.  Key parameters: `OT_epsilon, OT_dis_KNN`. 
+    
+        * 'HighVar': a method that converts highly variable genes into pseudo 
+           clones and run coherent sparsity optimization to generate an initialized 
+           map. Although it is not as accurate as OT, it is robust to batch effect 
+           across time points. Key parameter: `HighVar_gene_pctl`.
+
+    * Key parameters relevant for coherent sparsity optimization itself: 
+      `smooth_array, normalization_mode, CoSpar_KNN, noise_threshold, 
+      Clone_update_iter_N`.
+
 
     Parameters
     ----------
@@ -1781,18 +2324,18 @@ def infer_Tmap_from_state_info_alone(adata_orig,initial_time_points,target_time_
     initial_time_points: `list` 
         List of initial time points to be included for the transition map. 
         Like ['day_1','day_2']. Entries consistent with adata.obs['time_info']. 
-    clonal_time_point: `str` 
+    later_time_point: `str` 
         The time point with clonal observation. Its value should be 
         consistent with adata.obs['time_info']. 
-    method: `str`, optional (default 'OT') 
+    initialize_method: `str`, optional (default 'OT') 
         Method to initialize the transition map from state information. 
         Choice: {'OT', 'HighVar'}.
     OT_epsilon: `float`, optional (default: 0.02)  
         The entropic regularization, >0. A larger value increases 
-        uncertainty of the transition. Relevant when `method='OT'`.
+        uncertainty of the transition. Relevant when `initialize_method='OT'`.
     OT_dis_KNN: `int`, optional (default: 5)
         Number of nearest neighbors to construct the KNN graph for
-        computing the shortest path distance. Relevant when `method='OT'`. 
+        computing the shortest path distance. Relevant when `initialize_method='OT'`. 
     OT_cost: `str`, optional (default: `SPD`), options {'GED','SPD'}
         The cost metric. We provide gene expression distance (GED), and also
         shortest path distance (SPD). GED is much faster, but SPD is more accurate.
@@ -1800,11 +2343,14 @@ def infer_Tmap_from_state_info_alone(adata_orig,initial_time_points,target_time_
     HighVar_gene_pctl: `int`, optional (default: 85)
         Percentile threshold to select highly variable genes to construct pseudo-clones. 
         A higher value selects more variable genes. Range: [0,100]. 
-        Relevant when `method='HighVar'`.
+        Relevant when `initialize_method='HighVar'`.
+    Clone_update_iter_N: `int`, optional (default: 1)
+        Number of iteration for the joint optimization
     normalization_mode: `int`, optional (default: 1)
         Normalization method. Choice: [0,1].
-        0, single-cell normalization;
-        1, Clone normalization.
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
     smooth_array: `list`, optional (default: [15,10,5])
         List of smooth rounds at each iteration. 
         The n-th entry determines the smooth round for the Smatrix 
@@ -1825,109 +2371,69 @@ def infer_Tmap_from_state_info_alone(adata_orig,initial_time_points,target_time_
     use_full_Smatrix: `bool`, optional (default: True)
         If true, extract the relevant Smatrix from the full Smatrix defined by all cells.
         This tends to be more accurate. The package is optimized around this choice. 
+    use_fixed_clonesize_t1: `bool`, optional (default: False)
+        If true, fix the number of initial states as the same for all clones
+    sort_clone: `int`, optional (default: 1)
+        The order to infer initial states for each clone: {1,-1,others}.
+        1, sort clones by size from small to large;
+        -1, sort clones by size from large to small;
+        others, do not sort. 
     compute_new: `bool`, optional (default: False)
         If True, compute everything (ShortestPathDis, OT_map, etc.) from scratch, 
         whether it was computed and saved before or not. Regarding the Smatrix, it is 
         recomputed only when `use_full_Smatrix=False`.
+    use_existing_KNN_graph: `bool`, optional (default: False)
+        If true and adata.obsp['connectivities'], use the existing knn graph
+        to compute the shortest-path distance. Revelant if initialize_method='OT'.
+        This overrides all other relevant parameters for building shortest-path distance. 
 
     Returns
     -------
     adata: :class:`~anndata.AnnData` object
-        Update adata.uns['OT_transition_map'] or adata.uns['HighVar_transition_map'], 
-        depending on the initialization.
+        Update adata.obsm['X_clone'] and adata.uns['transition_map'],
+        as well as adata.uns['OT_transition_map'] or 
+        adata.uns['HighVar_transition_map'], depending on the initialization. 
+        adata.obsm['X_clone'] remains the same. 
     """
 
-    t0=time.time()
+    logg.info('Generate artifical clonal data where each cell has a different barcode')
+    X_clone_0=adata_orig.obsm['X_clone']
+    X_clone=np.diag(np.ones(adata_orig.shape[0]))
+    adata_orig.obsm['X_clone']=ssp.csr_matrix(X_clone)
 
-    for xx in initial_time_points:
-        if xx not in list(set(adata_orig.obs['time_info'])):
-            logg.error(f"the 'initial_time_points' are not valid. Please select from {list(set(adata_orig.obs['time_info']))}")
-            return adata_orig
+    adata=infer_Tmap_from_one_time_clones(adata_orig,initial_time_points,later_time_point,
+        initialize_method=initialize_method,OT_epsilon=OT_epsilon,OT_dis_KNN=OT_dis_KNN,
+        OT_cost=OT_cost,HighVar_gene_pctl=HighVar_gene_pctl,Clone_update_iter_N=Clone_update_iter_N,
+        normalization_mode=normalization_mode,noise_threshold=noise_threshold,
+        CoSpar_KNN=CoSpar_KNN,use_full_Smatrix=use_full_Smatrix,smooth_array=smooth_array,
+        trunca_threshold=trunca_threshold,compute_new=compute_new,
+        use_fixed_clonesize_t1=use_fixed_clonesize_t1,sort_clone=sort_clone,save_subset=save_subset,
+        use_existing_KNN_graph=use_existing_KNN_graph)
 
-    if save_subset and method!='OT':
-        if not (np.all(np.diff(smooth_array)<=0) and np.all(np.array(smooth_array)%5==0)):
-            logg.error("The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
-             "The correct form is like [20,15,10], or [10,10,10,5]. Its length determines the number of iteration.\n"
-              "You can also set save_subset=False to explore arbitrary smooth_array structure. However, it would be much slower.")
-            return adata_orig
-
-
-    sp_idx=np.zeros(adata_orig.shape[0],dtype=bool)
-    time_info_orig=np.array(adata_orig.obs['time_info'])
-    all_time_points=initial_time_points+[target_time_point]
-    label='t'
-    for xx in all_time_points:
-        id_array=np.nonzero(time_info_orig==xx)[0]
-        sp_idx[id_array]=True
-        label=label+'*'+str(xx)
-
-    adata=sc.AnnData(adata_orig.X[sp_idx]);
-    adata.var_names=adata_orig.var_names
-    adata.obsm['X_pca']=adata_orig.obsm['X_pca'][sp_idx]
-    adata.obsm['X_emb']=adata_orig.obsm['X_emb'][sp_idx]
-    adata.obs['state_info']=pd.Categorical(adata_orig.obs['state_info'][sp_idx])
-    adata.obs['time_info']=pd.Categorical(adata_orig.obs['time_info'][sp_idx])
-    
-    data_des_orig=adata_orig.uns['data_des'][0]
-    data_des_0=adata_orig.uns['data_des'][-1]
-    data_des=data_des_0+f'_OneTimeClone_{label}'
-    adata.uns['data_des']=[data_des_orig,data_des]
-    
+    if adata is not None:
+        # restore the original X_clone information
+        adata_orig.obsm['X_clone']=X_clone_0
+        sp_idx=adata.uns['sp_idx']
+        adata.obsm['X_clone']=ssp.csr_matrix(X_clone_0[sp_idx])
 
 
-    clone_annot_orig=adata_orig.obsm['X_clone']        
-    clone_annot=clone_annot_orig[sp_idx]
-    adata.obsm['X_clone']=clone_annot
-
-    time_info=np.array(adata.obs['time_info'])
-    time_index_t2=time_info==target_time_point
-    time_index_t1=~time_index_t2
-
-    #### used for similarity matrix generation
-    Tmap_cell_id_t1=np.nonzero(time_index_t1)[0]
-    Tmap_cell_id_t2=np.nonzero(time_index_t2)[0]
-    adata.uns['Tmap_cell_id_t1']=Tmap_cell_id_t1
-    adata.uns['Tmap_cell_id_t2']=Tmap_cell_id_t2
-    adata.uns['clonal_cell_id_t1']=Tmap_cell_id_t1
-    adata.uns['clonal_cell_id_t2']=Tmap_cell_id_t2
-    adata.uns['sp_idx']=sp_idx
-    #data_path=settings.data_path
-
-    ini_transition_map=np.zeros((len(Tmap_cell_id_t1),len(Tmap_cell_id_t2)))
-
-
-    for yy in initial_time_points:
+        # update the data_des tag
+        time_info_orig=np.array(adata_orig.obs['time_info'])
+        all_time_points=initial_time_points+[later_time_point]
+        label='t'
+        for xx in all_time_points:
+            id_array=np.nonzero(time_info_orig==xx)[0]
+            label=label+'*'+str(xx)
         
-        print("-------------------------------New Start--------------------------------------------------")
-        print(f"Current time point: {yy}")
+        data_des_orig=adata_orig.uns['data_des'][0]
+        data_des_0=adata_orig.uns['data_des'][-1]
+        data_des=data_des_0+f'_StateInfo_{label}'
+        adata.uns['data_des']=[data_des_orig,data_des]
 
-        # inactive the joint optimization by setting joint_optimization=False
-        adata_temp=infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=[yy,target_time_point],
-            initialize_method=method,OT_epsilon=OT_epsilon,OT_dis_KNN=OT_dis_KNN,
-            OT_cost=OT_cost,HighVar_gene_pctl=HighVar_gene_pctl,normalization_mode=normalization_mode,
-            noise_threshold=noise_threshold,CoSpar_KNN=CoSpar_KNN,use_full_Smatrix=use_full_Smatrix,smooth_array=smooth_array,
-            trunca_threshold=trunca_threshold,compute_new=compute_new,joint_optimization=False,save_subset=save_subset)
-
-        temp_id_t1=np.nonzero(time_info==yy)[0]
-        sp_id_t1=hf.converting_id_from_fullSpace_to_subSpace(temp_id_t1,Tmap_cell_id_t1)[0]
-        
-
-        if method=='OT':
-            transition_map_ini_temp=adata_temp.uns['OT_transition_map']
-        else:
-            transition_map_ini_temp=adata_temp.uns['HighVar_transition_map']
-
-        ini_transition_map[sp_id_t1,:]=transition_map_ini_temp.A
-
-    
-    if method=='OT':
-        adata.uns['OT_transition_map']=ssp.csr_matrix(ini_transition_map)
+        return adata
     else:
-        adata.uns['HighVar_transition_map']=ssp.csr_matrix(ini_transition_map)
+        return None
 
-    logg.info(f"-----------Total used time: {time.time()-t0} s ------------")
-
-    return adata
 
 
 def infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=['1','2'],
@@ -1935,7 +2441,7 @@ def infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=
     Clone_update_iter_N=1,normalization_mode=1,noise_threshold=0.2,CoSpar_KNN=20,
     use_full_Smatrix=True,smooth_array=[15,10,5],
     trunca_threshold=0.001,compute_new=True,use_fixed_clonesize_t1=False,
-    sort_clone=1,save_subset=True,joint_optimization=True):
+    sort_clone=1,save_subset=True,joint_optimization=True,use_existing_KNN_graph=False):
     """
     Infer transition map from clones with a single time point
 
@@ -1958,25 +2464,24 @@ def infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=
         # select cells from the two time points, and sub-sampling, create the new adata object with these cell states
         sp_idx=(time_info_orig==selected_two_time_points[0]) | (time_info_orig==selected_two_time_points[1])
   
-        adata=sc.AnnData(adata_orig.X[sp_idx]);
-        adata.var_names=adata_orig.var_names
-        adata.obsm['X_pca']=adata_orig.obsm['X_pca'][sp_idx]
-        adata.obsm['X_emb']=adata_orig.obsm['X_emb'][sp_idx]
-        adata.obs['state_info']=pd.Categorical(adata_orig.obs['state_info'][sp_idx])
-        adata.obs['time_info']=pd.Categorical(adata_orig.obs['time_info'][sp_idx])
+        adata=adata_orig[sp_idx]
+        # adata=sc.AnnData(adata_orig.X[sp_idx]);
+        # adata.var_names=adata_orig.var_names
+        # adata.obsm['X_pca']=adata_orig.obsm['X_pca'][sp_idx]
+        # adata.obsm['X_emb']=adata_orig.obsm['X_emb'][sp_idx]
+        # adata.obs['state_info']=pd.Categorical(adata_orig.obs['state_info'][sp_idx])
+        # adata.obs['time_info']=pd.Categorical(adata_orig.obs['time_info'][sp_idx])
+        # clone_annot_orig=adata_orig.obsm['X_clone']        
+        # barcode_id=np.nonzero(clone_annot_orig[sp_idx].A.sum(0).flatten()>0)[0]
+        # clone_annot=clone_annot_orig[sp_idx][:,barcode_id]
+        # adata.obsm['X_clone']=clone_annot
+
         
         data_des_0=adata_orig.uns['data_des'][-1]
         data_des_orig=adata_orig.uns['data_des'][0]
         data_des=data_des_0+f'_t*{selected_two_time_points[0]}*{selected_two_time_points[1]}'
         adata.uns['data_des']=[data_des_orig,data_des]
         
-
-
-        clone_annot_orig=adata_orig.obsm['X_clone']        
-        barcode_id=np.nonzero(clone_annot_orig[sp_idx].A.sum(0).flatten()>0)[0]
-        clone_annot=clone_annot_orig[sp_idx][:,barcode_id]
-        adata.obsm['X_clone']=clone_annot
-
         time_info=np.array(adata.obs['time_info'])
         time_index_t1=time_info==selected_two_time_points[0]
         time_index_t2=time_info==selected_two_time_points[1]
@@ -2014,7 +2519,8 @@ def infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=
             logg.info("----------------")
             logg.info("Step 1: Use OT method for initialization")
 
-            compute_custom_OT_transition_map(adata,OT_epsilon=OT_epsilon,OT_cost=OT_cost,OT_dis_KNN=OT_dis_KNN,compute_new=compute_new)
+            compute_custom_OT_transition_map(adata,OT_epsilon=OT_epsilon,OT_cost=OT_cost,OT_dis_KNN=OT_dis_KNN,
+                compute_new=compute_new,use_existing_KNN_graph=use_existing_KNN_graph)
             OT_transition_map=adata.uns['OT_transition_map']
             initialized_map=OT_transition_map
 
@@ -2117,7 +2623,109 @@ def infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=
 #             adata.uns['clonal_transition_map']=ssp.csr_matrix(T_map)
 
 
-def infer_Tmap_from_clonal_info_alone(adata,method='naive',selected_fates=[]):
+
+def infer_Tmap_from_clonal_info_alone(adata,method='naive',clonal_time_points=None,selected_fates=[]):
+    """
+    Compute transition map using only the lineage information.
+
+    We simply average transitions across all clones, assuming that
+    the intra-clone transition is uniform within the same clone. This
+    function also assumes that the dataset has clones with multiple time
+    points, and that it has been run through other transition map inference
+    methods that define the initial and later time points of the map.
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+    method: `str`, optional (default: 'naive')
+        Method used to compute the transition map. Choice: {'naive', 
+        'weinreb'}. For the naive method, we simply average transitions 
+        across all clones, assuming that the intra-clone transitions are 
+        uniform within the same clone. For the 'weinreb' method, we first 
+        find uni-potent clones, then compute the transition map by simply 
+        averaging across all clonal transitions as the naive method. 
+    selected_fates: `list`, optional (default: all selected)
+        List of targeted fate clusters to define uni-potent clones for the 
+        weinreb method, which are used to compute the transition map. 
+    clonal_time_points: `list`, optional (default: all)
+        Select time points for computing the transition map.
+
+    Returns
+    -------
+    Return a new `adata` object with the attributes adata.uns['clonal_transition_map']
+    """
+
+    hf.check_available_clonal_info(adata)
+    time_info_orig=np.array(adata.uns['clonal_time_points'])
+    if len(time_info_orig)<2:
+        logg.error("There are no multi-time clones. Abort the inference.")
+
+    else:
+        if 'time_ordering' not in adata.uns.keys():
+            hf.update_time_ordering(adata)
+        time_ordering=adata.uns['time_ordering']
+
+        if clonal_time_points==None:
+            sel_idx_temp=np.in1d(time_ordering,time_info_orig)
+            clonal_time_points=time_ordering[sel_idx_temp] # ordered clonal time points
+        else:
+            sel_idx_temp=np.in1d(time_ordering,clonal_time_points)
+            clonal_time_points=time_ordering[sel_idx_temp] # ordered clonal time points            
+                
+        adata_1=select_time_points(adata,time_point=clonal_time_points,extend_Tmap_space=True)
+
+
+        if ('Tmap_cell_id_t1' not in adata.uns.keys()) or ('Tmap_cell_id_t2' not in adata.uns.keys()) or (select_time_points is not None):
+            logg.info("Update Tmap_cell_id_t1 and Tmap_cell_id_t2")
+            cell_id_t2_all=adata_1.uns['Tmap_cell_id_t2']
+            cell_id_t1_all=adata_1.uns['Tmap_cell_id_t1']            
+        else: # use the original representation
+            logg.info("Use original Tmap_cell_id_t1 and Tmap_cell_id_t2")
+            cell_id_t2_all=adata.uns['Tmap_cell_id_t2']
+            cell_id_t1_all=adata.uns['Tmap_cell_id_t1']
+
+        T_map=np.zeros((len(cell_id_t1_all),len(cell_id_t2_all)))
+        clone_annot=adata_1.obsm['X_clone']
+
+        N_points=len(adata_1.uns['multiTime_cell_id_t1'])
+        for k in range(N_points):
+
+            cell_id_t1_temp=adata_1.uns['multiTime_cell_id_t1'][k]
+            cell_id_t2_temp=adata_1.uns['multiTime_cell_id_t2'][k]
+            if method=='naive':
+                logg.info("Use all clones (naive method)")
+                T_map_temp=clone_annot[cell_id_t1_temp]*clone_annot[cell_id_t2_temp].T
+
+            else:
+                logg.info("Use only uni-potent clones (weinreb method)")
+                state_annote=np.array(adata_1.obs['state_info'])
+                if len(selected_fates)==0:
+                    selected_fates=list(set(state_annote))
+                potential_vector_clone, fate_entropy_clone=hf.compute_state_potential(clone_annot[cell_id_t2_temp].T,state_annote[cell_id_t2_temp],selected_fates,fate_count=True)
+
+                sel_unipotent_clone_id=np.array(list(set(np.nonzero(fate_entropy_clone==1)[0])))
+                clone_annot_unipotent=clone_annot[:,sel_unipotent_clone_id]
+                T_map_temp=clone_annot_unipotent[cell_id_t1_temp]*clone_annot_unipotent[cell_id_t2_temp].T
+                logg.info(f"Used uni-potent clone fraction {len(sel_unipotent_clone_id)/clone_annot.shape[1]}")
+
+            idx_t1=np.nonzero(np.in1d(cell_id_t1_all,cell_id_t1_temp))[0]
+            idx_t2=np.nonzero(np.in1d(cell_id_t2_all,cell_id_t2_temp))[0]
+            idx_t1_temp=np.nonzero(np.in1d(cell_id_t1_temp,cell_id_t1_all))[0]
+            idx_t2_temp=np.nonzero(np.in1d(cell_id_t2_temp,cell_id_t2_all))[0]
+            T_map[idx_t1[:,np.newaxis],idx_t2]=T_map_temp[idx_t1_temp][:,idx_t2_temp].A
+            
+        T_map=T_map.astype(int)
+        if (select_time_points is not None): # a subsampling might happened, return adata_1 with fewer cells
+            adata_1.uns['clonal_transition_map']=ssp.csr_matrix(T_map)
+            return adata_1
+        else:
+            adata.uns['clonal_transition_map']=ssp.csr_matrix(T_map)
+            adata.uns['Tmap_cell_id_t1']=cell_id_t1_all
+            adata.uns['Tmap_cell_id_t2']=cell_id_t2_all
+            return adata
+
+
+def infer_Tmap_from_clonal_info_alone_v0(adata,method='naive',selected_fates=[]):
     """
     Compute transition map using only the lineage information.
 

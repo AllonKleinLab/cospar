@@ -45,7 +45,7 @@ Your help to improve CoSpar is highly appreciated.
 
 Acknowledgment
 ^^^^^^^^^^^^^^
-Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthedocs.io/>`_ for inspiring him to make this website during a simulated discussion. He also wants to acknowledge the community that maintains `scanpy <https://scanpy.readthedocs.io/>`_ and `scvelo <https://scvelo.readthedocs.io/>`_. He learned a lot about code documentation and how to make a technical website from these two packages. Finally, he wants to thank Allon Klein for his mentorship and thoughtful suggestions, and Tal Debrobrah Scully and Qiu Wu for testing the package and making suggestions.   
+Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthedocs.io/>`_ for inspiring him to make this website during a simulated discussion. He also wants to acknowledge the community that maintains `scanpy <https://scanpy.readthedocs.io/>`_ and `scvelo <https://scvelo.readthedocs.io/>`_. He learned a lot about code documentation and how to make a technical website from these two packages. He  also wants to thank Allon Klein for his mentorship and thoughtful suggestions, and Tal Debrobrah Scully and Qiu Wu for testing the package and making suggestions. Finally, he wants to acknowledge the generous support of the Damon Runyon Foundation through the Quantitative Biology Fellowship, which motivates him to dream bigger.     
 
 
 .. toctree::

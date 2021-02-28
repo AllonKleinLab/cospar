@@ -10,13 +10,13 @@ from pathlib import Path, PurePath
 from matplotlib import pyplot as plt
 
 from .. import help_functions as hf
-from .. import plotting as CSpl
+from .. import plotting as pl
 from .. import settings
 from .. import logging as logg
 
 
-def initialize_adata_object(cell_by_gene_matrix,gene_names,time_info,
-    X_clone=[],X_pca=[],X_emb=[],state_info=[],data_des='cospar'):
+def initialize_adata_object(adata=None,cell_by_gene_matrix=None,gene_names=None,time_info=None,
+    X_clone=None,X_pca=None,X_emb=None,state_info=None,data_des='cospar'):
     """
     Initialized the :class:`~anndata.AnnData` object.
 
@@ -26,11 +26,14 @@ def initialize_adata_object(cell_by_gene_matrix,gene_names,time_info,
 
     Parameters
     ---------- 
-    cell_by_gene_matrix: `np.ndarray` or `sp.spmatrix`
+    adata: :class:`~anndata.AnnData` object
+    cell_by_gene_matrix: `np.ndarray` or `sp.spmatrix`, optional (default: None)
         The count matrix for state information. 
-        Rows correspond to cells and columns to genes. 
-    gene_names: `np.ndarray`
-        An array of gene names.
+        Rows correspond to cells and columns to genes. If adata_0 is provided, this
+        is not necessary.
+    gene_names: `np.ndarray`, optional (default: None)
+        An array of gene names. If adata_0 is provided, this
+        is not necessary.
     time_info: `np.ndarray`
         Time annotation for each cell in `str`,like 'Day27' or 'D27'.
         However, it can also contain other sample_info, 
@@ -74,59 +77,91 @@ def initialize_adata_object(cell_by_gene_matrix,gene_names,time_info,
         Path(figure_path).mkdir(parents=True)
 
     
-    time_info=np.array(time_info)
-    time_info=time_info.astype(str)
 
-    #!mkdir -p $data_path
-    adata=sc.AnnData(ssp.csr_matrix(cell_by_gene_matrix))
-    adata.var_names=list(gene_names)
+    if (adata is None):
+        if (cell_by_gene_matrix is not None) and (gene_names) is not None:
+            logg.info('Create new anndata object')
+            adata=sc.AnnData(ssp.csr_matrix(cell_by_gene_matrix))
+            adata.var_names=list(gene_names)
+        else:
+            logg.error('If adata is not provided, cell_by_gene_matrix and gene_names must be provided. Abort initialization.')
+            return None
 
-    if X_clone.shape[0]==0:
-        X_clone=np.zeros((adata.shape[0],1))
+    if (time_info is None): 
+        if 'time_info' not in adata.obs.keys():
+            logg.error("time_info not provided. Abort initialization.")
+            return None
+    else:
+        time_info=np.array(time_info)
+        time_info=time_info.astype(str)
+        adata.obs['time_info']=pd.Categorical(time_info)
+
 
 
     # we do not remove zero-sized clones here as in some case, we want 
     # to use this package even if we do not have clonal data.
     # Removing zero-sized clones will be handled downstream when we have to 
-    adata.obsm['X_clone']=ssp.csr_matrix(X_clone)
-    adata.obs['time_info']=pd.Categorical(time_info)
-    adata.uns['data_des']=[data_des]
-    # adata.uns['data_path']=[data_path]
-    # adata.uns['figure_path']=[figure_path]
-
-    # record time points with clonal information
-    if ssp.issparse(X_clone):
-        clone_N_per_cell=X_clone.sum(1).A.flatten()
+    if X_clone is None:
+        if 'X_clone' not in adata.obsm.keys():
+            X_clone=np.zeros((adata.shape[0],1))
+            adata.obsm['X_clone']=ssp.csr_matrix(X_clone)
     else:
-        clone_N_per_cell=X_clone.sum(1)
-        
-    clonal_time_points=[]
-    for xx in list(set(time_info)):
-        idx=np.array(time_info)==xx
-        if np.sum(clone_N_per_cell[idx])>0:
-            clonal_time_points.append(xx)
-    adata.uns['clonal_time_points']=clonal_time_points
+        if X_clone.shape[0]==adata.shape[0]:
+            adata.obsm['X_clone']=ssp.csr_matrix(X_clone)
+        else:
+            logg.error("X_clone.shape[0] not equal to cell number. Abort initialization.")
+            return None
+
+    
+    adata.uns['data_des']=[data_des]
+    hf.check_available_clonal_info(adata)
 
 
-    if len(X_pca)==adata.shape[0]:
-        adata.obsm['X_pca']=np.array(X_pca)
+    if (X_pca is not None):
+        if (X_pca.shape[0]==adata.shape[0]):
+            adata.obsm['X_pca']=np.array(X_pca)
+        else:
+            logg.error("X_pca.shape[0] not equal to cell number")
+    else:
+        if 'X_pca' not in adata.obsm.keys():
+            logg.warn("X_pca not provided. Downstrean processing is needed to generate X_pca before computing the transition map.")
 
-    if len(state_info)==adata.shape[0]:
-        adata.obs['state_info']=pd.Categorical(state_info)
+    if (state_info is not None):
+        if (len(state_info)==adata.shape[0]):
+            adata.obs['state_info']=pd.Categorical(state_info)
+        else:
+            logg.error("state_info length not equal to cell number")
+    else:
+        if 'state_info' not in adata.obs.keys():
+            logg.warn("state_info not provided. Downstrean processing is needed before analyzing the transition map.")
 
-    if len(X_emb)==adata.shape[0]:
-        adata.obsm['X_emb']=X_emb
+
+    if (X_emb is not None):
+        if (X_emb.shape[0]==adata.shape[0]):
+            adata.obsm['X_emb']=X_emb
+        else:
+            logg.error("X_emb.shape[0] not equal to cell number")
+    else:
+        if 'X_emb' not in adata.obsm.keys():
+            if 'X_umap' in adata.obsm.keys():
+                logg.warn("Use X_umap as the default embedding")
+                adata.obsm['X_emb']=adata.obsm['X_umap']
+            else:
+                logg.warn("X_emb not provided. Downstrean processing is needed before analyzing the transition map.")
+      
 
     logg.info(f"All time points: {set(adata.obs['time_info'])}")
     logg.info(f"Time points with clonal info: {set(adata.uns['clonal_time_points'])}")
             
-
 
     time_ordering=np.sort(list(set(adata.obs['time_info'])))
     logg.warn(f"Default ascending ordering of time points are: {time_ordering}. If not correct, run cs.hf.update_time_ordering for correction.")
     adata.uns['time_ordering']=np.array(time_ordering)
 
     return adata
+
+
+
 
 
 def get_highly_variable_genes(adata,normalized_counts_per_cell=10000,min_counts=3, 
@@ -334,7 +369,7 @@ def get_state_info(adata,n_neighbors=20,resolution=0.5):
 
 ############# refine clusters for state_info
 
-def refine_state_info_by_leiden_clustering(adata,selected_time_points=[],
+def refine_state_info_by_leiden_clustering(adata,selected_time_points=None,
     resolution=0.5,n_neighbors=20,confirm_change=False,cluster_name_prefix='S'):
     """
     Refine state info by clustering states at given time points.
@@ -370,7 +405,7 @@ def refine_state_info_by_leiden_clustering(adata,selected_time_points=[],
     time_info=adata.obs['time_info']
     available_time_points=list(set(time_info))
     
-    if len(selected_time_points)==0:
+    if selected_time_points==None:
         selected_time_points=available_time_points
 
     if np.sum(np.in1d(selected_time_points,available_time_points))!=len(selected_time_points):
@@ -390,7 +425,7 @@ def refine_state_info_by_leiden_clustering(adata,selected_time_points=[],
         sc.pp.neighbors(adata_sp, n_neighbors=n_neighbors)
         sc.tl.leiden(adata_sp,resolution=resolution)
 
-        CSpl.embedding(adata_sp,color='leiden')
+        pl.embedding(adata_sp,color='leiden')
         
         if confirm_change:
             logg.info("Change state annotation at adata.obs['state_info']")
@@ -402,12 +437,12 @@ def refine_state_info_by_leiden_clustering(adata,selected_time_points=[],
             
             orig_state_annot[sp_idx]=temp_array
             adata.obs['state_info']=pd.Categorical(orig_state_annot)
-            CSpl.embedding(adata,color='state_info')
+            pl.embedding(adata,color='state_info')
         
 
 
 def refine_state_info_by_marker_genes(adata,marker_genes,express_threshold=0.1,
-    selected_time_points=[],new_cluster_name='new_cluster',confirm_change=False,add_neighbor_N=5):
+    selected_time_points=None,new_cluster_name='new_cluster',confirm_change=False,add_neighbor_N=5):
     """
     Refine state info according to marker gene expression.
 
@@ -451,7 +486,7 @@ def refine_state_info_by_marker_genes(adata,marker_genes,express_threshold=0.1,
     y_emb=adata.obsm['X_emb'][:,1]
     available_time_points=list(set(time_info))
     
-    if len(selected_time_points)==0:
+    if selected_time_points==None:
         selected_time_points=available_time_points
         
     sp_idx=np.zeros(adata.shape[0],dtype=bool)
@@ -486,7 +521,7 @@ def refine_state_info_by_marker_genes(adata,marker_genes,express_threshold=0.1,
 
         fig_width=settings.fig_width; fig_height=settings.fig_height;
         fig=plt.figure(figsize=(fig_width,fig_height));ax=plt.subplot(1,1,1)
-        CSpl.customized_embedding(x_emb,y_emb,selected_states_idx,ax=ax)
+        pl.customized_embedding(x_emb,y_emb,selected_states_idx,ax=ax)
         ax.set_title(f"{tot_name}; Cell #: {np.sum(selected_states_idx)}")
         #print(f"Selected cell state number: {np.sum(selected_states_idx)}")
 
@@ -500,7 +535,7 @@ def refine_state_info_by_marker_genes(adata,marker_genes,express_threshold=0.1,
             orig_state_annot=np.array(adata.obs['state_info'])
             orig_state_annot[selected_states_idx]=np.array([new_cluster_name for j in range(np.sum(selected_states_idx))])
             adata.obs['state_info']=pd.Categorical(orig_state_annot)
-            CSpl.embedding(adata,color='state_info')
+            pl.embedding(adata,color='state_info')
     else:
         logg.error("Either the gene names or the time point names are not right.")
 

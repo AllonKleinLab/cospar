@@ -1861,7 +1861,185 @@ def infer_Tmap_from_one_time_clones_private(adata,initialized_map,Clone_update_i
         map_temp=adata.uns['transition_map']
 
 
+# This is outdated version. Here, we do not run joint optimization.
+def infer_Tmap_from_state_info_alone_v0(adata_orig,initial_time_points,target_time_point,
+    method='OT',OT_epsilon=0.02,OT_dis_KNN=5,OT_cost='SPD',
+    HighVar_gene_pctl=85,normalization_mode=1,noise_threshold=0.2,
+    CoSpar_KNN=20,use_full_Smatrix=True,smooth_array=[15,10,5],
+    trunca_threshold=0.001,compute_new=False,save_subset=True):
+    """
+    Infer transition map from state information alone.
 
+    We iteratively infer a transition map between each of the initial 
+    time points ['day_1','day_2',...,] and the targeted time point.
+    Given each two-time pair, we initiate the map by either 'OT' method 
+    or 'HighVar' method:
+
+    * 'OT': optional transport based method. It tends to be more accurate 
+       than 'HighVar', but not reliable under batch differences between 
+       time points.  Key parameters: `OT_epsilon, OT_dis_KNN`. 
+
+    * 'HighVar': a method that converts highly variable genes into pseudo 
+       clones and run coherent sparsity optimization to generate an initialized 
+       map. Although it is not as accurate as OT, it is robust to batch effect 
+       across time points. Key parameter: `HighVar_gene_pctl`, `smooth_array, 
+       normalization_mode, CoSpar_KNN, noise_threshold, Clone_update_iter_N`.
+
+    Parameters
+    ----------
+    adata_orig: :class:`~anndata.AnnData` object
+        It is assumed to be preprocessed and has multiple time points.
+    initial_time_points: `list` 
+        List of initial time points to be included for the transition map. 
+        Like ['day_1','day_2']. Entries consistent with adata.obs['time_info']. 
+    clonal_time_point: `str` 
+        The time point with clonal observation. Its value should be 
+        consistent with adata.obs['time_info']. 
+    method: `str`, optional (default 'OT') 
+        Method to initialize the transition map from state information. 
+        Choice: {'OT', 'HighVar'}.
+    OT_epsilon: `float`, optional (default: 0.02)  
+        The entropic regularization, >0. A larger value increases 
+        uncertainty of the transition. Relevant when `method='OT'`.
+    OT_dis_KNN: `int`, optional (default: 5)
+        Number of nearest neighbors to construct the KNN graph for
+        computing the shortest path distance. Relevant when `method='OT'`. 
+    OT_cost: `str`, optional (default: `SPD`), options {'GED','SPD'}
+        The cost metric. We provide gene expression distance (GED), and also
+        shortest path distance (SPD). GED is much faster, but SPD is more accurate.
+        However, cospar is robust to the initialization. 
+    HighVar_gene_pctl: `int`, optional (default: 85)
+        Percentile threshold to select highly variable genes to construct pseudo-clones. 
+        A higher value selects more variable genes. Range: [0,100]. 
+        Relevant when `method='HighVar'`.
+    normalization_mode: `int`, optional (default: 1)
+        Normalization method. Choice: [0,1].
+        0, single-cell normalization;
+        1, Clone normalization.
+    smooth_array: `list`, optional (default: [15,10,5])
+        List of smooth rounds at each iteration. 
+        The n-th entry determines the smooth round for the Smatrix 
+        at the n-th iteration. Its length determines the number of
+        iterations. It is better to use a number at the multiple of 
+        5, i.e., 5, 10, 15, 20,...
+    CoSpar_KNN: `int`, optional (default: 20)
+        The number of neighbors for KNN graph used for computing the similarity matrix.
+    trunca_threshold: `float`, optional (default: 0.001)
+        Threshold to reset entries of the computed similarity matrix. 
+        This is only for computational and storage efficiency.
+    noise_threshold: `float`, optional (default: 0.1)
+        The relative threshold to remove noises in the updated transition map,
+        in the range [0,1].
+    save_subset: `bool`, optional (default: True)
+        If true, save only Smatrix at smooth round [5,10,15,...];
+        Otherwise, save Smatrix at each round. 
+    use_full_Smatrix: `bool`, optional (default: True)
+        If true, extract the relevant Smatrix from the full Smatrix defined by all cells.
+        This tends to be more accurate. The package is optimized around this choice. 
+    compute_new: `bool`, optional (default: False)
+        If True, compute everything (ShortestPathDis, OT_map, etc.) from scratch, 
+        whether it was computed and saved before or not. Regarding the Smatrix, it is 
+        recomputed only when `use_full_Smatrix=False`.
+
+    Returns
+    -------
+    adata: :class:`~anndata.AnnData` object
+        Update adata.uns['OT_transition_map'] or adata.uns['HighVar_transition_map'], 
+        depending on the initialization. 
+    """
+
+    t0=time.time()
+
+    for xx in initial_time_points:
+        if xx not in list(set(adata_orig.obs['time_info'])):
+            logg.error(f"the 'initial_time_points' are not valid. Please select from {list(set(adata_orig.obs['time_info']))}")
+            return adata_orig
+
+    if save_subset and method!='OT':
+        if not (np.all(np.diff(smooth_array)<=0) and np.all(np.array(smooth_array)%5==0)):
+            logg.error("The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
+             "The correct form is like [20,15,10], or [10,10,10,5]. Its length determines the number of iteration.\n"
+              "You can also set save_subset=False to explore arbitrary smooth_array structure. However, it would be much slower.")
+            return adata_orig
+
+
+    sp_idx=np.zeros(adata_orig.shape[0],dtype=bool)
+    time_info_orig=np.array(adata_orig.obs['time_info'])
+    all_time_points=initial_time_points+[target_time_point]
+    label='t'
+    for xx in all_time_points:
+        id_array=np.nonzero(time_info_orig==xx)[0]
+        sp_idx[id_array]=True
+        label=label+'*'+str(xx)
+
+    adata=sc.AnnData(adata_orig.X[sp_idx]);
+    adata.var_names=adata_orig.var_names
+    adata.obsm['X_pca']=adata_orig.obsm['X_pca'][sp_idx]
+    adata.obsm['X_emb']=adata_orig.obsm['X_emb'][sp_idx]
+    adata.obs['state_info']=pd.Categorical(adata_orig.obs['state_info'][sp_idx])
+    adata.obs['time_info']=pd.Categorical(adata_orig.obs['time_info'][sp_idx])
+    
+    data_des_orig=adata_orig.uns['data_des'][0]
+    data_des_0=adata_orig.uns['data_des'][-1]
+    data_des=data_des_0+f'_OneTimeClone_{label}'
+    adata.uns['data_des']=[data_des_orig,data_des]
+    
+
+
+    clone_annot_orig=adata_orig.obsm['X_clone']        
+    clone_annot=clone_annot_orig[sp_idx]
+    adata.obsm['X_clone']=clone_annot
+
+    time_info=np.array(adata.obs['time_info'])
+    time_index_t2=time_info==target_time_point
+    time_index_t1=~time_index_t2
+
+    #### used for similarity matrix generation
+    Tmap_cell_id_t1=np.nonzero(time_index_t1)[0]
+    Tmap_cell_id_t2=np.nonzero(time_index_t2)[0]
+    adata.uns['Tmap_cell_id_t1']=Tmap_cell_id_t1
+    adata.uns['Tmap_cell_id_t2']=Tmap_cell_id_t2
+    adata.uns['clonal_cell_id_t1']=Tmap_cell_id_t1
+    adata.uns['clonal_cell_id_t2']=Tmap_cell_id_t2
+    adata.uns['sp_idx']=sp_idx
+    #data_path=settings.data_path
+
+    ini_transition_map=np.zeros((len(Tmap_cell_id_t1),len(Tmap_cell_id_t2)))
+
+
+    for yy in initial_time_points:
+        
+        print("-------------------------------New Start--------------------------------------------------")
+        print(f"Current time point: {yy}")
+
+        # inactive the joint optimization by setting joint_optimization=False
+        adata_temp=infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=[yy,target_time_point],
+            initialize_method=method,OT_epsilon=OT_epsilon,OT_dis_KNN=OT_dis_KNN,
+            OT_cost=OT_cost,HighVar_gene_pctl=HighVar_gene_pctl,normalization_mode=normalization_mode,
+            noise_threshold=noise_threshold,CoSpar_KNN=CoSpar_KNN,use_full_Smatrix=use_full_Smatrix,smooth_array=smooth_array,
+            trunca_threshold=trunca_threshold,compute_new=compute_new,joint_optimization=False,save_subset=save_subset)
+
+        temp_id_t1=np.nonzero(time_info==yy)[0]
+        sp_id_t1=hf.converting_id_from_fullSpace_to_subSpace(temp_id_t1,Tmap_cell_id_t1)[0]
+        
+
+        if method=='OT':
+            transition_map_ini_temp=adata_temp.uns['OT_transition_map']
+        else:
+            transition_map_ini_temp=adata_temp.uns['HighVar_transition_map']
+
+        ini_transition_map[sp_id_t1,:]=transition_map_ini_temp.A
+
+    
+    if method=='OT':
+        adata.uns['OT_transition_map']=ssp.csr_matrix(ini_transition_map)
+    else:
+        adata.uns['HighVar_transition_map']=ssp.csr_matrix(ini_transition_map)
+
+    logg.info(f"-----------Total used time: {time.time()-t0} s ------------")
+
+    return adata
+    
 
 # This is good, but time consuming. We tested that it gives exactly the same result as the v0 version.
 def infer_Tmap_from_one_time_clones_private_v1(adata,initialized_map,Clone_update_iter_N=1,

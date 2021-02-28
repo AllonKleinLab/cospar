@@ -762,10 +762,6 @@ def fate_coupling_from_Tmap(adata,selected_fates=[],used_map_name='transition_ma
         Provide new names in substitution of names in selected_fates.
         For this to be effective, the new name list needs to have names 
         in exact correspondence to those in the old list. 
-
-    Returns
-    -------
-    Return the coupling matrix. 
     """
 
     hf.check_available_map(adata)
@@ -776,7 +772,7 @@ def fate_coupling_from_Tmap(adata,selected_fates=[],used_map_name='transition_ma
     
     if used_map_name not in adata.uns['available_map']:
         logg.error(f"used_map_name should be among {adata.uns['available_map']}")
-        return None
+
     else:        
         state_annote=adata.obs['state_info']
         if map_backwards:
@@ -804,7 +800,6 @@ def fate_coupling_from_Tmap(adata,selected_fates=[],used_map_name='transition_ma
 
         if (len(mega_cluster_list)==0) or (np.sum(sp_idx)==0):
             logg.error("No cells selected. Computation aborted!")
-            return None
         else:
             # normalize the map to enhance the fate choice difference among selected clusters
             if normalize_fate_map and (fate_map.shape[1]>1):
@@ -819,7 +814,6 @@ def fate_coupling_from_Tmap(adata,selected_fates=[],used_map_name='transition_ma
             X_ICSLAM = hf.get_normalized_covariance(fate_map[sp_idx],method=coupling_normalization)
             heatmap(figure_path, X_ICSLAM, rename_selected_fates,color_bar_label='Coupling',color_bar=color_bar,data_des=data_des)
 
-            return X_ICSLAM
 
 ####################
 
@@ -2013,12 +2007,10 @@ def fate_coupling_from_clones(adata,selected_time_point,selected_fates=[],color_
 
     if (np.sum(sp_idx)==0):
         logg.error("No cells selected. Computation aborted!")
-        return None
     else:
         mega_cluster_list,valid_fate_list,fate_array_flat,sel_index_list=hf.analyze_selected_fates(selected_fates,state_annote)
         if (len(mega_cluster_list)==0):
             logg.error("No cells selected. Computation aborted!")
-            return None
         else:
             x_emb=adata.obsm['X_emb'][:,0]
             y_emb=adata.obsm['X_emb'][:,1]
@@ -2036,6 +2028,6 @@ def fate_coupling_from_clones(adata,selected_time_point,selected_fates=[],color_
             X_weinreb = hf.get_normalized_covariance(coarse_clone_annot.T,method='Weinreb')
             heatmap(figure_path, X_weinreb, rename_selected_fates,color_bar_label='Coupling',color_bar=color_bar,data_des=data_des)
 
-            return X_weinreb
+
 
 

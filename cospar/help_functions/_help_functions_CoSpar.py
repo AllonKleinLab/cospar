@@ -15,8 +15,11 @@ import statsmodels.sandbox.stats.multicomp
 from scipy.spatial.distance import pdist
 from fastcluster import linkage
 from .. import settings
+from .. import pl
+from .. import tmap
 from .. import logging as logg
 import time
+from matplotlib import pyplot as plt
 
 #import scipy.stats
 
@@ -920,9 +923,8 @@ def mapout_trajectories(transition_map,state_prob_t2,threshold=0.1,cell_id_t1=[]
     return state_prob_t1_truc
 
 
-
 # v1, the new methods, more options.
-def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances',limit=np.inf, method='umap'):
+def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances',limit=np.inf, method='umap',normalize=True,use_existing_KNN_graph=False):
     """
     Compute shortest path distance from raw data.
 
@@ -949,39 +951,54 @@ def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances'
         The method to construct the KNN graph. Options: {'umap','gauss','others'}. 
         The frist two methods are based on sc.pp.neighbors, while the last is from 
         kneighbors_graph.
+    normalize: `bool`, optional (default: True)
+        Normalize the distance matrix by its maximum value.
+    use_existing_KNN_graph: `bool`, optional (default: False)
+        If true and adata.obsp['connectivities'], use the existing knn graph
+        regardless of neighbor_N. This overrides all other parameters. 
 
     Returns
     -------
     The normalized distance matrix is returned.
     """
     
-    if mode!='connectivities':
-        mode='distances'
+    if (not use_existing_KNN_graph) or ('connectivities' not in adata.obsp.keys()):
 
-    logg.hint(f"Chosen mode is {mode}")
-    if method=='umap':
-        sc.pp.neighbors(adata, n_neighbors=num_neighbors_target,method='umap')
-        adj_matrix=adata.obsp[mode].A.copy()
+        if mode!='connectivities':
+            mode='distances'
 
-    elif method=='gauss':
-        sc.pp.neighbors(adata, n_neighbors=num_neighbors_target,method='gauss')
-        adj_matrix=adata.obsp[mode].A.copy()            
+        logg.hint(f"Chosen mode is {mode}")
+        if method=='umap':
+            sc.pp.neighbors(adata, n_neighbors=num_neighbors_target,method='umap')
+            adj_matrix=adata.obsp[mode]
+
+        elif method=='gauss':
+            sc.pp.neighbors(adata, n_neighbors=num_neighbors_target,method='gauss')
+            adj_matrix=adata.obsp[mode]           
+
+        else:
+            if mode=='distances': 
+                mode='distance'
+            else:
+                mode='connectivity'
+            data_matrix=adata.obsm['X_pca']
+            adj_matrix = kneighbors_graph(data_matrix, num_neighbors_target, mode=mode, include_self=True)
 
     else:
-        if mode=='distances': 
-            mode='distance'
-        else:
-            mode='connectivity'
-        data_matrix=adata.obsm['X_pca']
-        adj_matrix = kneighbors_graph(data_matrix, num_neighbors_target, mode=mode, include_self=True)
-
+        logg.info("Use existing KNN graph at adata.obsp['connectivities'] for generating the smooth matrix")
+        adj_matrix=adata.obsp['connectivities'];
 
     ShortPath_dis = dijkstra(csgraph = ssp.csr_matrix(adj_matrix), directed = False,return_predecessors = False)
     ShortPath_dis_max = np.nanmax(ShortPath_dis[ShortPath_dis != np.inf])
     ShortPath_dis[ShortPath_dis > ShortPath_dis_max] = ShortPath_dis_max #set threshold for shortest paths
 
     # Set normalized cost matrices based on shortest paths matrices at target and source spaces
-    return ShortPath_dis / ShortPath_dis.max()
+    if normalize:
+        ShortPath_dis_final=ShortPath_dis / ShortPath_dis.max()
+    else:
+        ShortPath_dis_final=ShortPath_dis
+
+    return  ShortPath_dis_final
 
 
 # v0, the old methods
@@ -1166,6 +1183,66 @@ def save_map(adata):
 
 
 
+def smooth_a_vector(adata,vector,round_of_smooth=5,use_full_Smatrix=True,trunca_threshold=0.001,compute_new=False,neighbor_N=20,show_groups=True,save_subset=True):
+    """
+    
+
+    """
+
+    vector=np.array(vector)
+    if len(vector) != adata.shape[0]:
+        logg.error("The length of the vector does not match that of adata.shape[0]")
+        return None
+
+    data_des=adata.uns['data_des'][0]
+    data_des_1=adata.uns['data_des'][-1]
+    data_path=settings.data_path
+    if 'sp_idx' in adata.uns.keys():
+        sp_idx=adata.uns['sp_idx']
+    else:
+        sp_idx=np.ones(adata.shape[0]).astype(bool)
+
+    #trunca_threshold=0.001 # this value is only for reducing the computed matrix size for saving
+    temp_str='0'+str(trunca_threshold)[2:]
+
+    if use_full_Smatrix:
+        similarity_file_name=f'{data_path}/{data_des}_Similarity_matrix_with_all_cell_states_kNN{neighbor_N}_Truncate{temp_str}'
+
+        if not os.path.exists(similarity_file_name+f'_SM{round_of_smooth}.npz'):
+            logg.error(f"Similarity matrix at given parameters have not been computed before! Fiale name: {similarity_file_name}")
+            logg.error(f'Please use other Tmap inference function to build the full similarity matrix at the corresponding smooth rounds, using adata_orig.')     
+            return  None
+
+    else:
+        similarity_file_name=f'{data_path}/{data_des_1}_Similarity_matrix_with_selected_states_kNN{neighbor_N}_Truncate{temp_str}'
+
+
+    # we cannot force it to compute new at this time. Otherwise, if we use_full_Smatrix, the resulting similarity is actually from adata, thus not full similarity. 
+
+    re_compute=(not use_full_Smatrix) and (compute_new) # re-compute only when not using full similarity 
+    similarity_matrix_full=tmap.generate_similarity_matrix(adata,similarity_file_name,round_of_smooth=round_of_smooth,
+                neighbor_N=neighbor_N,truncation_threshold=trunca_threshold,save_subset=save_subset,compute_new_Smatrix=re_compute)
+
+    if use_full_Smatrix:
+        #pdb.set_trace()
+        similarity_matrix_full_sp=similarity_matrix_full[sp_idx][:,sp_idx]
+
+    else:
+        similarity_matrix_full_sp=similarity_matrix_full
+
+    smooth_vector=similarity_matrix_full_sp*vector
+    if show_groups:
+        x_emb=adata.obsm['X_emb'][:,0]
+        y_emb=adata.obsm['X_emb'][:,1]
+        fig_width=settings.fig_width; fig_height=settings.fig_height;
+        fig=plt.figure(figsize=(2*fig_width,fig_height))
+        ax=plt.subplot(1,2,1)
+        pl.customized_embedding(x_emb,y_emb,vector,ax=ax)
+        ax=plt.subplot(1,2,2)
+        pl.customized_embedding(x_emb,y_emb,smooth_vector,ax=ax)
+        
+    return smooth_vector
+
 def update_time_ordering(adata,updated_ordering=[]):
     """
     Update the ordering of time points at adata.uns['time_ordering']
@@ -1233,20 +1310,19 @@ def save_preprocessed_adata(adata,data_des=''):
         data_des=adata.uns['data_des'][-1]
     data_path=settings.data_path
 
-    check_list=list(adata.uns.keys())
-    for xx in  check_list:
-        if xx not in ['data_des','clonal_time_points']:
+    for xx in  ['fate_trajectory', 'multiTime_cell_id_t1', 'multiTime_cell_id_t2', 'fate_map','binary_fate_bias']:
+        if xx in adata.uns.keys():
             adata.uns.pop(xx)
 
-    check_list=list(adata.obsm.keys())
-    for xx in  check_list:
-        if xx not in ['X_clone', 'X_emb', 'X_pca']:
-            adata.obsm.pop(xx)
+    # check_list=list(adata.obsm.keys())
+    # for xx in  check_list:
+    #     if xx not in ['X_clone', 'X_emb', 'X_pca']:
+    #         adata.obsm.pop(xx)
 
-    check_list=list(adata.obs.keys())
-    for xx in  check_list:
-        if xx not in ['state_info', 'time_info']:
-            adata.obs.pop(xx)
+    # check_list=list(adata.obs.keys())
+    # for xx in  check_list:
+    #     if xx not in ['state_info', 'time_info']:
+    #         adata.obs.pop(xx)
 
     adata.write_h5ad(f'{data_path}/{data_des}_adata_preprocessed.h5ad', compression='gzip')
     print(f"Saved file: data_des='{data_des}'")
@@ -1299,6 +1375,7 @@ def selecting_cells_by_time_points(time_info,selected_time_points):
     If selected_time_points=[], we select all cell states. 
     """
 
+    time_info=np.array(time_info)
     valid_time_points=set(time_info)
     if (len(selected_time_points)>0):
         sp_idx=np.zeros(len(time_info),dtype=bool)
@@ -1393,4 +1470,9 @@ def compute_gene_exp_distance(adata,p0_indices,p1_indices,pc_n=30):
     #gene_exp_dis_t1 = compute_default_cost_matrix(p1_x, p1_x, eigenvals)
     gene_exp_dis_t0t1 = compute_default_cost_matrix(p0_x, p1_x, eigenvals)
     return gene_exp_dis_t0t1
+
+
+
+
+
 

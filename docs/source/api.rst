@@ -105,13 +105,14 @@ Plotting
    pl.differential_genes
    pl.differential_genes_for_given_fates
    
-**General plotting**
+**General**
 
 .. autosummary::
    :toctree: .
 
    pl.embedding
    pl.gene_expression_on_manifold
+   settings.set_figure_params
 
 
 Datasets
@@ -143,6 +144,7 @@ Help functions
    hf.check_adata_structure
    hf.check_available_choices
    hf.update_time_ordering
+
 
 
 ..

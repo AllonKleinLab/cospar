@@ -1,6 +1,6 @@
 """CoSpar - dynamic inference by integrating transcriptome and lineage information"""
 
-__version__='0.0.9'
+__version__='0.0.10'
 from . import pl # plotting
 from . import tmap # transition map inference
 from . import hf # help functions

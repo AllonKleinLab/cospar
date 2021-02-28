@@ -132,6 +132,7 @@ def set_rcParams_cospar(fontsize=12, color_map=None, frameon=None):
 def set_figure_params(
     style="cospar",
     dpi=100,
+    dpi_save=300,
     frameon=None,
     vector_friendly=True,
     transparent=True,
@@ -209,8 +210,10 @@ def set_figure_params(
         fig_height=figsize[1]
     if dpi is not None:
         rcParams["figure.dpi"] = dpi
-        rcParams["savefig.dpi"] = dpi
+    if dpi_save is not None:
+        rcParams["savefig.dpi"] = dpi_save
 
+    global fig_point_size
     fig_point_size=pointsize
 
 def set_rcParams_defaults():
