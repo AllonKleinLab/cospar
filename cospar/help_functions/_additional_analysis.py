@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import scipy.stats
+from scipy import stats
 import scipy.sparse as ssp
 import pandas as pd
 from .. import settings
@@ -286,7 +287,7 @@ def assess_fate_prediction_by_correlation_v0(adata,ground_truth,selected_time_po
                 return corr
 
 
-def assess_fate_prediction_by_correlation(adata,expect_vector,predict_vecotr,selected_time_points,plot_style='scatter',figure_index='',show_groups=True,mask=None,remove_neutral_ref=True,background=False):
+def assess_fate_prediction_by_correlation(adata,expect_vector,predict_vecotr,selected_time_points,plot_style='scatter',figure_index='',show_groups=True,mask=None,remove_neutral_ref=True,background=False,vmax=1,vmin=0):
     """
     Assess biary fate prediction by correlation 
 
@@ -317,6 +318,10 @@ def assess_fate_prediction_by_correlation(adata,expect_vector,predict_vecotr,sel
         Remove neutral reference states before computing the correlation.
     background: `bool`, optional (default: False)
         Show background at given time points.
+    vmax: `float`, optional (default: 1)
+        Maximum value to plot. 
+    vmin: `float`, optional (default: 0)
+        Minimum value to plot.
 
     Returns
     -------
@@ -382,7 +387,7 @@ def assess_fate_prediction_by_correlation(adata,expect_vector,predict_vecotr,sel
                              point_size=point_size,set_lim=False,ax=ax,order_points=False)
 
                     pl.customized_embedding(x_emb[sel_index][new_idx],y_emb[sel_index][new_idx],vector_temp[new_idx],
-                         point_size=point_size,set_lim=False,color_map=plt.cm.bwr,ax=ax,title='Reference',order_points=False)
+                         point_size=point_size,set_lim=False,color_map=plt.cm.bwr,ax=ax,title='Reference',order_points=False,vmax=vmax,vmin=vmin)
                     fig.savefig(f'{settings.figure_path}/{data_des}_{figure_index}_reference.{settings.file_format_figs}')
 
                     fig=plt.figure(figsize=(fig_width,fig_height));
@@ -400,7 +405,7 @@ def assess_fate_prediction_by_correlation(adata,expect_vector,predict_vecotr,sel
                              point_size=point_size,set_lim=False,ax=ax,order_points=False)
 
                     pl.customized_embedding(x_emb[sel_index][new_idx],y_emb[sel_index][new_idx],vector_temp[new_idx],
-                         point_size=point_size,set_lim=False,color_map=plt.cm.bwr,ax=ax,title='Prediction',order_points=False)
+                         point_size=point_size,set_lim=False,color_map=plt.cm.bwr,ax=ax,title='Prediction',order_points=False,vmax=vmax,vmin=vmin)
                     fig.savefig(f'{settings.figure_path}/{data_des}_{figure_index}_prediction.{settings.file_format_figs}')
 
                 if plot_style=='boxplot':
@@ -430,3 +435,236 @@ def assess_fate_prediction_by_correlation(adata,expect_vector,predict_vecotr,sel
                     fig.savefig(f'{settings.figure_path}/{data_des}_{figure_index}_reference_prediction_scatter.{settings.file_format_figs}')
 
                 return corr
+
+
+
+
+####### plot heat maps for genes
+def heatmap_v1(figure_path, data_matrix, variable_names_x,variable_names_y,int_seed=10,
+    data_des='',log_transform=False,color_map=plt.cm.Reds,vmin=None,vmax=None,fig_width=4,fig_height=6,
+    color_bar=True):
+    """
+    Plot ordered heat map of data_matrix matrix.
+
+    Parameters
+    ----------
+    figure_path: `str`
+        path to save figures
+    data_matrix: `np.array`
+        A matrix whose columns should match variable_names 
+    variable_names: `list`
+        List of variable names
+    color_bar_label: `str`, optional (default: 'cov')
+        Color bar label
+    data_des: `str`, optional (default: '')
+        String to distinguish different saved objects.
+    int_seed: `int`, optional (default: 10)
+        Seed to initialize the plt.figure object (to avoid 
+        plotting on existing object).
+    log_transform: `bool`, optional (default: False)
+        If true, perform a log transform. This is needed when the data 
+        matrix has entries varying by several order of magnitude. 
+    """
+
+    #o = get_hierch_order(data_matrix)
+    #o1 = get_hierch_order(data_matrix.T)
+    
+    plt.figure(int_seed)
+    
+    if log_transform:
+        plt.imshow(np.log(data_matrix+1)/np.log(10), aspect='auto',cmap=color_map, vmin=vmin,vmax=vmax)
+    else:
+        plt.imshow(data_matrix, aspect='auto',cmap=color_map, vmax=vmax,vmin=vmin)
+        
+       
+    variable_names_x=list(variable_names_x)
+    variable_names_y=list(variable_names_y)
+    if variable_names_x=='':
+        plt.xticks([])
+    else:
+        plt.xticks(np.arange(data_matrix.shape[1])+.4, variable_names_x, rotation=70, ha='right')
+        
+    if variable_names_y=='':
+        plt.yticks([])
+    else:
+        plt.yticks(np.arange(data_matrix.shape[0]), variable_names_y, rotation=0, ha='right')
+
+    if color_bar:
+        cbar = plt.colorbar()
+        cbar.set_label('Z-Score', rotation=270, labelpad=20)
+    plt.gcf().set_size_inches((fig_width,fig_height))
+    plt.tight_layout()
+    plt.savefig(figure_path+f'/{data_des}_data_matrix.{settings.file_format_figs}')
+
+
+
+def gene_expression_heat_map(adata, state_info, gene_list,selected_fates,rename_selected_fates=None,color_bar=False,method='zscore',fig_width=6,fig_height=3,horizontal='True',log_transform=False,vmin=None,vmax=None):
+    """
+    Plot heatmap of gene expression within given clusters.
+    
+    The gene expression can be the relative value or zscore, depending on method {'zscore','Relative'}
+    """
+
+    
+    
+    mega_cluster_list,valid_fate_list,fate_array_flat,sel_index_list=analyze_selected_fates(selected_fates,state_info)
+    gene_full=np.array(adata.var_names)
+    gene_list=np.array(gene_list)
+    sel_idx=np.in1d(gene_full,gene_list)
+    valid_sel_idx=np.in1d(gene_list,gene_full)
+    
+    if np.sum(valid_sel_idx)>0:
+        cleaned_gene_list=gene_list[valid_sel_idx]
+        if np.sum(valid_sel_idx)<len(gene_list):
+            invalid_gene_list=gene_list[~valid_sel_idx]
+            print(f"These are invalid gene names: {invalid_gene_list}")
+    else:
+        print("No valid genes selected.")
+    gene_expression_matrix=np.zeros((len(mega_cluster_list),len(cleaned_gene_list)))
+    
+    X=adata.X
+    resol=10**(-10)
+    
+    for k,temp in enumerate(cleaned_gene_list):
+        temp_id=np.nonzero(gene_full==temp)[0][0]
+        temp_vector=np.zeros(len(sel_index_list))
+        for j,temp_idx in enumerate(sel_index_list):
+            temp_vector[j]=np.mean(X[temp_idx,temp_id])
+        
+        if method=='zscore':
+            logg.info("Using zscore (range: [-2,2], or [-1,1]")
+            z_score=stats.zscore(temp_vector)
+            gene_expression_matrix[:,k]=z_score
+        else:
+            logg.info("Using relative gene expression. Range [0,1]")
+            temp_vector=(temp_vector+resol)/(resol+np.sum(temp_vector))
+            gene_expression_matrix[:,k]=temp_vector
+        
+        
+    if (rename_selected_fates is None) or (len(rename_selected_fates) != len(mega_cluster_list)):
+        rename_selected_fates=mega_cluster_list
+        
+    if horizontal:
+        heatmap_v1(settings.figure_path, gene_expression_matrix, cleaned_gene_list,rename_selected_fates,int_seed=10,
+        data_des='',log_transform=False,color_map=plt.cm.coolwarm,fig_width=fig_width,fig_height=fig_height,
+        color_bar=color_bar,vmin=vmin,vmax=vmax)
+    else:
+        heatmap_v1(settings.figure_path, gene_expression_matrix.T,rename_selected_fates, cleaned_gene_list,int_seed=10,
+        data_des='',log_transform=False,color_map=plt.cm.coolwarm,fig_width=fig_height,fig_height=fig_width,
+        color_bar=color_bar,vmin=vmin,vmax=vmax)
+    
+    return gene_expression_matrix
+    
+
+
+
+# ####### plot heat maps for genes
+# def heatmap_v1(figure_path, data_matrix, variable_names_x,variable_names_y,int_seed=10,
+#     data_des='',log_transform=False,color_map=plt.cm.Reds,vmin=None,vmax=None,fig_width=4,fig_height=6,
+#     color_bar=True):
+#     """
+#     Plot ordered heat map of data_matrix matrix.
+
+#     Parameters
+#     ----------
+#     figure_path: `str`
+#         path to save figures
+#     data_matrix: `np.array`
+#         A matrix whose columns should match variable_names 
+#     variable_names: `list`
+#         List of variable names
+#     color_bar_label: `str`, optional (default: 'cov')
+#         Color bar label
+#     data_des: `str`, optional (default: '')
+#         String to distinguish different saved objects.
+#     int_seed: `int`, optional (default: 10)
+#         Seed to initialize the plt.figure object (to avoid 
+#         plotting on existing object).
+#     log_transform: `bool`, optional (default: False)
+#         If true, perform a log transform. This is needed when the data 
+#         matrix has entries varying by several order of magnitude. 
+#     """
+
+#     #o = get_hierch_order(data_matrix)
+#     #o1 = get_hierch_order(data_matrix.T)
+    
+#     plt.figure(int_seed)
+    
+#     if log_transform:
+#         plt.imshow(np.log(data_matrix+1)/np.log(10), aspect='auto',cmap=color_map, vmin=vmin,vmax=vmax)
+#     else:
+#         plt.imshow(data_matrix, aspect='auto',cmap=color_map, vmax=vmax,vmin=vmin)
+        
+       
+#     variable_names_x=list(variable_names_x)
+#     variable_names_y=list(variable_names_y)
+#     if variable_names_x=='':
+#         plt.xticks([])
+#     else:
+#         plt.xticks(np.arange(data_matrix.shape[1])+.4, variable_names_x, rotation=70, ha='right')
+        
+#     if variable_names_y=='':
+#         plt.yticks([])
+#     else:
+#         plt.yticks(np.arange(data_matrix.shape[0]), variable_names_y, rotation=0, ha='right')
+
+#     if color_bar:
+#         cbar = plt.colorbar()
+#         cbar.set_label('Number of barcodes (log10)', rotation=270, labelpad=20)
+#     plt.gcf().set_size_inches((fig_width,fig_height))
+#     plt.tight_layout()
+#     plt.savefig(figure_path+f'/{data_des}_data_matrix.{settings.file_format_figs}')
+
+
+
+# def gene_expression_heat_map(adata, state_info, gene_list,selected_fates,rename_selected_fates=None,color_bar=False,fig_width=6,fig_height=3,horizontal='True',log_transform=False,vmin=None,vmax=None):
+#     """
+#     Cacluate the gene expression Z-score of each gene within given clusters
+#     """
+
+
+#     mega_cluster_list,valid_fate_list,fate_array_flat,sel_index_list=analyze_selected_fates(selected_fates,state_info)
+#     gene_full=np.array(adata.var_names)
+#     gene_list=np.array(gene_list)
+#     sel_idx=np.in1d(gene_full,gene_list)
+#     valid_sel_idx=np.in1d(gene_list,gene_full)
+    
+#     if np.sum(valid_sel_idx)>0:
+#         cleaned_gene_list=gene_list[valid_sel_idx]
+#         if np.sum(valid_sel_idx)<len(gene_list):
+#             invalid_gene_list=gene_list[~valid_sel_idx]
+#             print(f"These are invalid gene names: {invalid_gene_list}")
+#     else:
+#         print("No valid genes selected.")
+#     gene_expression_matrix=np.zeros((len(mega_cluster_list),len(cleaned_gene_list)))
+    
+#     X=adata.X
+#     resol=10**(-10)
+    
+#     for k,temp in enumerate(cleaned_gene_list):
+#         temp_id=np.nonzero(gene_full==temp)[0][0]
+#         temp_vector=np.zeros(len(sel_index_list))
+#         for j,temp_idx in enumerate(sel_index_list):
+#             temp_vector[j]=np.mean(X[temp_idx,temp_id])
+        
+#         z_score=stats.zscore(temp_vector)
+#         #temp_vector=(temp_vector+resol)/(resol+np.sum(temp_vector))
+#         #gene_expression_matrix[:,k]=temp_vector
+#         gene_expression_matrix[:,k]=z_score
+        
+        
+#     if (rename_selected_fates is None) or (len(rename_selected_fates) != len(mega_cluster_list)):
+#         rename_selected_fates=mega_cluster_list
+        
+#     if horizontal:
+#         heatmap_v1(settings.figure_path, gene_expression_matrix, cleaned_gene_list,rename_selected_fates,int_seed=10,
+#         data_des='',log_transform=False,color_map=plt.cm.coolwarm,fig_width=fig_width,fig_height=fig_height,
+#         color_bar=color_bar,vmin=vmin,vmax=vmax)
+#     else:
+#         heatmap_v1(settings.figure_path, gene_expression_matrix.T,rename_selected_fates, cleaned_gene_list,int_seed=10,
+#         data_des='',log_transform=False,color_map=plt.cm.coolwarm,fig_width=fig_height,fig_height=fig_width,
+#         color_bar=color_bar,vmin=vmin,vmax=vmax)
+    
+#     return gene_expression_matrix
+    
+

@@ -647,7 +647,7 @@ def compute_state_potential(transition_map,state_annote,fate_array,
 
 
 
-def compute_fate_probability_map(adata,fate_array=[],used_map_name='transition_map',map_backwards=True):
+def compute_fate_probability_map(adata,fate_array=None,used_Tmap='transition_map',map_backwards=True):
     """
     Compute fate map from the adata object
 
@@ -657,8 +657,8 @@ def compute_fate_probability_map(adata,fate_array=[],used_map_name='transition_m
         Assume to contain transition maps at adata.uns.
     fate_array: `list`, optional (default: all)
         List of targeted clusters, consistent with adata.obs['state_info'].
-        If set to be [], use all fate clusters in adata.obs['state_info'].
-    used_map_name: `str`
+        If set to be None, use all fate clusters in adata.obs['state_info'].
+    used_Tmap: `str`
         The transition map to be used for plotting: {'transition_map',
         'intraclone_transition_map','weinreb_transition_map','naive_transition_map',
         'OT_transition_map','HighVar_transition_map'}. The actual available
@@ -687,20 +687,21 @@ def compute_fate_probability_map(adata,fate_array=[],used_map_name='transition_m
     y_emb=adata.obsm['X_emb'][:,1]
     data_des=adata.uns['data_des'][-1]
     
-    if len(fate_array)==0: fate_array=list(set(state_annote_0))
+    if fate_array is None: 
+        fate_array=list(set(state_annote_0))
     
 
     state_annote_BW=state_annote_0[cell_id_t2]
     
-    if used_map_name in adata.uns.keys():
-        used_map=adata.uns[used_map_name]
+    if used_Tmap in adata.uns.keys():
+        used_map=adata.uns[used_Tmap]
 
         potential_vector, fate_entropy=compute_state_potential(used_map,state_annote_BW,fate_array,fate_count=True,map_backwards=map_backwards)
 
         adata.uns['fate_map']={'fate_array':fate_array,'fate_map':potential_vector,'fate_entropy':fate_entropy}
 
     else:
-        logg.error(f"used_map_name should be among adata.uns.keys(), with _transition_map as suffix")
+        logg.error(f"used_Tmap should be among adata.uns.keys(), with _transition_map as suffix")
 
         
 
@@ -734,7 +735,7 @@ def analyze_selected_fates(selected_fates,state_info):
 
     state_info=np.array(state_info)
     valid_state_annot=list(set(state_info))
-    if len(selected_fates)==0:
+    if selected_fates is None:
         selected_fates=valid_state_annot
 
     fate_array_flat=[] # a flatten list of cluster names
@@ -780,7 +781,7 @@ def analyze_selected_fates(selected_fates,state_info):
     return mega_cluster_list[valid_idx],valid_fate_list,fate_array_flat,sel_index_list[valid_idx]
 
 
-def compute_fate_map_and_intrinsic_bias(adata,selected_fates=[],used_map_name='transition_map',map_backwards=True):
+def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='transition_map',map_backwards=True):
     """
     Compute fate map and the relative bias compared to the expectation.
     
@@ -798,8 +799,8 @@ def compute_fate_map_and_intrinsic_bias(adata,selected_fates=[],used_map_name='t
         Assume to contain transition maps at adata.uns.
     selected_fates: `list`, optional (default: all)
         List of targeted clusters, consistent with adata.obs['state_info'].
-        If set to be [], use all fate clusters in adata.obs['state_info'].
-    used_map_name: `str`
+        If set to be None, use all fate clusters in adata.obs['state_info'].
+    used_Tmap: `str`
         The transition map to be used for plotting: {'transition_map',
         'intraclone_transition_map','weinreb_transition_map','naive_transition_map',
         'OT_transition_map','HighVar_transition_map'}. The actual available
@@ -830,11 +831,11 @@ def compute_fate_map_and_intrinsic_bias(adata,selected_fates=[],used_map_name='t
         cell_id_t2=adata.uns['Tmap_cell_id_t1']
 
     state_annote=adata.obs['state_info']
-    if len(selected_fates)==0: selected_fates=list(set(state_annote))
+    if selected_fates is None: selected_fates=list(set(state_annote))
     mega_cluster_list,valid_fate_list,fate_array_flat,sel_index_list=analyze_selected_fates(selected_fates,state_annote)
 
 
-    compute_fate_probability_map(adata,fate_array=fate_array_flat,used_map_name=used_map_name,map_backwards=map_backwards)
+    compute_fate_probability_map(adata,fate_array=fate_array_flat,used_Tmap=used_Tmap,map_backwards=map_backwards)
     fate_map_0=adata.uns['fate_map']['fate_map']
 
     N_macro=len(valid_fate_list)
@@ -954,8 +955,8 @@ def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances'
     normalize: `bool`, optional (default: True)
         Normalize the distance matrix by its maximum value.
     use_existing_KNN_graph: `bool`, optional (default: False)
-        If true and adata.obsp['connectivities'], use the existing knn graph
-        regardless of neighbor_N. This overrides all other parameters. 
+        If true and adata.obsp['connectivities'], use the existing knn graph.
+        This overrides all other parameters. 
 
     Returns
     -------
@@ -1243,7 +1244,7 @@ def smooth_a_vector(adata,vector,round_of_smooth=5,use_full_Smatrix=True,trunca_
         
     return smooth_vector
 
-def update_time_ordering(adata,updated_ordering=[]):
+def update_time_ordering(adata,updated_ordering=None):
     """
     Update the ordering of time points at adata.uns['time_ordering']
 
@@ -1256,7 +1257,7 @@ def update_time_ordering(adata,updated_ordering=[]):
         may not be correct.   
     """
 
-    if len(updated_ordering)>0:
+    if updated_ordering is not None:
         time_info=list(set(adata.obs['time_info']))
         N_match=np.sum(np.in1d(time_info,updated_ordering))
         if (len(updated_ordering)!=N_match) or (len(updated_ordering)!=len(time_info)):
@@ -1377,7 +1378,7 @@ def selecting_cells_by_time_points(time_info,selected_time_points):
 
     time_info=np.array(time_info)
     valid_time_points=set(time_info)
-    if (len(selected_time_points)>0):
+    if selected_time_points is not None:
         sp_idx=np.zeros(len(time_info),dtype=bool)
         for xx in selected_time_points:
             if xx not in valid_time_points:
