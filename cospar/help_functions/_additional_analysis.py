@@ -525,6 +525,11 @@ def gene_expression_heat_map(adata, state_info, gene_list,selected_fates,rename_
     X=adata.X
     resol=10**(-10)
     
+    if method=='zscore':
+        logg.info("Using zscore (range: [-2,2], or [-1,1]")
+    else:
+        logg.info("Using relative gene expression. Range [0,1]")
+
     for k,temp in enumerate(cleaned_gene_list):
         temp_id=np.nonzero(gene_full==temp)[0][0]
         temp_vector=np.zeros(len(sel_index_list))
@@ -532,11 +537,9 @@ def gene_expression_heat_map(adata, state_info, gene_list,selected_fates,rename_
             temp_vector[j]=np.mean(X[temp_idx,temp_id])
         
         if method=='zscore':
-            logg.info("Using zscore (range: [-2,2], or [-1,1]")
             z_score=stats.zscore(temp_vector)
             gene_expression_matrix[:,k]=z_score
         else:
-            logg.info("Using relative gene expression. Range [0,1]")
             temp_vector=(temp_vector+resol)/(resol+np.sum(temp_vector))
             gene_expression_matrix[:,k]=temp_vector
         

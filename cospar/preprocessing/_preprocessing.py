@@ -133,7 +133,11 @@ def initialize_adata_object(adata=None,cell_by_gene_matrix=None,gene_names=None,
             logg.error("state_info length not equal to cell number")
     else:
         if 'state_info' not in adata.obs.keys():
-            logg.warn("state_info not provided. Downstrean processing is needed before analyzing the transition map.")
+            if 'leiden' in adata.obs.keys():
+                logg.warn("Use adata.obs['leiden'] as the default state annotation. If not desirable, please use downstream analysis to improve the annotation.")
+                adata.obs['state_info']=adata.obs['leiden']
+            else:
+                logg.warn("state_info not provided. Downstrean processing is needed before analyzing the transition map.")
 
 
     if (X_emb is not None):
@@ -189,6 +193,7 @@ def get_highly_variable_genes(adata,normalized_counts_per_cell=10000,min_counts=
     Returns
     -------
     None. Modify adata.var['highly_variable'].
+    If 'highly_variable' existed before, save a copy at  adata.obs['highly_variable_old']
     """
 
     sc.pp.normalize_per_cell(adata, counts_per_cell_after=normalized_counts_per_cell)
@@ -203,6 +208,9 @@ def get_highly_variable_genes(adata,normalized_counts_per_cell=10000,min_counts=
         min_cells=min_cells, 
         min_vscore_pctl=min_gene_vscore_pctl, 
         show_vscore_plot=verbose)]
+
+    if 'highly_variable' in adata.var.keys():
+        adata.var['highly_variable_old']=adata.var['highly_variable'].copy()
 
     adata.var['highly_variable'] = False
     adata.var.loc[highvar_genes, 'highly_variable'] = True
@@ -295,6 +303,7 @@ def get_X_pca(adata,n_pca_comp=40):
     Returns
     -------
     None. Modify adata.obsm['X_pca']. 
+    If 'X_pca' existed before, save a copy at  adata.obs['X_pca_old']
     """
 
     if 'highly_variable' not in adata.var.keys():
@@ -302,11 +311,20 @@ def get_X_pca(adata,n_pca_comp=40):
                    "Please run get_highly_variable_genes first!")
     else:
 
+        if 'X_pca' in adata.obsm.keys():
+            adata.obsm['X_pca_old']=adata.obsm['X_pca'].copy()
+
         highvar_genes_idx=np.array(adata.var['highly_variable'])
         gene_list=np.array(adata.var_names)
         highvar_genes=gene_list[highvar_genes_idx]
 
+        zero_idx=adata[:, highvar_genes].X.sum(0).A.flatten()==0
+        if np.sum(zero_idx)>0:
+            logg.warn(f"Genes {highvar_genes[zero_idx]} are not expressed. They are ignored.")
+            highvar_genes=highvar_genes[~zero_idx]
+
         adata.obsm['X_pca'] = hf.get_pca(adata[:, highvar_genes].X, numpc=n_pca_comp,keep_sparse=False,normalize=True,random_state=0)
+
 
 
 def get_X_emb(adata,n_neighbors=20,umap_min_dist=0.3):
@@ -326,6 +344,7 @@ def get_X_emb(adata,n_neighbors=20,umap_min_dist=0.3):
     Returns
     -------
     None. Modify adata.obsm['X_emb'].
+    If 'X_emb' existed before, save a copy at  adata.obs['X_emb_old']
     """
 
     if not ('X_pca' in adata.obsm.keys()):
@@ -334,6 +353,9 @@ def get_X_emb(adata,n_neighbors=20,umap_min_dist=0.3):
         # Number of neighbors for KNN graph construction
         sc.pp.neighbors(adata, n_neighbors=n_neighbors)
         sc.tl.umap(adata, min_dist=umap_min_dist)
+        if 'X_emb' in adata.obsm.keys():
+            adata.obsm['X_emb_old']=adata.obsm['X_emb'].copy()
+        
         adata.obsm['X_emb']=adata.obsm['X_umap']
 
 
@@ -354,7 +376,8 @@ def get_state_info(adata,n_neighbors=20,resolution=0.5):
 
     Returns
     -------
-    None. Modify adata.obs['state_info']. 
+    Modify adata.obs['state_info']. 
+    If 'state_info' existed before, save a copy at  adata.obs['state_info_old']
     """
     sc.pp.neighbors(adata, n_neighbors=n_neighbors)
     if not ('X_pca' in adata.obsm.keys()):
@@ -362,7 +385,11 @@ def get_state_info(adata,n_neighbors=20,resolution=0.5):
     else:
         # Number of neighbors for KNN graph construction
         sc.tl.leiden(adata,resolution=resolution)
+        if 'state_info' in adata.obs.keys():
+            adata.obs['state_info_old']=adata.obs['state_info'].copy()
+        
         adata.obs['state_info']=adata.obs['leiden']
+ 
 
 
 
@@ -429,7 +456,10 @@ def refine_state_info_by_leiden_clustering(adata,selected_time_points=None,
         
         if confirm_change:
             logg.info("Change state annotation at adata.obs['state_info']")
-            adata.obs['old_state_info']=adata.obs['state_info']
+    
+            if 'state_info' in adata.obs.keys():
+                adata.obs['state_info_old']=adata.obs['state_info'].copy()
+    
             orig_state_annot=np.array(adata.obs['state_info'])
             temp_array=np.array(adata_sp.obs['leiden'])
             for j in range(len(temp_array)):
@@ -527,7 +557,9 @@ def refine_state_info_by_marker_genes(adata,marker_genes,express_threshold=0.1,
 
 
         if confirm_change:
-            adata.obs['old_state_info']=adata.obs['state_info']
+            if 'state_info' in adata.obs.keys():
+                adata.obs['state_info_old']=adata.obs['state_info'].copy()
+
             logg.info("Change state annotation at adata.obs['state_info']")
             if new_cluster_name=='':
                 new_cluster_name=marker_genes[0]
