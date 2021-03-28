@@ -854,7 +854,142 @@ def infer_Tmap_from_multitime_clones(adata_orig,clonal_time_points=None,
         return adata
   
 
+# v0 version. Only neighboring time points are allowed 
+def infer_Tmap_from_multitime_clones_v0(adata_orig,clonal_time_points,
+    smooth_array=[15,10,5],CoSpar_KNN=20,noise_threshold=0.1,demulti_threshold=0.05,
+    normalization_mode=1,extend_Tmap_space=False,save_subset=True,use_full_Smatrix=True,
+    trunca_threshold=0.001,compute_new=False,max_iter_N=3,epsilon_converge=0.01):
+    """
+    Infer transition map for clonal data with multiple time points.
 
+    It prepares adata object for cells of targeted time points by 
+    :func:`.select_time_points`, generates the similarity matrix 
+    via :func:`.generate_similarity_matrix`, and iteratively calls 
+    the core function :func:`.refine_Tmap_through_cospar` to update 
+    the transition map. 
+
+    The inferred map allows transitions between neighboring time points. 
+    For example, if clonal_time_points=['day1','day2','day3'], 
+    then it computes transitions for pairs (day1, day2) and (day2, day3), 
+    but not (day1, day3).
+
+    Parameters
+    ------------
+    adata_orig: :class:`~anndata.AnnData` object
+        Should be prepared from our anadata initialization.
+    clonal_time_points: `list` of `str`
+        List of time points to be included for analysis. 
+        We assume that each selected time point has clonal measurements. 
+        It should be in ascending order: 'day_1','day_2'.... 
+    smooth_array: `list`, optional (default: [15,10,5])
+        List of smooth rounds at initial runs of iteration. 
+        Suppose that it has a length N. For iteration n<N, The n-th entry of 
+        smooth_array determines the smooth round for the Smatrix 
+        at the n-th iteration. When n>N, we use the last entry of 
+        smooth_array to compute the Smatrix.
+        It is better to use a number at the multiple of 
+        5, i.e., 5, 10, 15, 20,...
+    max_iter_N: `int`, optional (default: 3)
+        The maximum iterations used to compute the transition map, regardless of epsilon_converge. 
+    epsilon_converge: `float`, optional (default: 0.01)
+        The convergence threshold for the change of map correlations between consecutive iterations.
+        This convergence test is activated only when CoSpar has iterated for 3 times. 
+    CoSpar_KNN: `int`, optional (default: 20)
+        The number of neighbors for KNN graph used for computing the 
+        similarity matrix.
+    trunca_threshold: `float`, optional (default: 0.001)
+        Threshold to reset entries of the computed similarity matrix. 
+        This is only for computational and storage efficiency.
+    noise_threshold: `float`, optional (default: 0.1)
+        The relative threshold to remove noises in the updated transition map,
+        in the range [0,1].
+    demulti_threshold: `float`, optional (default: 0.05)
+        The threshold to remove noises in the demultiplexed (un-smoothed) map,
+        in the range [0,1]
+    normalization_mode: `int`, optional (default: 1)
+        Normalization method. Choice: [0,1].
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
+    extend_Tmap_space: `bool` optional (default: `False`)
+        If true, the initial and later state space for Tmap will be expanded to all cells,
+        whether they have clonal barcodes or not. Otherwise, the initial and later state
+        space of the Tmap will be restricted to cells with multi-time clonal information
+        alone. The latter case usually speeds up the computation, which is recommended. 
+    save_subset: `bool`, optional (default: True)
+        If true, save only Smatrix at smooth round [5,10,15,...];
+        Otherwise, save Smatrix at each round. 
+    use_full_Smatrix: `bool`, optional (default: True)
+        If true, extract the relevant Smatrix from the full Smatrix defined by all cells.
+        This tends to be more accurate. The package is optimized around this choice. 
+    Compute_new: `bool`, optional (default: False)
+        If True, compute Smatrix from scratch, whether it was 
+        computed and saved before or not. This is activated only when
+        `use_full_Smatrix=False`.
+
+    Returns
+    -------
+    adata: :class:`~anndata.AnnData` object
+        Store results at adata.uns['transition_map'] 
+        and adata.uns['intraclone_transition_map']. This adata is different 
+        from the input adata_orig due to subsampling cells. 
+    """
+
+    t0=time.time()
+    hf.check_available_clonal_info(adata_orig)
+    time_info_orig=np.array(adata_orig.uns['clonal_time_points'])
+    if len(time_info_orig)<2:
+        logg.error("There are no multi-time clones. Abort the inference.")
+        return
+
+    else:
+        N_valid_time=np.sum(np.in1d(time_info_orig,clonal_time_points))
+        if (N_valid_time!=len(clonal_time_points)) or (N_valid_time<2): 
+            logg.error(f"Selected time points are not all among {time_info_orig}, or less than 2 time points are selected. Computation aborted!")
+              
+            return 
+
+    if save_subset:
+        if not (np.all(np.diff(smooth_array)<=0) and np.all(np.array(smooth_array)%5==0)):
+            logg.error("The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
+             "The correct form is like [20,15,10], or [10,10,10,5]. Its length determines the number of iteration.\n"
+              "You can also set save_subset=False to explore arbitrary smooth_array structure.")
+            return 
+
+
+    logg.info("-------Step 1: Select time points---------")
+    data_path=settings.data_path
+
+    if 'time_ordering' not in adata_orig.uns.keys():
+        hf.update_time_ordering(adata_orig)
+    time_ordering=adata_orig.uns['time_ordering']
+    sel_idx_temp=np.in1d(time_ordering,clonal_time_points)
+    clonal_time_points=time_ordering[sel_idx_temp]
+    adata=select_time_points(adata_orig,time_point=clonal_time_points,extend_Tmap_space=extend_Tmap_space)
+
+    
+    logg.info("-------Step 2: Compute the full Similarity matrix if necessary---------")
+
+    if use_full_Smatrix: # prepare the similarity matrix with all state info, all subsequent similarity will be down-sampled from this one.
+
+        temp_str='0'+str(trunca_threshold)[2:]
+        round_of_smooth=np.max(smooth_array)
+        data_des=adata.uns['data_des'][0]
+        similarity_file_name=f'{data_path}/{data_des}_Similarity_matrix_with_all_cell_states_kNN{CoSpar_KNN}_Truncate{temp_str}'
+        if not (os.path.exists(similarity_file_name+f'_SM{round_of_smooth}.npz') and (not compute_new)):
+            similarity_matrix_full=generate_similarity_matrix(adata_orig,similarity_file_name,round_of_smooth=round_of_smooth,
+                        neighbor_N=CoSpar_KNN,truncation_threshold=trunca_threshold,save_subset=save_subset,compute_new_Smatrix=compute_new)
+    
+    logg.info("-------Step 3: Optimize the transition map recursively---------")
+
+    infer_Tmap_from_multitime_clones_private(adata,smooth_array=smooth_array,neighbor_N=CoSpar_KNN,noise_threshold=noise_threshold,demulti_threshold=demulti_threshold,normalization_mode=normalization_mode,
+            save_subset=save_subset,use_full_Smatrix=use_full_Smatrix,
+            trunca_threshold=trunca_threshold,compute_new_Smatrix=compute_new,
+            max_iter_N=max_iter_N,epsilon_converge=epsilon_converge)
+
+    logg.info(f"-----------Total used time: {time.time()-t0} s ------------")
+    return adata
+    
 
 # new scheme, with converence check
 def infer_Tmap_from_multitime_clones_private(adata,smooth_array=[15,10,5],neighbor_N=20,
@@ -1099,7 +1234,219 @@ def infer_Tmap_from_multitime_clones_private(adata,smooth_array=[15,10,5],neighb
     adata.uns['intraclone_transition_map']=ssp.csr_matrix(demultiplexed_map)
 
 
+# old scheme, no convergence check    
+def infer_Tmap_from_multitime_clones_private_v0(adata,smooth_array=[15,10,5],neighbor_N=20,
+    noise_threshold=0.1,demulti_threshold=0.05,normalization_mode=1,save_subset=True,
+    use_full_Smatrix=True,trunca_threshold=0.001,compute_new_Smatrix=False):
+    """
+    Internal function for Tmap inference from multi-time clonal data.
 
+    Same as :func:`.infer_Tmap_from_multitime_clones` except that it 
+    assumes that the adata object has been prepared for targeted 
+    time points. It generates the similarity matrix 
+    via :func:`.generate_similarity_matrix`, and iteratively calls 
+    the core function :func:`.refine_Tmap_through_cospar` to update 
+    the transition map. 
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+        Should be prepared by :func:`.select_time_points`
+    smooth_array: `list`, optional (default: [15,10,5])
+        List of smooth rounds at each iteration. 
+        The n-th entry determines the smooth round for the Smatrix 
+        at the n-th iteration. Its length determines the number of
+        iterations. It is better to use a number at the multiple of 
+        5, i.e., 5, 10, 15, 20,...
+    neighbor_N: `int`, optional (default: 20)
+        The number of neighbors for KNN graph used for computing the similarity matrix.
+    trunca_threshold: `float`, optional (default: 0.001)
+        Threshold to reset entries of the computed similarity matrix. 
+        This is only for computational and storage efficiency.
+    noise_threshold: `float`, optional (default: 0.1)
+        The relative threshold to remove noises in the updated transition map,
+        in the range [0,1].
+    demulti_threshold: `float`, optional (default: 0.05)
+        The threshold to remove noises in the demultiplexed (un-smoothed) map,
+        in the range [0,1]
+    normalization_mode: `int`, optional (default: 1)
+        Normalization method. Choice: [0,1].
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
+    save_subset: `bool`, optional (default: True)
+        If true, save only Smatrix at smooth round [5,10,15,...];
+        Otherwise, save Smatrix at each round. 
+    use_full_Smatrix: `bool`, optional (default: True)
+        If true, extract the relevant Smatrix from the full Smatrix defined by all cells.
+        This tends to be more accurate. The package is optimized around this choice. 
+    compute_new_Smatrix: `bool`, optional (default: False)
+        If True, compute Smatrix from scratch, whether it was 
+        computed and saved before or not. This is activated only when
+        `use_full_Smatrix=False`.
+
+    Returns
+    -------
+    None. Inferred transition map updated at adata.uns['transition_map']
+    and adata.uns['intraclone_transition_map']
+    """
+
+
+    ########## extract data
+    clone_annot=adata.obsm['X_clone']
+    clonal_cell_id_t1=adata.uns['clonal_cell_id_t1']
+    clonal_cell_id_t2=adata.uns['clonal_cell_id_t2']
+    Tmap_cell_id_t1=adata.uns['Tmap_cell_id_t1']
+    Tmap_cell_id_t2=adata.uns['Tmap_cell_id_t2']
+    sp_idx=adata.uns['sp_idx']
+    data_des=adata.uns['data_des'][0] # original label
+    data_des_1=adata.uns['data_des'][-1] # current label, sensitive to selected time points
+    multiTime_cell_id_t1=adata.uns['multiTime_cell_id_t1']
+    multiTime_cell_id_t2=adata.uns['multiTime_cell_id_t2']
+    proportion=adata.uns['proportion']
+    data_path=settings.data_path
+
+    #########
+
+    
+    ########################### Compute the transition map 
+    
+    logg.info("---------Compute the transition map-----------")
+
+    #trunca_threshold=0.001 # this value is only for reducing the computed matrix size for saving
+    temp_str='0'+str(trunca_threshold)[2:]
+
+    if use_full_Smatrix:
+        similarity_file_name=f'{data_path}/{data_des}_Similarity_matrix_with_all_cell_states_kNN{neighbor_N}_Truncate{temp_str}'
+        for round_of_smooth in smooth_array:
+            if not os.path.exists(similarity_file_name+f'_SM{round_of_smooth}.npz'):
+                logg.error(f"Similarity matrix at given parameters have not been computed before! File name: {similarity_file_name}")
+                logg.error(f'Please re-run the function with: compute_new=True. If you want to use smooth round not the multiples of 5, set save_subset=False')     
+                return None  
+
+    else:
+        similarity_file_name=f'{data_path}/{data_des_1}_Similarity_matrix_with_selected_states_kNN{neighbor_N}_Truncate{temp_str}'
+
+    initial_similarity_array=[]
+    final_similarity_array=[]
+    initial_similarity_array_ext=[]
+    final_similarity_array_ext=[]
+
+    for round_of_smooth in smooth_array:
+        # we cannot force it to compute new at this time. Otherwise, if we use_full_Smatrix, the resulting similarity is actually from adata, thus not full similarity. 
+
+        re_compute=(not use_full_Smatrix) and (compute_new_Smatrix) # re-compute only when not using full similarity 
+        similarity_matrix_full=generate_similarity_matrix(adata,similarity_file_name,round_of_smooth=round_of_smooth,
+                    neighbor_N=neighbor_N,truncation_threshold=trunca_threshold,save_subset=save_subset,compute_new_Smatrix=re_compute)
+
+        if use_full_Smatrix:
+            #pdb.set_trace()
+            similarity_matrix_full_sp=similarity_matrix_full[sp_idx][:,sp_idx]
+
+            #pdb.set_trace()
+            ### extended similarity matrix
+            initial_similarity_ext=generate_initial_similarity(similarity_matrix_full_sp,Tmap_cell_id_t1,clonal_cell_id_t1)
+            final_similarity_ext=generate_final_similarity(similarity_matrix_full_sp,clonal_cell_id_t2,Tmap_cell_id_t2)
+            
+            ### minimum similarity matrix that only involves the multi-time clones
+            initial_similarity=generate_initial_similarity(similarity_matrix_full_sp,clonal_cell_id_t1,clonal_cell_id_t1)
+            final_similarity=generate_final_similarity(similarity_matrix_full_sp,clonal_cell_id_t2,clonal_cell_id_t2)
+        else:
+            initial_similarity_ext=generate_initial_similarity(similarity_matrix_full,Tmap_cell_id_t1,clonal_cell_id_t1)
+            final_similarity_ext=generate_final_similarity(similarity_matrix_full,clonal_cell_id_t2,Tmap_cell_id_t2)
+            initial_similarity=generate_initial_similarity(similarity_matrix_full,clonal_cell_id_t1,clonal_cell_id_t1)
+            final_similarity=generate_final_similarity(similarity_matrix_full,clonal_cell_id_t2,clonal_cell_id_t2)
+
+
+        initial_similarity_array.append(initial_similarity)
+        final_similarity_array.append(final_similarity)
+        initial_similarity_array_ext.append(initial_similarity_ext)
+        final_similarity_array_ext.append(final_similarity_ext)
+
+
+    #### Compute the core of the transition map that involve multi-time clones, then extend to other cell states
+    transition_map_v1=np.ones((len(clonal_cell_id_t1),len(clonal_cell_id_t2)))
+    transition_map_array=[transition_map_v1]
+
+
+
+    X_clone=clone_annot.copy()
+    if not ssp.issparse(X_clone):
+        X_clone=ssp.csr_matrix(X_clone)
+
+    CoSpar_iter_N=len(smooth_array)
+    for j in range(CoSpar_iter_N):
+        
+        logg.info("Current iteration:",j)
+        transition_map=transition_map_array[j]
+        if j<len(smooth_array):
+            
+            logg.info(f"Use smooth_round={smooth_array[j]}")
+            used_initial_similarity=initial_similarity_array[j]
+            used_final_similarity=final_similarity_array[j]
+        else:
+            
+            logg.info(f"Use smooth_round={smooth_array[-1]}")
+            used_initial_similarity=initial_similarity_array[-1]
+            used_final_similarity=final_similarity_array[-1]
+
+        # transition_map, unSM_sc_coupling=refine_transition_map_by_integrating_clonal_info(clonal_cell_id_t1,clonal_cell_id_t2,
+        #        transition_map,X_clone,used_initial_similarity,used_final_similarity,noise_threshold,row_normalize=True,normalization_mode=normalization_mode)
+
+        
+        transition_map_new, unSM_sc_coupling=refine_Tmap_through_cospar(multiTime_cell_id_t1,multiTime_cell_id_t2,
+            proportion,transition_map,X_clone,used_initial_similarity,used_final_similarity,noise_threshold=noise_threshold,normalization_mode=normalization_mode)
+
+
+        transition_map_array.append(transition_map_new)
+
+
+
+    ### expand the map to other cell states
+    ratio_t1=np.sum(np.in1d(Tmap_cell_id_t1,clonal_cell_id_t1))/len(Tmap_cell_id_t1)
+    ratio_t2=np.sum(np.in1d(Tmap_cell_id_t2,clonal_cell_id_t2))/len(Tmap_cell_id_t2)
+    if (ratio_t1==1) and (ratio_t2==1): # no need to SM the map
+        
+        logg.info("No need for Final Smooth (i.e., clonally-labeled states are the final state space for Tmap)")
+        
+        adata.uns['transition_map']=ssp.csr_matrix(transition_map)
+    else:
+        
+        logg.info("Final round of Smooth (to expand the state space of Tmap to include non-clonal states)")
+
+        if j<len(smooth_array):
+            used_initial_similarity_ext=initial_similarity_array_ext[j]
+            used_final_similarity_ext=final_similarity_array_ext[j]
+        else:
+            used_initial_similarity_ext=initial_similarity_array_ext[-1]
+            used_final_similarity_ext=final_similarity_array_ext[-1]
+
+        unSM_sc_coupling=ssp.csr_matrix(unSM_sc_coupling)
+        t=time.time()
+        temp=unSM_sc_coupling*used_final_similarity_ext
+        
+        logg.info("Phase I: time elapsed -- ", time.time()-t)
+        transition_map_1=used_initial_similarity_ext.dot(temp)
+        
+        logg.info("Phase II: time elapsed -- ", time.time()-t)
+
+
+        adata.uns['transition_map']=ssp.csr_matrix(transition_map_1)
+        #adata.uns['transition_map_unExtended']=ssp.csr_matrix(transition_map)
+
+
+    
+    logg.info("----Demultiplexed transition map----")
+
+    #pdb.set_trace()
+    demultiplexed_map_0=refine_Tmap_through_cospar_noSmooth(multiTime_cell_id_t1,multiTime_cell_id_t2,proportion,transition_map,
+        X_clone,noise_threshold=demulti_threshold,normalization_mode=normalization_mode)
+
+    idx_t1=hf.converting_id_from_fullSpace_to_subSpace(clonal_cell_id_t1,Tmap_cell_id_t1)[0]
+    idx_t2=hf.converting_id_from_fullSpace_to_subSpace(clonal_cell_id_t2,Tmap_cell_id_t2)[0]
+    demultiplexed_map=np.zeros((len(Tmap_cell_id_t1),len(Tmap_cell_id_t2)))
+    demultiplexed_map[idx_t1[:,np.newaxis],idx_t2]=demultiplexed_map_0.A
+    adata.uns['intraclone_transition_map']=ssp.csr_matrix(demultiplexed_map)
 
 
 
@@ -1682,8 +2029,6 @@ def infer_Tmap_from_one_time_clones_private(adata,initialized_map,
         cell_N_to_extract[1:]=np.diff(cum_cell_N)
 
 
-    convergence_corr=np.zeros(max_iter_N[0]+1)
-    convergence_corr[0]=-100
     for x0 in range(max_iter_N[0]):
 
 
@@ -1753,10 +2098,11 @@ def infer_Tmap_from_one_time_clones_private(adata,initialized_map,
             t0=time.time()
             X_map_0=map_temp.A
             X_map_1=adata.uns['transition_map'].A
-            convergence_corr[x0+1]=np.diag(hf.corr2_coeff(X_map_0,X_map_1)).mean()
-            print(f"Covergency test for JointOptimization: corr(previous_T, current_T)={convergence_corr[x0+1]}; time cost={time.time()-t0}")
+            convergence_corr[j+1]=np.diag(hf.corr2_coeff(X_map_0,X_map_1)).mean()
+            print(f"Covergency test for JointOptimization: corr(previous_T, current_T)={convergence_corr[j+1]}; time cost={time.time()-t0}")
             
-            if (abs(convergence_corr[x0+1]-convergence_corr[x0])<epsilon_converge[0]):
+            transition_map=transition_map_new
+            if (abs(convergence_corr[j+1]-convergence_corr[j])<epsilon_converge[0]) and (j>=2):
                 break
 
             map_temp=adata.uns['transition_map']
@@ -1765,13 +2111,264 @@ def infer_Tmap_from_one_time_clones_private(adata,initialized_map,
             return None
 
 
+########### v0, without convergence test, 20210326
+# We tested that, for clones of all different sizes, where np.argsort gives unique results, 
+# this method reproduces the v01, v1 results, when use_fixed_clonesize_t1=True, and when change
+# sort_clone=0,1,-1.
+def infer_Tmap_from_one_time_clones_private_v0(adata,initialized_map,Clone_update_iter_N=1,
+    smooth_array=[15,10,5],CoSpar_KNN=20,normalization_mode=1,noise_threshold=0.2,
+    use_full_Smatrix=True,trunca_threshold=0.001,compute_new=True,
+    use_fixed_clonesize_t1=False,sort_clone=1,save_subset=True,max_iter_N=3,epsilon_converge=0.01):
+    """
+    Infer Tmap from clones with a single time point
 
+    Starting from an initialized transitin map from state information,
+    we jointly infer the initial clonal states and the transition map.
+
+    This method has been optimized to be very fast. Besides, it is
+    deterministic. 
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+        Should have only two time points. 
+    initialized_map: `sp.spmatrix`
+        Initialized transition map based on state information alone.
+    Clone_update_iter_N: `int`, optional (default: 1)
+        Number of iterations for the joint optimization.
+    normalization_mode: `int`, optional (default: 1)
+        Normalization method. Choice: [0,1].
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
+    smooth_array: `list`, optional (default: [15,10,5])
+        List of smooth rounds at initial runs of iteration. 
+        Suppose that it has a length N. For iteration n<N, The n-th entry of 
+        smooth_array determines the smooth round for the Smatrix 
+        at the n-th iteration. When n>N, we use the last entry of 
+        smooth_array to compute the Smatrix.
+        It is better to use a number at the multiple of 
+        5, i.e., 5, 10, 15, 20,...
+    max_iter_N: `int`, optional (default: 3)
+        The maximum iterations used to compute the transition map, regardless of epsilon_converge. 
+    epsilon_converge: `float`, optional (default: 0.01)
+        The convergence threshold for the change of map correlations between consecutive iterations.
+        This convergence test is activated only when CoSpar has iterated for 3 times. 
+    CoSpar_KNN: `int`, optional (default: 20)
+        The number of neighbors for KNN graph used for computing the similarity matrix.
+    trunca_threshold: `float`, optional (default: 0.001)
+        Threshold to reset entries of the computed similarity matrix. 
+        This is only for computational and storage efficiency.
+    noise_threshold: `float`, optional (default: 0.1)
+        The relative threshold to remove noises in the updated transition map,
+        in the range [0,1].
+    save_subset: `bool`, optional (default: True)
+        If true, save only Smatrix at smooth round [5,10,15,...];
+        Otherwise, save Smatrix at each round. 
+    use_full_Smatrix: `bool`, optional (default: True)
+        If true, extract the relevant Smatrix from the full Smatrix defined by all cells.
+        This tends to be more accurate. The package is optimized around this choice. 
+    use_fixed_clonesize_t1: `bool`, optional (default: False)
+        If true, fix the number of initial states as the same for all clones
+    sort_clone: `int`, optional (default: 1)
+        The order to infer initial states for each clone: {1,-1,others}.
+        1, sort clones by size from small to large;
+        -1, sort clones by size from large to small;
+        others, do not sort. 
+    compute_new: `bool`, optional (default: False)
+        If True, compute everything (ShortestPathDis, OT_map, etc.) from scratch, 
+        whether it was computed and saved before or not.
+    save_subset: `bool`, optional (default: True)
+        If true, save only Smatrix at smooth round [5,10,15,...];
+        Otherwise, save Smatrix at each round. 
+
+    Returns
+    ------
+    None. Update adata.obsm['X_clone'] and adata.uns['transition_map'],
+    as well as adata.uns['OT_transition_map'] or 
+    adata.uns['HighVar_transition_map'], depending on the initialization.
+    """
+
+    # I found the error: 1) we should use clonally related cell number at t2 as a factor to determine the clonally cell number at t1
+    #                    2) update the whole t2 clonal info at once
+
+    logg.info("Joint optimization that consider possibility of clonal overlap: v2")
+
+    cell_id_array_t1=adata.uns['Tmap_cell_id_t1']
+    cell_id_array_t2=adata.uns['Tmap_cell_id_t2']
+    data_des=adata.uns['data_des'][-1]
+    data_path=settings.data_path
+    X_clone=adata.obsm['X_clone']
+    if not ssp.issparse(X_clone): X_clone=ssp.csr_matrix(X_clone) 
+
+    time_info=np.array(adata.obs['time_info'])
+    time_index_t1=time_info==(time_info[cell_id_array_t1[0]])
+    time_index_t2=time_info==(time_info[cell_id_array_t2[0]])
+
+    if not ssp.issparse(initialized_map):
+        map_temp=ssp.csr_matrix(initialized_map)
+    else:
+        map_temp=initialized_map
+
+
+    # a clone must has at least 2 cells, to be updated later. 
+    valid_clone_id=np.nonzero(X_clone[cell_id_array_t2].sum(0).A.flatten()>0)[0]
+    X_clone_temp=X_clone[:,valid_clone_id]
+    clonal_cells_t2=np.sum(X_clone_temp[cell_id_array_t2].sum(1).flatten())
+
+    logg.hint(f"original clone shape: {X_clone.shape}")
+    logg.hint(f"After excluding zero-sized clones at t2: {X_clone_temp.shape}")
+
+
+    flag=True # to check whether overlapping clones are found or not
+    if use_fixed_clonesize_t1:
+        logg.info("Use fixed clone size at t1")
+
+    ##### Partition cells into non-overlapping, combinatorial BC_id.  
+    # ---------------------------------
+    # find the combinatorial barcodes
+    clone_idx=np.nonzero(X_clone_temp.A)
+    dic=[[] for j in range(X_clone_temp.shape[0])] # a list of list
+    for j in range(clone_idx[0].shape[0]):
+        dic[clone_idx[0][j]].append(clone_idx[1][j])
+
+    BC_id=[tuple(x) for x in dic] # a BC_id is a unique barcode combination, does not change the ordering of cells
+
+
+    # --------------------
+    # construct the new X_clone_temp matrix, and the clone_mapping
+    unique_BC_id=list(set(BC_id))
+    if () in unique_BC_id: # () is resulted from cells without any barcodes
+        unique_BC_id.remove(())
+
+    # construct a X_clone_newBC for the new BC_id
+    # also record how the new BC_id is related to the old barcode
+
+    X_clone_newBC=np.zeros((X_clone_temp.shape[0],len(unique_BC_id)))
+    for i, BC_0 in enumerate(BC_id):
+        for j, BC_1 in enumerate(unique_BC_id):
+            if BC_1==BC_0:
+                X_clone_newBC[i,j]=1 # does not change the ordering of cells
+
+    clone_mapping=np.zeros((X_clone_temp.shape[1],X_clone_newBC.shape[1]))
+    for j, BC_1 in enumerate(unique_BC_id):
+        for k in BC_1:
+            clone_mapping[k,j]=1
+
+    X_clone_newBC=ssp.csr_matrix(X_clone_newBC)
+    clone_mapping=ssp.csr_matrix(clone_mapping)
+    # To recover the original X_clone_temp, use 'X_clone_newBC*(clone_mapping.T)'
+    # howver, clone_mapping is not invertible. We cannot get from X_clone_temp to 
+    # X_clone_newBC using matrix multiplification.
+
+
+
+    ### select the early states using the grouped distribution of a clone
+    ### clones are not overlapping, and all early states should be attached to clones at the end
+
+    # we sort clones according to their sizes. The order of cells are not affected. So, it should not affect downstream analysis
+    # small clones tend to be the ones that are barcoded/mutated later, while large clones tend to be early mutations...
+    clone_size_t2_temp=X_clone_newBC[cell_id_array_t2].sum(0).A.flatten()
+
+
+    if sort_clone==1:
+        logg.info("Sort clones by size (small to large)")
+
+        sort_clone_id=np.argsort(clone_size_t2_temp,kind='stable')
+        clone_size_t2=clone_size_t2_temp[sort_clone_id]
+        X_clone_sort=X_clone_newBC[:,sort_clone_id]
+        clone_mapping_sort=clone_mapping[:,sort_clone_id]
+
+    elif sort_clone==-1:
+        logg.info("Sort clones by size (large to small)")
+
+        sort_clone_id=np.argsort(clone_size_t2_temp,kind='stable')[::-1]
+        clone_size_t2=clone_size_t2_temp[sort_clone_id]
+        X_clone_sort=X_clone_newBC[:,sort_clone_id]
+        clone_mapping_sort=clone_mapping[:,sort_clone_id]
+
+    else:
+        logg.info("Do not order clones by size ")
+        clone_size_t2=clone_size_t2_temp
+        X_clone_sort=X_clone_newBC
+        clone_mapping_sort=clone_mapping
+
+
+    logg.info("Infer the number of initial cells to extract for each clone in advance")
+    clone_N1=X_clone_sort.shape[1]
+    ave_clone_size_t1=int(np.ceil(len(cell_id_array_t1)/clone_N1));
+    cum_cell_N=np.ceil(np.cumsum(clone_size_t2)*len(cell_id_array_t1)/clonal_cells_t2)
+    cell_N_to_extract=np.zeros(len(cum_cell_N),dtype=int)
+    if use_fixed_clonesize_t1:
+        cell_N_to_extract += ave_clone_size_t1
+    else:
+        cell_N_to_extract[0]=cum_cell_N[0]
+        cell_N_to_extract[1:]=np.diff(cum_cell_N)
+
+
+    for x0 in range(Clone_update_iter_N):
+
+
+        # update initial state probability matrix based on the current map 
+        initial_prob_matrix=(map_temp*X_clone_sort[cell_id_array_t2]).A # a initial probability matrix for t1 cells, shape (n_t1_cell,n_clone)
+        
+
+        ########## begin: update clones
+        remaining_ids_t1=list(np.arange(len(cell_id_array_t1),dtype=int))
+
+        X_clone_new=np.zeros(X_clone_sort.shape,dtype=bool)
+        X_clone_new[cell_id_array_t2]=X_clone_sort[cell_id_array_t2].A.astype(bool) # update the whole t2 clones at once
+
+        for j in range(clone_N1):
+            if (j%100==0):
+                #pdb.set_trace()
+                logg.hint(f"Inferring early clonal states: current clone id {j}")
+
+
+
+            # infer the earlier clonal states for each clone
+            ### select the early states using the grouped distribution of a clone
+            sorted_id_array=np.argsort(initial_prob_matrix[remaining_ids_t1,j],kind='stable')[::-1]
+
+            sel_id_t1=sorted_id_array[:cell_N_to_extract[j]]
+            temp_t1_idx=np.zeros(len(cell_id_array_t1),dtype=bool)
+            temp_t1_idx[np.array(remaining_ids_t1)[sel_id_t1]]=True
+            X_clone_new[cell_id_array_t1,j]=temp_t1_idx
+            for kk in np.array(remaining_ids_t1)[sel_id_t1]:
+                remaining_ids_t1.remove(kk)
+
+            if (len(remaining_ids_t1)==0) and ((j+1)<clone_N1): 
+                logg.hint(f'Early break; current clone id: {j+1}')
+                break
+
+        ########### end: update clones
+        cell_id_array_t1_new=np.nonzero((X_clone_new.sum(1)>0) & (time_index_t1))[0]
+        cell_id_array_t2_new=np.nonzero((X_clone_new.sum(1)>0) & (time_index_t2))[0]
+
+        adata.obsm['X_clone']=ssp.csr_matrix(X_clone_new)*(clone_mapping_sort.T) # convert back to the original clone structure
+        adata.uns['multiTime_cell_id_t1']=[cell_id_array_t1_new] # For CoSpar, clonally-related states
+        adata.uns['multiTime_cell_id_t2']=[cell_id_array_t2_new]
+        adata.uns['clonal_cell_id_t1']=cell_id_array_t1_new # for prepare the similarity matrix with same cell states
+        adata.uns['clonal_cell_id_t2']=cell_id_array_t2_new
+        adata.uns['proportion']=[1]
+
+        infer_Tmap_from_multitime_clones_private(adata,smooth_array=smooth_array,neighbor_N=CoSpar_KNN,noise_threshold=noise_threshold,
+            normalization_mode=normalization_mode,save_subset=save_subset,use_full_Smatrix=use_full_Smatrix,
+            trunca_threshold=trunca_threshold,compute_new_Smatrix=compute_new,max_iter_N=max_iter_N,epsilon_converge=epsilon_converge)
+
+        # update, for the next iteration
+        if 'transition_map' in adata.uns.keys():
+            map_temp=adata.uns['transition_map']
+
+        else:
+            logg.error("transition_map not updated in infer_Tmap_from_multitime_clones_private.")
+            return None
 
 def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points=None,later_time_point=None,
     initialize_method='OT',OT_epsilon=0.02,OT_dis_KNN=5,OT_cost='SPD',
     HighVar_gene_pctl=85,padding_X_clone=False,normalization_mode=1,
     noise_threshold=0.2,CoSpar_KNN=20,use_full_Smatrix=True,smooth_array=[15,10,5],
-    trunca_threshold=0.001,compute_new=False,max_iter_N=[1,3],epsilon_converge=[0.05,0.01],
+    trunca_threshold=0.001,compute_new=False,max_iter_N=[1,3],epsilon_converge=[0.01,0.01],
     use_fixed_clonesize_t1=False,sort_clone=1,save_subset=True,use_existing_KNN_graph=False):
     """
     Infer transition map from clones with a single time point
@@ -1849,7 +2446,7 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points=None,later_ti
         5, i.e., 5, 10, 15, 20,...
     max_iter_N: `list`, optional (default: [1,3])
         A list for maximum iterations for the Joint optimization and CoSpar core function, respectively.
-    epsilon_converge: `list`, optional (default: [0.05,0.01])
+    epsilon_converge: `list`, optional (default: [0.01,0.01])
         A list of convergence threshold for the Joint optimization and CoSpar core function, respectively. 
         The convergence threshold is for the change of map correlations between consecutive iterations.
         For CoSpar core function, this convergence test is activated only when CoSpar has iterated for 3 times. 
@@ -2016,7 +2613,7 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points=None,later_ti
         adata_temp=infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=[yy,later_time_point],
             initialize_method=initialize_method,OT_epsilon=OT_epsilon,OT_dis_KNN=OT_dis_KNN,
             OT_cost=OT_cost,HighVar_gene_pctl=HighVar_gene_pctl,
-            normalization_mode=normalization_mode,
+            Clone_update_iter_N=Clone_update_iter_N,normalization_mode=normalization_mode,
             noise_threshold=noise_threshold,CoSpar_KNN=CoSpar_KNN,use_full_Smatrix=use_full_Smatrix,smooth_array=smooth_array,
             trunca_threshold=trunca_threshold,compute_new=compute_new,
             use_fixed_clonesize_t1=use_fixed_clonesize_t1,sort_clone=sort_clone,save_subset=save_subset,
@@ -2052,7 +2649,242 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points=None,later_ti
     return adata
 
 
+def infer_Tmap_from_one_time_clones_V0(adata_orig,initial_time_points,clonal_time_point,
+    initialize_method='OT',OT_epsilon=0.02,OT_dis_KNN=5,OT_cost='SPD',
+    HighVar_gene_pctl=85,Clone_update_iter_N=1,normalization_mode=1,
+    noise_threshold=0.2,CoSpar_KNN=20,use_full_Smatrix=True,smooth_array=[15,10,5],
+    trunca_threshold=0.001,compute_new=False,max_iter_N=[1,3],epsilon_converge=[0.01,0.01],
+    use_fixed_clonesize_t1=False,sort_clone=1,save_subset=True):
+    """
+    Infer transition map from clones with a single time point
 
+    We iteratively infer a transition map between each of the initial 
+    time points ['day_1','day_2',...,] and the time point with clonal 
+    observation. Given the two time points, after initializing the map 
+    by either the OT method or HighVar method, we jointly infer the likely 
+    initial clonal cells and the corresponding transition map.  
+
+    **Summary**
+        
+    * Parameters relevant for cell state selection:  initial_time_points, 
+      clonal_time_point.
+
+    * Initialization methods:
+
+        * 'OT': optional transport based method. It tends to be more accurate 
+           than `HighVar`, but not reliable under batch differences between 
+           time points.  Key parameters: `OT_epsilon, OT_dis_KNN`. 
+    
+        * 'HighVar': a method that converts highly variable genes into pseudo 
+           clones and run coherent sparsity optimization to generate an initialized 
+           map. Although it is not as accurate as OT, it is robust to batch effect 
+           across time points. Key parameter: `HighVar_gene_pctl`.
+
+    * Key parameters relevant for coherent sparsity optimization itself: 
+      `smooth_array, normalization_mode, CoSpar_KNN, noise_threshold, 
+      Clone_update_iter_N`.
+
+
+    Parameters
+    ----------
+    adata_orig: :class:`~anndata.AnnData` object
+        It is assumed to be preprocessed and has multiple time points.
+    initial_time_points: `list` 
+        List of initial time points to be included for the transition map. 
+        Like ['day_1','day_2']. Entries consistent with adata.obs['time_info']. 
+    clonal_time_point: `str` 
+        The time point with clonal observation. Its value should be 
+        consistent with adata.obs['time_info']. 
+    initialize_method: `str`, optional (default 'OT') 
+        Method to initialize the transition map from state information. 
+        Choice: {'OT', 'HighVar'}.
+    OT_epsilon: `float`, optional (default: 0.02)  
+        The entropic regularization, >0. A larger value increases 
+        uncertainty of the transition. Relevant when `initialize_method='OT'`.
+    OT_dis_KNN: `int`, optional (default: 5)
+        Number of nearest neighbors to construct the KNN graph for
+        computing the shortest path distance. Relevant when `initialize_method='OT'`. 
+    OT_cost: `str`, optional (default: `SPD`), options {'GED','SPD'}
+        The cost metric. We provide gene expression distance (GED), and also
+        shortest path distance (SPD). GED is much faster, but SPD is more accurate.
+        However, cospar is robust to the initialization. 
+    HighVar_gene_pctl: `int`, optional (default: 85)
+        Percentile threshold to select highly variable genes to construct pseudo-clones. 
+        A higher value selects more variable genes. Range: [0,100]. 
+        Relevant when `initialize_method='HighVar'`.
+    Clone_update_iter_N: `int`, optional (default: 1)
+        Number of iteration for the joint optimization
+    normalization_mode: `int`, optional (default: 1)
+        Normalization method. Choice: [0,1].
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
+    smooth_array: `list`, optional (default: [15,10,5])
+        List of smooth rounds at initial runs of iteration. 
+        Suppose that it has a length N. For iteration n<N, The n-th entry of 
+        smooth_array determines the smooth round for the Smatrix 
+        at the n-th iteration. When n>N, we use the last entry of 
+        smooth_array to compute the Smatrix.
+        It is better to use a number at the multiple of 
+        5, i.e., 5, 10, 15, 20,...
+    max_iter_N: `list`, optional (default: [1,3])
+        A list for maximum iterations for the Joint optimization and CoSpar core function, respectively.
+    epsilon_converge: `list`, optional (default: [0.01,0.01])
+        A list of convergence threshold for the Joint optimization and CoSpar core function, respectively. 
+        The convergence threshold is for the change of map correlations between consecutive iterations.
+        For CoSpar core function, this convergence test is activated only when CoSpar has iterated for 3 times. 
+    CoSpar_KNN: `int`, optional (default: 20)
+        The number of neighbors for KNN graph used for computing the similarity matrix.
+    trunca_threshold: `float`, optional (default: 0.001)
+        Threshold to reset entries of the computed similarity matrix. 
+        This is only for computational and storage efficiency.
+    noise_threshold: `float`, optional (default: 0.1)
+        The relative threshold to remove noises in the updated transition map,
+        in the range [0,1].
+    save_subset: `bool`, optional (default: True)
+        If true, save only Smatrix at smooth round [5,10,15,...];
+        Otherwise, save Smatrix at each round. 
+    use_full_Smatrix: `bool`, optional (default: True)
+        If true, extract the relevant Smatrix from the full Smatrix defined by all cells.
+        This tends to be more accurate. The package is optimized around this choice. 
+    use_fixed_clonesize_t1: `bool`, optional (default: False)
+        If true, fix the number of initial states as the same for all clones
+    sort_clone: `int`, optional (default: 1)
+        The order to infer initial states for each clone: {1,-1,others}.
+        1, sort clones by size from small to large;
+        -1, sort clones by size from large to small;
+        others, do not sort. 
+    compute_new: `bool`, optional (default: False)
+        If True, compute everything (ShortestPathDis, OT_map, etc.) from scratch, 
+        whether it was computed and saved before or not. Regarding the Smatrix, it is 
+        recomputed only when `use_full_Smatrix=False`.
+
+    Returns
+    -------
+    adata: :class:`~anndata.AnnData` object
+        Update adata.obsm['X_clone'] and adata.uns['transition_map'],
+        as well as adata.uns['OT_transition_map'] or 
+        adata.uns['HighVar_transition_map'], depending on the initialization.
+        adata.obsm['X_clone'] remains the same. 
+    """
+
+    t0=time.time()
+
+    for xx in initial_time_points:
+        if xx not in list(set(adata_orig.obs['time_info'])):
+            logg.error(f"The 'initial_time_points' are not valid. Please select from {list(set(adata_orig.obs['time_info']))}")
+            return None
+
+    if save_subset:
+        if not (np.all(np.diff(smooth_array)<=0) and np.all(np.array(smooth_array)%5==0)):
+            logg.error("The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
+             "The correct form is like [20,15,10], or [10,10,10,5]. Its length determines the number of iteration.\n"
+              "You can also set save_subset=False to explore arbitrary smooth_array structure.")
+            return None
+
+    hf.check_available_clonal_info(adata_orig)
+    if not (clonal_time_point in adata_orig.uns['clonal_time_points']):
+        logg.warn(f"'clonal_time_point' do not contain clonal information. Please set clonal_time_point to be one of {adata_orig.uns['clonal_time_points']}")
+        return None
+        #logg.info("Consider run ----cs.tmap.CoSpar_NoClonalInfo------")
+        #logg.warn("Keep running but without clonal information")
+        
+
+    if initialize_method not in ['OT','HighVar']:
+        logg.error("initialize_method must be among ['OT','HighVar'].")
+        return None
+
+    if OT_cost not in ['GED','SPD']:
+        logg.error("OT_cost must be among ['GED','SPD'].")
+        return None        
+
+
+    sp_idx=np.zeros(adata_orig.shape[0],dtype=bool)
+    time_info_orig=np.array(adata_orig.obs['time_info'])
+    all_time_points=list(initial_time_points)+[clonal_time_point]
+    label='t'
+    for xx in all_time_points:
+        id_array=np.nonzero(time_info_orig==xx)[0]
+        sp_idx[id_array]=True
+        label=label+'*'+str(xx)
+
+    adata=sc.AnnData(adata_orig.X[sp_idx]);
+    adata.var_names=adata_orig.var_names
+    adata.obsm['X_pca']=adata_orig.obsm['X_pca'][sp_idx]
+    adata.obsm['X_emb']=adata_orig.obsm['X_emb'][sp_idx]
+    adata.obs['state_info']=pd.Categorical(adata_orig.obs['state_info'][sp_idx])
+    adata.obs['time_info']=pd.Categorical(adata_orig.obs['time_info'][sp_idx])
+    
+    data_des_orig=adata_orig.uns['data_des'][0]
+    data_des_0=adata_orig.uns['data_des'][-1]
+    data_des=data_des_0+f'_OneTimeClone_{label}'
+    adata.uns['data_des']=[data_des_orig,data_des]
+
+    
+    ## set cells without a clone ID to have a unique clone ID
+    clone_annot_orig=adata_orig.obsm['X_clone']        
+    clone_annot=clone_annot_orig[sp_idx]
+    if padding_X_clone:
+        zero_clone_idx=clone_annot.sum(1).A.flatten()==0
+        clone_annot_temp=np.diag(np.ones(adata_orig.shape[0]))
+    adata_orig.obsm['X_clone']=ssp.csr_matrix(X_clone)
+
+    adata.obsm['X_clone']=clone_annot
+
+    time_info=np.array(adata.obs['time_info'])
+    time_index_t2=time_info==clonal_time_point
+    time_index_t1=~time_index_t2
+
+    #### used for similarity matrix generation
+    Tmap_cell_id_t1=np.nonzero(time_index_t1)[0]
+    Tmap_cell_id_t2=np.nonzero(time_index_t2)[0]
+    adata.uns['Tmap_cell_id_t1']=Tmap_cell_id_t1
+    adata.uns['Tmap_cell_id_t2']=Tmap_cell_id_t2
+    adata.uns['clonal_cell_id_t1']=Tmap_cell_id_t1
+    adata.uns['clonal_cell_id_t2']=Tmap_cell_id_t2
+    adata.uns['sp_idx']=sp_idx
+    data_path=settings.data_path
+
+    transition_map=np.zeros((len(Tmap_cell_id_t1),len(Tmap_cell_id_t2)))
+    ini_transition_map=np.zeros((len(Tmap_cell_id_t1),len(Tmap_cell_id_t2)))
+
+
+    logg.info("-----------------Infer transition map between initial time points and the later time one-----------------------")
+    for yy in initial_time_points:
+        logg.info(f"Current initial time point: {yy}")
+
+        adata_temp=infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=[yy,clonal_time_point],
+            initialize_method=initialize_method,OT_epsilon=OT_epsilon,OT_dis_KNN=OT_dis_KNN,
+            OT_cost=OT_cost,HighVar_gene_pctl=HighVar_gene_pctl,
+            Clone_update_iter_N=Clone_update_iter_N,normalization_mode=normalization_mode,
+            noise_threshold=noise_threshold,CoSpar_KNN=CoSpar_KNN,use_full_Smatrix=use_full_Smatrix,smooth_array=smooth_array,
+            trunca_threshold=trunca_threshold,compute_new=compute_new,max_iter_N=max_iter_N,epsilon_converge=epsilon_converge,
+            use_fixed_clonesize_t1=use_fixed_clonesize_t1,sort_clone=sort_clone,save_subset=save_subset)
+
+        temp_id_t1=np.nonzero(time_info==yy)[0]
+        sp_id_t1=hf.converting_id_from_fullSpace_to_subSpace(temp_id_t1,Tmap_cell_id_t1)[0]
+        
+        transition_map_temp=adata_temp.uns['transition_map'].A
+        transition_map[sp_id_t1,:]=transition_map_temp
+
+        if initialize_method=='OT':
+            transition_map_ini_temp=adata_temp.uns['OT_transition_map']
+        else:
+            transition_map_ini_temp=adata_temp.uns['HighVar_transition_map']
+
+        ini_transition_map[sp_id_t1,:]=transition_map_ini_temp.A
+
+
+    adata.uns['transition_map']=ssp.csr_matrix(transition_map)
+    
+    if initialize_method=='OT':
+        adata.uns['OT_transition_map']=ssp.csr_matrix(ini_transition_map)
+    else:
+        adata.uns['HighVar_transition_map']=ssp.csr_matrix(ini_transition_map)
+
+
+    logg.info(f"-----------Total used time: {time.time()-t0} s ------------")
+    return adata
 
 
 # updated version: v1, we initialize the X_clone as isolated cells
@@ -2060,7 +2892,7 @@ def infer_Tmap_from_state_info_alone(adata_orig,initial_time_points=None,later_t
     initialize_method='OT',OT_epsilon=0.02,OT_dis_KNN=5,OT_cost='SPD',
     HighVar_gene_pctl=85,normalization_mode=1,
     noise_threshold=0.2,CoSpar_KNN=20,use_full_Smatrix=True,smooth_array=[15,10,5],
-    trunca_threshold=0.001,compute_new=False,max_iter_N=[1,3],epsilon_converge=[0.05,0.01],
+    trunca_threshold=0.001,compute_new=False,max_iter_N=[1,3],epsilon_converge=[0.01,0.01],
     use_fixed_clonesize_t1=False,sort_clone=1,save_subset=True,
     use_existing_KNN_graph=False):
     """
@@ -2136,7 +2968,7 @@ def infer_Tmap_from_state_info_alone(adata_orig,initial_time_points=None,later_t
         5, i.e., 5, 10, 15, 20,...
     max_iter_N: `list`, optional (default: [1,3])
         A list for maximum iterations for the Joint optimization and CoSpar core function, respectively.
-    epsilon_converge: `list`, optional (default: [0.05,0.01])
+    epsilon_converge: `list`, optional (default: [0.01,0.01])
         A list of convergence threshold for the Joint optimization and CoSpar core function, respectively. 
         The convergence threshold is for the change of map correlations between consecutive iterations.
         For CoSpar core function, this convergence test is activated only when CoSpar has iterated for 3 times. 
@@ -2252,7 +3084,8 @@ def infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=
     normalization_mode=1,noise_threshold=0.2,CoSpar_KNN=20,
     use_full_Smatrix=True,smooth_array=[15,10,5],max_iter_N=[1,3],epsilon_converge=[0.01,0.01],
     trunca_threshold=0.001,compute_new=True,use_fixed_clonesize_t1=False,
-    sort_clone=1,save_subset=True,joint_optimization=True,use_existing_KNN_graph=False):
+    sort_clone=1,save_subset=True,joint_optimization=True,use_existing_KNN_graph=False,
+    max_iter_N=3,epsilon_converge=0.01):
     """
     Infer transition map from clones with a single time point
 
@@ -2587,3 +3420,194 @@ def infer_Tmap_from_clonal_info_alone(adata_orig,method='naive',clonal_time_poin
             return adata
 
 
+
+# the v1 version, allows compatibility with existing adata that has been sub-sampled. 
+# The inferred map clonal_transition_map will be stored there without disrupting 
+# existing annotations.
+def infer_Tmap_from_clonal_info_alone_v1(adata,method='naive',clonal_time_points=None,selected_fates=[]):
+    """
+    Compute transition map using only the lineage information.
+
+    We simply average transitions across all clones, assuming that
+    the intra-clone transition is uniform within the same clone. This
+    function also assumes that the dataset has clones with multiple time
+    points, and that it has been run through other transition map inference
+    methods that define the initial and later time points of the map.
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+    method: `str`, optional (default: 'naive')
+        Method used to compute the transition map. Choice: {'naive', 
+        'weinreb'}. For the naive method, we simply average transitions 
+        across all clones, assuming that the intra-clone transitions are 
+        uniform within the same clone. For the 'weinreb' method, we first 
+        find uni-potent clones, then compute the transition map by simply 
+        averaging across all clonal transitions as the naive method. 
+    selected_fates: `list`, optional (default: all selected)
+        List of targeted fate clusters to define uni-potent clones for the 
+        weinreb method, which are used to compute the transition map. 
+    clonal_time_points: `list`, optional (default: all)
+        Select time points for computing the transition map.
+
+    Returns
+    -------
+    Return a new `adata` object with the attributes adata.uns['clonal_transition_map']
+    """
+
+    hf.check_available_clonal_info(adata)
+    time_info_orig=np.array(adata.uns['clonal_time_points'])
+    if len(time_info_orig)<2:
+        logg.error("There are no multi-time clones. Abort the inference.")
+
+    else:
+        if 'time_ordering' not in adata.uns.keys():
+            hf.update_time_ordering(adata)
+        time_ordering=adata.uns['time_ordering']
+
+        if clonal_time_points==None:
+            sel_idx_temp=np.in1d(time_ordering,time_info_orig)
+            clonal_time_points=time_ordering[sel_idx_temp] # ordered clonal time points
+        else:
+            sel_idx_temp=np.in1d(time_ordering,clonal_time_points)
+            clonal_time_points=time_ordering[sel_idx_temp] # ordered clonal time points            
+                
+        adata_1=select_time_points(adata,time_point=clonal_time_points,extend_Tmap_space=True)
+
+
+        if ('Tmap_cell_id_t1' not in adata.uns.keys()) or ('Tmap_cell_id_t2' not in adata.uns.keys()) or (select_time_points is not None):
+            logg.info("Update Tmap_cell_id_t1 and Tmap_cell_id_t2")
+            cell_id_t2_all=adata_1.uns['Tmap_cell_id_t2']
+            cell_id_t1_all=adata_1.uns['Tmap_cell_id_t1']            
+        else: # use the original representation
+            logg.info("Use original Tmap_cell_id_t1 and Tmap_cell_id_t2")
+            cell_id_t2_all=adata.uns['Tmap_cell_id_t2']
+            cell_id_t1_all=adata.uns['Tmap_cell_id_t1']
+
+        T_map=np.zeros((len(cell_id_t1_all),len(cell_id_t2_all)))
+        clone_annot=adata_1.obsm['X_clone']
+
+        N_points=len(adata_1.uns['multiTime_cell_id_t1'])
+        for k in range(N_points):
+
+            cell_id_t1_temp=adata_1.uns['multiTime_cell_id_t1'][k]
+            cell_id_t2_temp=adata_1.uns['multiTime_cell_id_t2'][k]
+            if method=='naive':
+                logg.info("Use all clones (naive method)")
+                T_map_temp=clone_annot[cell_id_t1_temp]*clone_annot[cell_id_t2_temp].T
+
+            else:
+                logg.info("Use only uni-potent clones (weinreb method)")
+                state_annote=np.array(adata_1.obs['state_info'])
+                if len(selected_fates)==0:
+                    selected_fates=list(set(state_annote))
+                potential_vector_clone, fate_entropy_clone=hf.compute_state_potential(clone_annot[cell_id_t2_temp].T,state_annote[cell_id_t2_temp],selected_fates,fate_count=True)
+
+                sel_unipotent_clone_id=np.array(list(set(np.nonzero(fate_entropy_clone==1)[0])))
+                clone_annot_unipotent=clone_annot[:,sel_unipotent_clone_id]
+                T_map_temp=clone_annot_unipotent[cell_id_t1_temp]*clone_annot_unipotent[cell_id_t2_temp].T
+                logg.info(f"Used uni-potent clone fraction {len(sel_unipotent_clone_id)/clone_annot.shape[1]}")
+
+            idx_t1=np.nonzero(np.in1d(cell_id_t1_all,cell_id_t1_temp))[0]
+            idx_t2=np.nonzero(np.in1d(cell_id_t2_all,cell_id_t2_temp))[0]
+            idx_t1_temp=np.nonzero(np.in1d(cell_id_t1_temp,cell_id_t1_all))[0]
+            idx_t2_temp=np.nonzero(np.in1d(cell_id_t2_temp,cell_id_t2_all))[0]
+            T_map[idx_t1[:,np.newaxis],idx_t2]=T_map_temp[idx_t1_temp][:,idx_t2_temp].A
+            
+        T_map=T_map.astype(int)
+        if (select_time_points is not None): # a subsampling might happened, return adata_1 with fewer cells
+            adata_1.uns['clonal_transition_map']=ssp.csr_matrix(T_map)
+            return adata_1
+        else:
+            adata.uns['clonal_transition_map']=ssp.csr_matrix(T_map)
+            adata.uns['Tmap_cell_id_t1']=cell_id_t1_all
+            adata.uns['Tmap_cell_id_t2']=cell_id_t2_all
+            return adata
+
+
+def infer_Tmap_from_clonal_info_alone_v0(adata,method='naive',selected_fates=[]):
+    """
+    Compute transition map using only the lineage information.
+
+    We simply average transitions across all clones, assuming that
+    the intra-clone transition is uniform within the same clone. This
+    function also assumes that the dataset has clones with multiple time
+    points, and that it has been run through other transition map inference
+    methods that define the initial and later time points of the map.
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+    method: `str`, optional (default: 'naive')
+        Method used to compute the transition map. Choice: {'naive', 
+        'weinreb'}. For the naive method, we simply average transitions 
+        across all clones, assuming that the intra-clone transitions are 
+        uniform within the same clone. For the 'weinreb' method, we first 
+        find uni-potent clones, then compute the transition map by simply 
+        averaging across all clonal transitions as the naive method. 
+    selected_fates: `list`, optional (default: all selected)
+        List of targeted fate clusters to define uni-potent clones for the 
+        weinreb method, which are used to compute the transition map. 
+
+    Returns
+    -------
+    Return a new `adata` object with the attributes adata.uns['clonal_transition_map']
+    """
+
+    hf.check_available_clonal_info(adata)
+    time_info_orig=np.array(adata.uns['clonal_time_points'])
+    if len(time_info_orig)<2:
+        logg.error("There are no multi-time clones. Abort the inference.")
+
+    else:
+
+        if 'time_ordering' not in adata.uns.keys():
+            hf.update_time_ordering(adata)
+        time_ordering=adata.uns['time_ordering']
+        sel_idx_temp=np.in1d(time_ordering,time_info_orig)
+        clonal_time_points=time_ordering[sel_idx_temp] # ordered clonal time points
+        adata_1=select_time_points(adata,time_point=clonal_time_points,extend_Tmap_space=True)
+
+
+        if ('Tmap_cell_id_t1' not in adata.uns.keys()) or ('Tmap_cell_id_t2' not in adata.uns.keys()):
+            cell_id_t2_all=adata_1.uns['Tmap_cell_id_t2']
+            cell_id_t1_all=adata_1.uns['Tmap_cell_id_t1']            
+        else: # use the original representation
+            cell_id_t2_all=adata.uns['Tmap_cell_id_t2']
+            cell_id_t1_all=adata.uns['Tmap_cell_id_t1']
+
+        T_map=np.zeros((len(cell_id_t1_all),len(cell_id_t2_all)))
+        clone_annot=adata_1.obsm['X_clone']
+
+        N_points=len(adata_1.uns['multiTime_cell_id_t1'])
+        for k in range(N_points):
+
+            cell_id_t1_temp=adata_1.uns['multiTime_cell_id_t1'][k]
+            cell_id_t2_temp=adata_1.uns['multiTime_cell_id_t2'][k]
+            if method=='naive':
+                logg.info("Use all clones (naive method)")
+                T_map_temp=clone_annot[cell_id_t1_temp]*clone_annot[cell_id_t2_temp].T
+
+            else:
+                logg.info("Use only uni-potent clones (weinreb method)")
+                state_annote=np.array(adata_1.obs['state_info'])
+                if len(selected_fates)==0:
+                    selected_fates=list(set(state_annote))
+                potential_vector_clone, fate_entropy_clone=hf.compute_state_potential(clone_annot[cell_id_t2_temp].T,state_annote[cell_id_t2_temp],selected_fates,fate_count=True)
+
+                sel_unipotent_clone_id=np.array(list(set(np.nonzero(fate_entropy_clone==1)[0])))
+                clone_annot_unipotent=clone_annot[:,sel_unipotent_clone_id]
+                T_map_temp=clone_annot_unipotent[cell_id_t1_temp]*clone_annot_unipotent[cell_id_t2_temp].T
+                logg.info(f"Used uni-potent clone fraction {len(sel_unipotent_clone_id)/clone_annot.shape[1]}")
+
+            idx_t1=np.nonzero(np.in1d(cell_id_t1_all,cell_id_t1_temp))[0]
+            idx_t2=np.nonzero(np.in1d(cell_id_t2_all,cell_id_t2_temp))[0]
+            idx_t1_temp=np.nonzero(np.in1d(cell_id_t1_temp,cell_id_t1_all))[0]
+            idx_t2_temp=np.nonzero(np.in1d(cell_id_t2_temp,cell_id_t2_all))[0]
+            T_map[idx_t1[:,np.newaxis],idx_t2]=T_map_temp[idx_t1_temp][:,idx_t2_temp].A
+            
+        T_map=T_map.astype(int)
+        adata.uns['clonal_transition_map']=ssp.csr_matrix(T_map)
+        adata.uns['Tmap_cell_id_t1']=cell_id_t1_all
+        adata.uns['Tmap_cell_id_t2']=cell_id_t2_all
+        return adata

@@ -598,6 +598,8 @@ def compute_state_potential(transition_map,state_annote,fate_array,
     fate_N=len(fate_array)
     N1,N2=transition_map.shape
 
+    logg.info(f"Use the method={method} to compute differentiation bias")
+
     if map_backwards:
         idx_array=np.zeros((N2,fate_N),dtype=bool)
         for k in range(fate_N):
@@ -621,7 +623,7 @@ def compute_state_potential(transition_map,state_annote,fate_array,
         elif (method=='conditional'):
             # perform normalization of the fate map. This works only if there are more than two fates
             if fate_N>1:
-                logg.info('conditional method: perform column normalization')
+                #logg.info('conditional method: perform column normalization')
                 fate_map=sparse_column_multiply(fate_map,1/(resol+np.sum(fate_map,0).flatten())).A
                 fate_map=fate_map/np.max(fate_map)
 
@@ -660,7 +662,7 @@ def compute_state_potential(transition_map,state_annote,fate_array,
         elif (method=='conditional'):
             # perform normalization of the fate map. This works only if there are more than two fates
             if fate_N>1:
-                logg.info('conditional method: perform column normalization')
+                #logg.info('conditional method: perform column normalization')
                 fate_map=sparse_column_multiply(fate_map,1/(resol+np.sum(fate_map,0).flatten())).A
 
          
