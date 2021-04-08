@@ -10,6 +10,8 @@ from .. import help_functions as hf
 from matplotlib import pyplot as plt
 from .. import settings
 from .. import logging as logg
+import statsmodels.sandbox.stats.multicomp
+import scipy.stats as stats
 import matplotlib as mpl
 
 ####################
@@ -134,7 +136,15 @@ def embedding(adata,basis='X_emb',color=None):
         e.g., 'state_info', 'time_info',['Gata1','Gata2']
     """
 
-    sc.pl.embedding(adata,basis=basis,color=color)
+    fig_height=settings.fig_height
+    fig_width=settings.fig_width
+    data_des=adata.uns['data_des'][-1]
+    fig=plt.figure(figsize=(fig_width,fig_height));
+    ax=plt.subplot(1,1,1)
+
+    sc.pl.embedding(adata,basis=basis,color=color,ax=ax)
+    plt.tight_layout()
+    fig.savefig(f'{settings.figure_path}/{data_des}_embedding.png', dpi=300)
 
 
 def customized_embedding(x, y, vector, normalize=False, title=None, ax=None, 
@@ -499,7 +509,7 @@ def single_cell_transition(adata,selected_state_id_list,used_Tmap='transition_ma
 
 
 def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
-    map_backwards=True,normalize_by_fate_size=False,method='sum',fate_count=True,
+    map_backwards=True,normalize_by_fate_size=False,method='sum',
     selected_time_points=None,background=True, show_histogram=False,
     plot_target_state=True,auto_color_scale=True,color_bar=True,
     target_transparency=0.2,horizontal=False,figure_index=''):
@@ -539,9 +549,6 @@ def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
     method: `str`, optional (default: 'sum')
         Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max'},
         which computes the sum, mean, or max of transition probability within a cluster as the final fate probability.
-    fate_count: `bool`, optional (default: True)
-        Used to determine the method for computing the fate potential of a state.
-        If ture, jus to count the number of possible fates; otherwise, use the Shannon entropy.
     selected_time_points: `list`, optional (default: all)
         A list of time points to further restrict the cell states to plot. 
         The default choice is not to constrain the cell states to show. 
@@ -564,7 +571,7 @@ def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
 
     Returns
     -------
-    Store a dictionary of results {"raw_fate_map","normalized_fate_map","expected_prob"} at adata.uns['fate_map_output']. 
+    Store a dictionary of results {"raw_fate_map","normalized_fate_map","expected_prob","fate_potency"} at adata.uns['fate_map_output']. 
     """
 
     if (method != 'sum') and (normalize_by_fate_size==True):
@@ -600,8 +607,8 @@ def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
 
 
 
-        fate_map_0,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list=hf.compute_fate_map_and_intrinsic_bias(adata,
-            selected_fates=selected_fates,used_Tmap=used_Tmap,map_backwards=map_backwards,method=method,fate_count=fate_count)
+        fate_map_0,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list,fate_entropy=hf.compute_fate_map_and_intrinsic_bias(adata,
+            selected_fates=selected_fates,used_Tmap=used_Tmap,map_backwards=map_backwards,method=method,fate_count=True)
 
         if (len(mega_cluster_list)==0) or (np.sum(sp_idx)==0):
             logg.error("No cells selected. Computation aborted!")
@@ -667,11 +674,124 @@ def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
                     fig.savefig(f'{figure_path}/{data_des}_intrinsic_fate_bias_BW{map_backwards}_histogram.{settings.file_format_figs}')
 
             ## save data to adata
-            adata.uns['fate_map_output']={"raw_fate_map":fate_map[sp_idx,:],"normalized_fate_map":relative_bias[sp_idx,:],"expected_prob":expected_prob}
+            adata.uns['fate_map_output']={"raw_fate_map":fate_map[sp_idx,:],"normalized_fate_map":relative_bias[sp_idx,:],"expected_prob":expected_prob,"fate_potency":fate_entropy[sp_idx]}
+
+
+def fate_potency(adata,selected_fates=None,used_Tmap='transition_map',
+    map_backwards=True,method='conditional',fate_count=False,
+    selected_time_points=None,background=True, 
+    plot_target_state=True,auto_color_scale=True,color_bar=True,
+    target_transparency=0.2,horizontal=False,figure_index=''):
+    """
+    Plot fate potency of early cell states for a given set of fates.
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+        Assume to contain transition maps at adata.uns.
+    selected_fates: `list`
+        List of cluster ids consistent with adata.obs['state_info']. 
+        It allows a nested structure. If so, we merge clusters within 
+        each sub-list into a mega-fate cluster.
+    used_Tmap: `str`
+        The transition map to be used for plotting: {'transition_map',
+        'intraclone_transition_map',...}. The actual available
+        map depends on adata itself, which can be accessed at adata.uns['available_map']
+    map_backwards: `bool`, optional (default: True)
+        If `map_backwards=True`, analyze transitions backward in time, 
+        which plots initial cell state (rows of Tmap, at t1) profiles towards 
+        given fate clusters; otherwise, analyze forward transitions and show later cell 
+        states (columns of Tmap, at t2) profiles starting from given initial clusters. 
+    method: `str`, optional (default: 'sum')
+        Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max','conditional'},
+        which computes the sum, mean, or max of transition probability within a cluster as the final fate probability.
+    fate_count: `bool`, optional (default: True)
+        Used to determine the method for computing the fate potential of a state.
+        If ture, jus to count the number of possible fates; otherwise, use the Shannon entropy.
+    selected_time_points: `list`, optional (default: all)
+        A list of time points to further restrict the cell states to plot. 
+        The default choice is not to constrain the cell states to show. 
+    background: `bool`, optional (default: True)
+        If true, plot all cell states (t1+t2) in grey as the background. 
+    color_bar: `bool`, optional (default: True)
+        plot the color bar if True.
+    target_transparency: `float`, optional (default: 0.2)
+        It controls the transparency of the plotted target cell states, 
+        for visual effect. Range: [0,1].
+    figure_index: `str`, optional (default: '')
+        String index for annotate filename for saved figures. Used to distinuigh plots from different conditions. 
+
+
+    Returns
+    -------
+    Store a dictionary of results {"raw_fate_map","normalized_fate_map","expected_prob","fate_potency"} at adata.uns['fate_map_output']. 
+    """
+
+    normalize_by_fate_size=False
+    if (method != 'sum') and (normalize_by_fate_size==True):
+        logg.warn("normalize_by_fate_size is reset to False as method!='sum'")
+        normalize_by_fate_size=False
+
+    hf.check_available_map(adata)
+    fig_width=settings.fig_width; fig_height=settings.fig_height; point_size=settings.fig_point_size
+    #set_up_plotting()
+
+    if used_Tmap not in adata.uns['available_map']:
+        logg.error(f"used_Tmap should be among {adata.uns['available_map']}")
+
+    else:        
+        state_annote=adata.obs['state_info']
+        if map_backwards:
+            cell_id_t1=adata.uns['Tmap_cell_id_t1']
+            cell_id_t2=adata.uns['Tmap_cell_id_t2']
+
+        else:
+            cell_id_t2=adata.uns['Tmap_cell_id_t1']
+            cell_id_t1=adata.uns['Tmap_cell_id_t2']
+
+
+        time_info=np.array(adata.obs['time_info'])
+        sp_idx=hf.selecting_cells_by_time_points(time_info[cell_id_t1],selected_time_points)
+
+
+        x_emb=adata.obsm['X_emb'][:,0]
+        y_emb=adata.obsm['X_emb'][:,1]
+        data_des=adata.uns['data_des'][-1]
+        figure_path=settings.figure_path
 
 
 
-def binary_fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
+        fate_map_0,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list,fate_entropy=hf.compute_fate_map_and_intrinsic_bias(adata,
+            selected_fates=selected_fates,used_Tmap=used_Tmap,map_backwards=map_backwards,method=method,fate_count=fate_count)
+
+        if (len(mega_cluster_list)==0) or (np.sum(sp_idx)==0):
+            logg.error("No cells selected. Computation aborted!")
+        else:
+
+
+            fig = plt.figure(figsize=(fig_width, fig_height))
+            ax0=plt.subplot(1,1,1)
+                
+            if background:
+                customized_embedding(x_emb,y_emb,np.zeros(len(y_emb)),point_size=point_size,ax=ax0)            
+            else:
+                customized_embedding(x_emb[cell_id_t1],y_emb[cell_id_t1],np.zeros(len(y_emb[cell_id_t1])),point_size=point_size,ax=ax0)
+
+            if auto_color_scale:
+                customized_embedding(x_emb[cell_id_t1][sp_idx],y_emb[cell_id_t1][sp_idx],fate_entropy[sp_idx],
+                    point_size=point_size,ax=ax0,set_lim=False,color_bar=color_bar,color_bar_label='Fate potency')
+            else:
+                customized_embedding(x_emb[cell_id_t1][sp_idx],y_emb[cell_id_t1][sp_idx],fate_entropy[sp_idx],
+                    point_size=point_size,ax=ax0,set_lim=False,vmax=1,vmin=0,color_bar=color_bar,color_bar_label='Fate potency')
+        
+            plt.tight_layout()
+            fig.savefig(f'{figure_path}/{data_des}_fate_potency.{settings.file_format_figs}')
+
+            ## save data to adata
+            adata.uns['fate_map_output']={"raw_fate_map":fate_map_0[sp_idx,:],"normalized_fate_map":relative_bias[sp_idx,:],"expected_prob":expected_prob,"fate_potency":fate_entropy[sp_idx]}
+
+
+def fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
     map_backwards=True,normalize_by_fate_size=False,method='conditional',
     selected_time_points=None,sum_fate_prob_thresh=0,mask=None,
     plot_target_state=False,color_bar=True,show_histogram=True,pseudo_count=0,
@@ -684,7 +804,8 @@ def binary_fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
     fate probability Prob(X) towards cluster X.
     Specifically, the bias of a state between fate A and B is
 
-    * Prob(A)/[Prob(A)+Prob(B)]
+    * [Prob(A)+c0]/[Prob(A)+Prob(B)+2*c0]
+    where c0=pseudo_count*(maximum fate probability) is a re-scaled pseudocount.
 
     If `normalize_by_fate_size=True`, before computing the bias, we first 
     normalize the predicted fate probability Prob(X) by the 
@@ -738,11 +859,11 @@ def binary_fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
         String index for annotate filename for saved figures. Used to distinuigh plots from different conditions. 
     pseudo_count: `float`, optional (default: 0)
         Pseudo count to compute the fate bias. The bias = (Pa+c0)/(Pa+Pb+2*c0), 
-        where c0 is the pseudo count, and Pa (Pb) is the fate probability.
+        where c0=pseudo_count*(maximum fate probability) is a rescaled pseudo count. 
 
     Returns
     -------
-    The results are stored at adata.uns['binary_fate_bias']
+    The results are stored at adata.uns['fate_bias']
     """
 
     if (method != 'sum') and (normalize_by_fate_size==True):
@@ -787,7 +908,7 @@ def binary_fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
         if len(selected_fates)!=2: 
             logg.error(f"Must have only two fates")
         else:
-            fate_map,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list=hf.compute_fate_map_and_intrinsic_bias(adata,
+            fate_map,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list,fate_entropy=hf.compute_fate_map_and_intrinsic_bias(adata,
                 selected_fates=selected_fates,used_Tmap=used_Tmap,map_backwards=map_backwards,method=method)
 
             if (len(mega_cluster_list)!=2) or (np.sum(sp_idx)==0):
@@ -800,14 +921,16 @@ def binary_fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
                 ax=plt.subplot(1,1,1)
 
                 if normalize_by_fate_size:
-                    potential_vector_temp=relative_bias[sp_idx,:]+pseudo_count
+                    potential_vector_temp=relative_bias[sp_idx,:]+pseudo_count*np.max(relative_bias[sp_idx,:])
+                    valid_idx=relative_bias[sp_idx,:].sum(1)>sum_fate_prob_thresh # default 0.5
                 else:
-                    potential_vector_temp=fate_map[sp_idx,:]+pseudo_count
+                    potential_vector_temp=fate_map[sp_idx,:]+pseudo_count*np.max(fate_map[sp_idx,:])
+                    valid_idx=fate_map[sp_idx,:].sum(1)>sum_fate_prob_thresh # default 0.5
 
                 diff=potential_vector_temp[:,0]#-potential_vector_temp[:,1]
                 tot=potential_vector_temp.sum(1)
 
-                valid_idx=tot>sum_fate_prob_thresh # default 0.5
+                #valid_idx=tot>sum_fate_prob_thresh # default 0.5
                 vector_array=np.zeros(np.sum(valid_idx))
                 vector_array=diff[valid_idx]/(tot[valid_idx])
                 #vector_array=2*potential_vector_temp[valid_idx,8]/tot[valid_idx]-1
@@ -844,14 +967,14 @@ def binary_fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
                     Clb.ax.set_title(f'{mega_cluster_list[0]}')
 
                 plt.tight_layout()
-                fig.savefig(f'{figure_path}/{data_des}_binary_fate_bias_BW{map_backwards}{figure_index}.{settings.file_format_figs}')
+                fig.savefig(f'{figure_path}/{data_des}_fate_bias_BW{map_backwards}{figure_index}.{settings.file_format_figs}')
 
 
 
-                #adata.uns['binary_fate_bias']=vector_array
+                #adata.uns['fate_bias']=vector_array
                 vector_array_fullSpace=np.zeros(len(x_emb))+0.5
                 vector_array_fullSpace[cell_id_t1_sp[valid_idx]]=vector_array
-                adata.uns['binary_fate_bias']=[vector_array,vector_array_fullSpace]
+                adata.uns['fate_bias']=[vector_array,vector_array_fullSpace]
 
                 
 
@@ -866,7 +989,7 @@ def binary_fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
                     ax.spines["right"].set_visible(False)
                     ax.set_title(f'Average: {int(np.mean(xxx)*100)/100}')
                     plt.tight_layout()
-                    fig.savefig(f'{figure_path}/{data_des}_binary_fate_bias_BW{map_backwards}_histogram{figure_index}.{settings.file_format_figs}')
+                    fig.savefig(f'{figure_path}/{data_des}_fate_bias_BW{map_backwards}_histogram{figure_index}.{settings.file_format_figs}')
 
 
 
@@ -946,7 +1069,7 @@ def fate_coupling_from_Tmap(adata,selected_fates=None,used_Tmap='transition_map'
 
 
 
-        fate_map,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list=hf.compute_fate_map_and_intrinsic_bias(adata,
+        fate_map,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list,fate_entropy=hf.compute_fate_map_and_intrinsic_bias(adata,
             selected_fates=selected_fates,used_Tmap=used_Tmap,map_backwards=map_backwards,method=method)
 
         if (len(mega_cluster_list)==0) or (np.sum(sp_idx)==0):
@@ -980,14 +1103,15 @@ def fate_coupling_from_Tmap(adata,selected_fates=None,used_Tmap='transition_map'
 ####################
 
 
-def differential_genes(adata,plot_groups=True,FDR_cutoff=0.05,plot_gene_N=3,savefig=False,sort_by='ratio'):
+
+def differential_genes(adata,group_A_idx=None,group_B_idx=None,plot_groups=True,FDR_cutoff=0.05,plot_gene_N=3,savefig=False,sort_by='ratio'):
     """
     Perform differential gene expression analysis and plot top DGE genes.
 
     It is assumed that the selected cell states are stored at 
     adata.obs['cell_group_A'] and adata.obs['cell_group_B'].
     You can run this function after 
-    :func:`.dynamic_trajectory_from_binary_fate_bias`, which performs
+    :func:`.dynamic_trajectory_from_fate_bias`, which performs
     cell state selection.
 
     We use Wilcoxon rank-sum test to calculate P values, followed by
@@ -996,7 +1120,13 @@ def differential_genes(adata,plot_groups=True,FDR_cutoff=0.05,plot_gene_N=3,save
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
-        Need to contain gene expression matrix, and DGE cell groups A, B. 
+        Need to contain gene expression matrix.
+    group_A_idx: `np.array`, optional (default: None)
+        A boolean array of the size adata.shape[0] for defining population A.
+        If not specified, we set it to be adata.obs['cell_group_A']. 
+    group_B_idx: `np.array`, optional (default: None)
+        A boolean array of the size adata.shape[0] for defining population B.
+        If not specified, we set it to be adata.obs['cell_group_A'].         
     plot_groups: `bool`, optional (default: True)
         If true, plot the selected ancestor states for A, B
     plot_gene_N: `int`, optional (default: 5)
@@ -1029,97 +1159,116 @@ def differential_genes(adata,plot_groups=True,FDR_cutoff=0.05,plot_gene_N=3,save
         logg.error(f"sort_by must be among {['ratio','pv']}")
         return diff_gene_A, diff_gene_B
 
-    if ('cell_group_A' not in adata.obs.keys()) or ('cell_group_B' not in adata.obs.keys()): 
-        logg.error("Cell population A or B not defined yet. Please run upstream methods to define the population\n"
-            "like: cs.pl.dynamic_trajectory_from_binary_fate_bias.")
-    else:
-        idx_for_group_A=adata.obs['cell_group_A']
-        idx_for_group_B=adata.obs['cell_group_B']
-        #hf.check_available_map(adata)
-        #set_up_plotting()
-        if (np.sum(idx_for_group_A)==0) or (np.sum(idx_for_group_B)==0):
-            logg.error("Group A or B has zero selected cell states. Could be that the cluser name is wrong; Or, the selection is too stringent. Consider use a smaller 'bias_threshold'")
+    if (group_A_idx is not None): 
+        if len(group_A_idx)!=adata.shape[0]:
+            logg.error('group_A_idx should be a boolean array of the size adata.shape[0].')
+            return diff_gene_A, diff_gene_B
 
+    if (group_B_idx is not None): 
+        if len(group_B_idx)!=adata.shape[0]:
+            logg.error('group_B_idx should be a boolean array of the size adata.shape[0].')
+            return diff_gene_A, diff_gene_B
+
+    if group_A_idx is None:
+        if ('cell_group_A' not in adata.obs.keys()): 
+            logg.error("Cell population A not defined yet. Please define it directly at group_A_idx or adata.obs['cell_group_A']")
+            return diff_gene_A, diff_gene_B
         else:
+            group_A_idx=adata.obs['cell_group_A']
 
-            dge=hf.get_dge_SW(adata,idx_for_group_B,idx_for_group_A)
+    if group_B_idx is None:
+        if ('cell_group_B' not in adata.obs.keys()): 
+            logg.error("Cell population B not defined yet. Please define it directly at group_B_idx or adata.obs['cell_group_B']")
+            return diff_gene_A, diff_gene_B
+        else:
+            group_B_idx=adata.obs['cell_group_B']
 
-            dge=dge.sort_values(by=sort_by,ascending=True)
-            diff_gene_A_0=dge
-            diff_gene_A=diff_gene_A_0[(dge['pv']<FDR_cutoff) & (dge['ratio']<0)]
-            diff_gene_A=diff_gene_A.reset_index()
 
-            dge=dge.sort_values(by=sort_by,ascending=False)
-            diff_gene_B_0=dge
-            diff_gene_B=diff_gene_B_0[(dge['pv']<FDR_cutoff) & (dge['ratio']>0)]
-            diff_gene_B=diff_gene_B.reset_index()
+    #set_up_plotting()
+    if (np.sum(group_A_idx)==0) or (np.sum(group_B_idx)==0):
+        logg.error("Group A or B has zero selected cell states.")
 
-            x_emb=adata.obsm['X_emb'][:,0]
-            y_emb=adata.obsm['X_emb'][:,1]
-            figure_path=settings.figure_path
+    else:
+
+        dge=hf.get_dge_SW(adata,group_B_idx,group_A_idx)
+
+        dge=dge.sort_values(by=sort_by,ascending=True)
+        diff_gene_A_0=dge
+        diff_gene_A=diff_gene_A_0[(dge['pv']<FDR_cutoff) & (dge['ratio']<0)]
+        diff_gene_A=diff_gene_A.reset_index()
+
+        dge=dge.sort_values(by=sort_by,ascending=False)
+        diff_gene_B_0=dge
+        diff_gene_B=diff_gene_B_0[(dge['pv']<FDR_cutoff) & (dge['ratio']>0)]
+        diff_gene_B=diff_gene_B.reset_index()
+
+        x_emb=adata.obsm['X_emb'][:,0]
+        y_emb=adata.obsm['X_emb'][:,1]
+        figure_path=settings.figure_path
+        
+        if plot_groups:
+            fig,nrow,ncol = start_subplot_figure(2, row_height=4, n_columns=2, fig_width=8)
+            ax = plt.subplot(nrow, ncol, 1)
+            customized_embedding(x_emb,y_emb,group_A_idx,ax=ax,point_size=point_size)
+            ax.set_title(f'Group A')
+            ax.axis('off')
+            ax = plt.subplot(nrow, ncol, 2)
+            customized_embedding(x_emb,y_emb,group_B_idx,ax=ax,point_size=point_size)
+            ax.set_title(f'Group B')
+            ax.axis('off')
             
-            if plot_groups:
-                fig,nrow,ncol = start_subplot_figure(2, row_height=4, n_columns=2, fig_width=8)
-                ax = plt.subplot(nrow, ncol, 1)
-                customized_embedding(x_emb,y_emb,idx_for_group_A,ax=ax,point_size=point_size)
-                ax.set_title(f'Group A')
-                ax.axis('off')
-                ax = plt.subplot(nrow, ncol, 2)
-                customized_embedding(x_emb,y_emb,idx_for_group_B,ax=ax,point_size=point_size)
-                ax.set_title(f'Group B')
-                ax.axis('off')
-                
-                plt.tight_layout()
-                if savefig:
-                    fig.savefig(f'{figure_path}/dge_analysis_groups.{settings.file_format_figs}')
-                
-            #logg.error("Plot differentially-expressed genes for group A")
-            if plot_gene_N>0:
-
-                #logg.error(f"Plot the top {plot_gene_N} genes that are differentially expressed on group A")
-                if len(diff_gene_A['gene'])<plot_gene_N:
-                    plot_gene_N_A=len(diff_gene_A['gene'])
-                else:
-                    plot_gene_N_A=plot_gene_N
-
-                fig,nrow,ncol = start_subplot_figure(plot_gene_N_A, row_height=2.5, n_columns=5, fig_width=16)
-                for j in range(plot_gene_N_A):
-                    ax = plt.subplot(nrow, ncol, j+1)
-
-                    #pdb.set_trace()
-                    gene_name=np.array(diff_gene_A['gene'])[j]
-                    customized_embedding(x_emb,y_emb,adata.obs_vector(gene_name),ax=ax,point_size=point_size)
-                    ax.set_title(f'{gene_name}')
-                    ax.axis('off')
-                plt.tight_layout()
-                if savefig:
-                    fig.savefig(f'{figure_path}/dge_analysis_groups_A_genes.{settings.file_format_figs}')
-                
-                #logg.error("Plot differentially-expressed genes for group B")
-                #logg.error(f"Plot the top {plot_gene_N} genes that are differentially expressed on group B")
-                if len(diff_gene_B['gene'])<plot_gene_N:
-                    plot_gene_N_B=len(diff_gene_B['gene'])
-                else:
-                    plot_gene_N_B=plot_gene_N
-
-                fig,nrow,ncol = start_subplot_figure(plot_gene_N_B, row_height=2.5, n_columns=5, fig_width=16)
-                for j in range(plot_gene_N_B):
-                    ax = plt.subplot(nrow, ncol, j+1)
-                    gene_name=np.array(diff_gene_B['gene'])[j]
-                    customized_embedding(x_emb,y_emb,adata.obs_vector(gene_name),ax=ax,point_size=point_size)
-                    ax.set_title(f'{gene_name}')
-                    ax.axis('off')
-                plt.tight_layout()
-                if savefig:
-                    fig.savefig(f'{figure_path}/dge_analysis_groups_B_genes.{settings.file_format_figs}')
+            plt.tight_layout()
+            if savefig:
+                fig.savefig(f'{figure_path}/dge_analysis_groups.{settings.file_format_figs}')
             
-                # logg.error('--------------Differentially expressed genes for group A --------------')
-                # logg.error(diff_gene_A)
-                
-                # logg.error('--------------Differentially expressed genes for group B --------------')
-                # logg.error(diff_gene_B)
+        #logg.error("Plot differentially-expressed genes for group A")
+        if plot_gene_N>0:
+
+            #logg.error(f"Plot the top {plot_gene_N} genes that are differentially expressed on group A")
+            if len(diff_gene_A['gene'])<plot_gene_N:
+                plot_gene_N_A=len(diff_gene_A['gene'])
+            else:
+                plot_gene_N_A=plot_gene_N
+
+            fig,nrow,ncol = start_subplot_figure(plot_gene_N_A, row_height=2.5, n_columns=5, fig_width=16)
+            for j in range(plot_gene_N_A):
+                ax = plt.subplot(nrow, ncol, j+1)
+
+                #pdb.set_trace()
+                gene_name=np.array(diff_gene_A['gene'])[j]
+                customized_embedding(x_emb,y_emb,adata.obs_vector(gene_name),ax=ax,point_size=point_size)
+                ax.set_title(f'{gene_name}')
+                ax.axis('off')
+            plt.tight_layout()
+            if savefig:
+                fig.savefig(f'{figure_path}/dge_analysis_groups_A_genes.{settings.file_format_figs}')
+            
+            #logg.error("Plot differentially-expressed genes for group B")
+            #logg.error(f"Plot the top {plot_gene_N} genes that are differentially expressed on group B")
+            if len(diff_gene_B['gene'])<plot_gene_N:
+                plot_gene_N_B=len(diff_gene_B['gene'])
+            else:
+                plot_gene_N_B=plot_gene_N
+
+            fig,nrow,ncol = start_subplot_figure(plot_gene_N_B, row_height=2.5, n_columns=5, fig_width=16)
+            for j in range(plot_gene_N_B):
+                ax = plt.subplot(nrow, ncol, j+1)
+                gene_name=np.array(diff_gene_B['gene'])[j]
+                customized_embedding(x_emb,y_emb,adata.obs_vector(gene_name),ax=ax,point_size=point_size)
+                ax.set_title(f'{gene_name}')
+                ax.axis('off')
+            plt.tight_layout()
+            if savefig:
+                fig.savefig(f'{figure_path}/dge_analysis_groups_B_genes.{settings.file_format_figs}')
+        
+            # logg.error('--------------Differentially expressed genes for group A --------------')
+            # logg.error(diff_gene_A)
+            
+            # logg.error('--------------Differentially expressed genes for group B --------------')
+            # logg.error(diff_gene_B)
         
     return diff_gene_A,diff_gene_B
+
 
 
 
@@ -1213,15 +1362,15 @@ def differential_genes_for_given_fates(adata,selected_fates=None,selected_time_p
 
 ######################
 
-def dynamic_trajectory_from_binary_fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
+def dynamic_trajectory_from_fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
     map_backwards=True,normalize_by_fate_size=False,method='conditional',selected_time_points=None,
-    bias_threshold_A=0.5,bias_threshold_B=0.5,sum_fate_prob_thresh=0,avoid_target_states=False,mask=None,
+    bias_threshold_A=0.5,bias_threshold_B=0.5,sum_fate_prob_thresh=0,pseudo_count=0,avoid_target_states=False,mask=None,
     plot_ancestor=True,savefig=False,plot_target_state=True,target_transparency=0.2):
     """
     Identify trajectories towards/from two given clusters.
 
     Fate bias is a `scalar` between (0,1) at each state, defined as competition between 
-    two fate clusters, as in :func:`.binary_fate_bias`. Given the fate probability 
+    two fate clusters, as in :func:`.fate_bias`. Given the fate probability 
     Prob(X) towards cluster X, the selected ancestor population satisfies:
 
        * Prob(A)+Prob(B)>sum_fate_prob_thresh; 
@@ -1268,6 +1417,9 @@ def dynamic_trajectory_from_binary_fate_bias(adata,selected_fates=None,used_Tmap
     sum_fate_prob_thresh: `float`, optional (default: 0), range: (0,1)
         Minimum cumulative probability towards joint cluster (A,B) 
         to qualify for ancestor selection.
+    pseudo_count: `float`, optional (default: 0)
+        Pseudo count to compute the fate bias. The bias = (Pa+c0)/(Pa+Pb+2*c0), 
+        where c0=pseudo_count*(maximum fate probability) is a rescaled pseudo count. 
     savefig: `bool`, optional (default: False)
         Save all plots.
     avoid_target_states: `bool`, optional (default: False)
@@ -1330,36 +1482,26 @@ def dynamic_trajectory_from_binary_fate_bias(adata,selected_fates=None,used_Tmap
                     logg.error('mask length does not match adata.shape[0]. Ignored mask.')
 
             #if 'fate_map' not in adata.uns.keys():
-            fate_map,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list=hf.compute_fate_map_and_intrinsic_bias(adata,
+            fate_map,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list,fate_entropy=hf.compute_fate_map_and_intrinsic_bias(adata,
                 selected_fates=selected_fates,used_Tmap=used_Tmap,map_backwards=map_backwards,method=method)
 
             if (len(mega_cluster_list)!=2) or (np.sum(sp_idx)==0):
                 logg.error(f"Do not have valid fates or time points. Computation aborted!")
             else:
+                if pseudo_count==0:
+                    pseudo_count=10**(-10)
 
-                resol=10**(-10)
                 if normalize_by_fate_size:
-                    potential_vector_temp=relative_bias+resol
+                    potential_vector_temp=relative_bias+pseudo_count*np.max(relative_bias)
+                    valid_idx=relative_bias.sum(1)>sum_fate_prob_thresh # default 0.5
                 else:
-                    potential_vector_temp=fate_map+resol
-
-                # if len(mega_cluster_list)==1:
-                #     idx_for_group_A=potential_vector_temp[:,0]>bias_threshold
-                #     idx_for_group_B=~idx_for_group_A
-                #     #valid_idx=np.ones(len(cell_id_t1),dtype=bool)
-
-                #     ### remove states already exist in the selected fate cluster 
-                #     if avoid_target_states:
-                #         for zz in valid_fate_list[0]:
-                #             id_A_t1=np.nonzero(state_annote_t1==zz)[0]
-                #             idx_for_group_A[id_A_t1]=False
-
-                # else:
+                    potential_vector_temp=fate_map+pseudo_count*np.max(fate_map)
+                    valid_idx=fate_map.sum(1)>sum_fate_prob_thresh # default 0.5
                     
                 diff=potential_vector_temp[:,0]#-potential_vector_temp[:,1]
                 tot=potential_vector_temp.sum(1)
 
-                valid_idx=tot>sum_fate_prob_thresh # default 0
+                #valid_idx=tot>sum_fate_prob_thresh # default 0
                 valid_id=np.nonzero(valid_idx)[0]
                 vector_array=np.zeros(np.sum(valid_idx))
                 vector_array=diff[valid_idx]/(tot[valid_idx])
@@ -1368,7 +1510,6 @@ def dynamic_trajectory_from_binary_fate_bias(adata,selected_fates=None,used_Tmap
                 idx_for_group_B=np.zeros(len(tot),dtype=bool)
                 idx_for_group_A[valid_id]=vector_array>(bias_threshold_A)
                 idx_for_group_B[valid_id]=vector_array<(bias_threshold_B)
-
 
                 ### remove states already exist in the selected fate cluster 
                 if avoid_target_states:
@@ -1616,7 +1757,7 @@ def gene_expression_dynamics(adata,selected_fate,gene_name_list,traj_threshold=0
     We assume that the dynamic trajecotry at given specification is already
     available at adata.uns['dynamic_trajectory'], which can be created via
     :func:`.dynamic_trajectory_via_iterative_mapping` or
-    :func:`.dynamic_trajectory_from_binary_fate_bias`.
+    :func:`.dynamic_trajectory_from_fate_bias`.
 
     Using the states that belong to the trajectory, it computes the pseudo time 
     for these states and shows expression dynamics of selected genes along 
@@ -1723,7 +1864,7 @@ def gene_expression_dynamics(adata,selected_fate,gene_name_list,traj_threshold=0
             if ('dynamic_trajectory' not in adata.uns.keys()) or (fate_name not in adata.uns['dynamic_trajectory'].keys()) or (map_choice not in adata.uns['dynamic_trajectory'][fate_name].keys()):
                 logg.error(f"The target fate trajectory for {fate_name} at map_backwards={map_backwards} have not been inferred yet.\n" 
                     "Please run one of the two dynamic trajectory inference methods first.\n"
-                    "like: cs.pl.dynamic_trajectory_from_binary_fate_bias, with the corresponding selected_fate and map_backwards choice.")
+                    "like: cs.pl.dynamic_trajectory_from_fate_bias, with the corresponding selected_fate and map_backwards choice.")
                 
             else:
                 prob_0=np.array(adata.uns['dynamic_trajectory'][fate_name][map_choice])
@@ -1873,7 +2014,155 @@ def clones_on_manifold(adata,selected_clone_list=[0],clone_point_size=12,
 
 
 
-def clonal_fate_bias(adata,selected_fate='',clone_size_thresh=3,
+def clonal_fate_bias(adata,selected_fate='',clone_size_thresh=3,compute_new=True,show_histogram=True,FDR=0.05,alternative='two-sided'):
+    """
+    Plot clonal fate bias towards a cluster.
+
+    This is just -log(P-value), where P-value is for the observation 
+    cell fraction of a clone in the targeted cluster as compared to 
+    randomized clones, where the randomized sampling produces clones 
+    of the same size as the targeted clone. The computed results will 
+    be saved at the directory settings.data_path.
+
+    This function can be time-consuming. The time cost scales linearly
+    with the number of resampling and the number of clones. 
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+    selected_fate: `str`
+        The targeted fate cluster, from adata.obs['state_info'].
+    clone_size_thresh: `int`, optional (default: 3)
+        Clones with size >= this threshold will be highlighted in 
+        the plot in red.
+    compute_new: `bool`, optional (default: True)
+        Compute from scratch, regardless of existing saved files. 
+    show_histogram: `bool`, optional (default: True)
+        If true, show the distribution of inferred fate probability.
+    FDR: `float`, optional (default: 0l.05)
+        False-discovery rate after the Benjamini-Hochberg correction.
+    alternative: `str`, optional (default: 'two_sided')
+        Defines the alternative hypothesis. The following options are 
+        available (default is ‘two-sided’): ‘two-sided’; ‘less’: one-sided; ‘greater’: one-sided
+
+    Returns
+    -------
+    fate_bias: `np.array`
+        Computed clonal fate bias.
+    sort_idx: `np.array`
+        Corresponding clone id list. 
+    """
+
+    fig_width=settings.fig_width; fig_height=settings.fig_height; point_size=settings.fig_point_size
+    state_info=adata.obs['state_info']
+    data_des=adata.uns['data_des'][-1]
+    X_clone=adata.obsm['X_clone']
+    data_path=settings.data_path
+    data_des=adata.uns['data_des'][-1]
+    figure_path=settings.figure_path
+    state_list=list(set(state_info))
+
+
+    clone_N=X_clone.shape[1]
+    cell_N=X_clone.shape[0]
+
+    
+
+    mega_cluster_list,valid_fate_list,fate_array_flat,sel_index_list=hf.analyze_selected_fates([selected_fate],state_info)
+    if len(mega_cluster_list)==0:
+        logg.error("No cells selected. Computation aborted!")
+        return None, None 
+    else:
+        fate_name=mega_cluster_list[0]
+        target_idx=sel_index_list[0]
+
+
+        ## target clone
+        target_ratio_array=np.zeros(clone_N)
+        P_value=np.zeros(clone_N)
+
+        #null_ratio_array=np.zeros((clone_N,N_resampling))
+        #P_value_up=np.zeros(clone_N)
+        #P_value_down=np.zeros(clone_N)
+        
+        #P_value_rsp=np.zeros((clone_N,N_resampling))
+
+        for m in range(clone_N):
+            if m%50==0:
+                logg.info(f"Current clone id: {m}")
+            target_cell_idx=(X_clone[:,m].sum(1).A>0).flatten()
+            target_clone_size=np.sum(target_cell_idx) 
+
+
+            if target_clone_size>0:
+                target_ratio=np.sum(target_idx[target_cell_idx])/target_clone_size
+                target_ratio_array[m]=target_ratio
+                cell_N_in_target=np.sum(target_idx[target_cell_idx])
+                #N_resampling=int(np.floor(cell_N/target_clone_size))
+
+                remain_cell_idx=~target_cell_idx
+                remain_cell_N_in_target=np.sum(target_idx[remain_cell_idx])
+                oddsratio, pvalue = stats.fisher_exact([[cell_N_in_target, target_clone_size-cell_N_in_target], [remain_cell_N_in_target, cell_N-remain_cell_N_in_target]],alternative=alternative)
+                P_value[m]=pvalue
+
+        P_value = statsmodels.sandbox.stats.multicomp.multipletests(P_value, alpha=0.05, method='fdr_bh')[1]
+
+        ####### Plotting
+        clone_size_array=X_clone.sum(0).A.flatten()
+
+        #resol=1/N_resampling
+        #P_value_rsp_new=P_value_rsp.reshape((clone_N*N_resampling,))
+        #sort_idx=np.argsort(P_value_rsp_new)
+        #P_value_rsp_new=P_value_rsp_new[sort_idx]+resol
+        #sel_idx=((np.arange(clone_N)+1)*len(sort_idx)/clone_N).astype(int)-1
+        #fate_bias_rsp=-np.log10(P_value_rsp_new[sel_idx])
+
+        resol=10**(-20)
+        sort_idx=np.argsort(P_value)
+        P_value=P_value[sort_idx]+resol
+        fate_bias=-np.log10(P_value)
+        idx=clone_size_array[sort_idx]>=clone_size_thresh
+        FDR_threshold=-np.log10(FDR)
+
+
+        fig=plt.figure(figsize=(fig_width,fig_height));ax=plt.subplot(1,1,1)
+        ax.plot(np.arange(len(fate_bias))[~idx],fate_bias[~idx],'.',color='blue',markersize=5,label=f'Size $<$ {int(clone_size_thresh)}')#,markeredgecolor='black',markeredgewidth=0.2)
+        ax.plot(np.arange(len(fate_bias))[idx],fate_bias[idx],'.',color='red',markersize=5,label=f'Size $\ge$ {int(clone_size_thresh)}')#,markeredgecolor='black',markeredgewidth=0.2)
+        ax.plot(np.arange(len(fate_bias)),np.zeros(len(fate_bias))+FDR_threshold,'-.',color='grey',markersize=5,label=f'FDT={FDR}')#,markeredgecolor='black',markeredgewidth=0.2)
+                
+        #ax.plot(np.arange(len(fate_bias_rsp)),fate_bias_rsp,'.',color='grey',markersize=5,label='Randomized')#,markeredgecolor='black',markeredgewidth=0.2)
+
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.set_xlabel('Clone rank')
+        plt.rc('text', usetex=True)
+        #ax.set_ylabel('Fate bias ($-\\log_{10}P_{value}$)')
+        ax.set_ylabel('Clonal fate bias')
+        ax.legend()
+        #ax.set_xlim([0,0.8])
+        fig.tight_layout()
+        fig.savefig(f'{figure_path}/{data_des}_clonal_fate_bias.{settings.file_format_figs}')
+        plt.rc('text', usetex=False)
+        #plt.show()
+
+        result=pd.DataFrame({'Clone ID':sort_idx,'Clone size':clone_size_array[sort_idx],'Q_value':P_value,'Fate bias':fate_bias})
+
+        if show_histogram:
+            target_fraction_array=(X_clone.T*target_idx)/clone_size_array
+            fig=plt.figure(figsize=(fig_width,fig_height));ax=plt.subplot(1,1,1)
+            ax.hist(target_fraction_array,color='#2ca02c',density=True)
+            ax.set_xlim([0,1])
+            ax.set_xlabel('Clonal fraction in selected fates')
+            ax.set_ylabel('Density')
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            ax.set_title(f'Average: {int(np.mean(target_fraction_array)*100)/100};   Expect: {int(np.mean(target_idx)*100)/100}')
+            fig.savefig(f'{figure_path}/{data_des}_observed_clonal_fraction.{settings.file_format_figs}')
+
+        return result
+
+
+def clonal_fate_bias_v0(adata,selected_fate='',clone_size_thresh=3,
     N_resampling=1000,compute_new=True,show_histogram=True):
     """
     Plot clonal fate bias towards a cluster.
@@ -2177,7 +2466,7 @@ def ordered_heatmap(figure_path, data_matrix, variable_names,int_seed=10,
 
 
 
-def barcode_heatmap(adata,selected_time_point,selected_fates=None,color_bar=True,rename_selected_fates=None,log_transform=False,fig_width=4,fig_height=6):
+def barcode_heatmap(adata,selected_time_points=None,selected_fates=None,color_bar=True,rename_selected_fates=None,log_transform=False,fig_width=4,fig_height=6):
     """
     Plot barcode heatmap among different fate clusters.
 
@@ -2187,8 +2476,8 @@ def barcode_heatmap(adata,selected_time_point,selected_fates=None,color_bar=True
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
-    selected_time_point: `str`
-        Time point to select the cell states.
+    selected_time_points: `list`, optional (default: None)
+        Time points to select the cell states.
     selected_fates: `list`, optional (default: all)
         List of fate clusters to use. If set to be [], use all.
     color_bar: `bool`, optional (default: True)
@@ -2207,7 +2496,10 @@ def barcode_heatmap(adata,selected_time_point,selected_fates=None,color_bar=True
     """
 
     time_info=np.array(adata.obs['time_info'])
-    sp_idx=hf.selecting_cells_by_time_points(time_info,[selected_time_point])
+    if selected_time_points is not None:
+        if type(selected_time_points) is not list:
+            selected_time_points=[selected_time_points] 
+    sp_idx=hf.selecting_cells_by_time_points(time_info,selected_time_points)
     clone_annot=adata[sp_idx].obsm['X_clone']
     state_annote=adata[sp_idx].obs['state_info']
 
@@ -2240,7 +2532,7 @@ def barcode_heatmap(adata,selected_time_point,selected_fates=None,color_bar=True
 
 
 
-def fate_coupling_from_clones(adata,selected_time_points=None,selected_fates=None,color_bar=True,rename_selected_fates=None,plot_heatmap=True):
+def fate_coupling_from_clones(adata,selected_time_points=None,selected_fates=None,color_bar=True,rename_selected_fates=None,plot_heatmap=True,coupling_normalization='SW'):
     """
     Plot fate coupling based on clonal information.
 
@@ -2262,11 +2554,15 @@ def fate_coupling_from_clones(adata,selected_time_points=None,selected_fates=Non
         in exact correspondence to those in the old list. 
     plot_heatmap: `bool`, optional (default: True)
         Plot the inferred fate coupling in heatmap.
+    coupling_normalization: `str`, optional (default: 'SW')
+        Method to normalize the coupling matrix: {'SW','Weinreb'}.
     """
 
     time_info=np.array(adata.obs['time_info'])
-    if type(selected_time_points) is not list:
-        selected_time_points=[selected_time_points]
+    if selected_time_points is not None:
+        if type(selected_time_points) is not list:
+            selected_time_points=[selected_time_points]
+
     sp_idx=hf.selecting_cells_by_time_points(time_info,selected_time_points)
 
     clone_annot=adata[sp_idx].obsm['X_clone']
@@ -2298,7 +2594,7 @@ def fate_coupling_from_clones(adata,selected_time_points=None,selected_fates=Non
                 logg.warn('rename_selected_fates does not have the same length as selected_fates, thus not used.') 
                 rename_selected_fates=mega_cluster_list
 
-            X_weinreb = hf.get_normalized_covariance(coarse_clone_annot.T,method='Weinreb')
+            X_weinreb = hf.get_normalized_covariance(coarse_clone_annot.T,method=coupling_normalization)
 
             if plot_heatmap:
                 heatmap(figure_path, X_weinreb, rename_selected_fates,color_bar_label='Coupling',color_bar=color_bar,data_des=data_des)
@@ -2365,15 +2661,15 @@ def fate_hierarchy_from_Tmap(adata,selected_fates=None,used_Tmap='transition_map
         selected_time_points=selected_time_points,normalize_fate_map=normalize_fate_map,
                                 coupling_normalization=coupling_normalization)
                    
+    
+    print_hierarchy(parent_map, rename_selected_fates)
     if plot_history:
-        print_hierarchy(parent_map, rename_selected_fates)
-
-    plot_neighbor_joining(settings.figure_path, node_groups, rename_selected_fates, 
-                          history[0], history[1], history[2])
+        plot_neighbor_joining(settings.figure_path, node_groups, rename_selected_fates, 
+                              history[0], history[1], history[2])
 
 
 def fate_hierarchy_from_clones(adata,selected_time_points=None,selected_fates=None,rename_selected_fates=None,
-                               plot_history=True):
+                               plot_history=True,coupling_normalization='SW'):
     """
     Construct the fate hierarchy from clonal data.
 
@@ -2391,6 +2687,8 @@ def fate_hierarchy_from_clones(adata,selected_time_points=None,selected_fates=No
         in exact correspondence to those in the old list. 
     plot_history: `bool`, optional (default: True)
         Plot the history of constructing the hierarchy.
+    coupling_normalization: `str`, optional (default: 'SW')
+        Method to normalize the coupling matrix: {'SW','Weinreb'}.
     """
     
     hf.check_available_map(adata)
@@ -2406,16 +2704,16 @@ def fate_hierarchy_from_clones(adata,selected_time_points=None,selected_fates=No
        logg.warn('rename_selected_fates does not have the same length as selected_fates, thus not used.') 
 
     parent_map, node_groups, history=build_hierarchy_from_clones(adata,selected_fates=selected_fates,
-        selected_time_points=selected_time_points)
-                   
+        selected_time_points=selected_time_points,coupling_normalization=coupling_normalization)
+        
+    print_hierarchy(parent_map, rename_selected_fates)           
     if plot_history:
-        print_hierarchy(parent_map, rename_selected_fates)
+        
+        plot_neighbor_joining(settings.figure_path, node_groups, rename_selected_fates, 
+                              history[0], history[1], history[2])
 
-    plot_neighbor_joining(settings.figure_path, node_groups, rename_selected_fates, 
-                          history[0], history[1], history[2])
 
-
-def build_hierarchy_from_clones(adata,selected_fates=None,selected_time_points=None):
+def build_hierarchy_from_clones(adata,selected_fates=None,selected_time_points=None,coupling_normalization='SW'):
 #selected_fates=fate_array
 #used_Tmap='transition_map'
 
@@ -2438,7 +2736,7 @@ def build_hierarchy_from_clones(adata,selected_fates=None,selected_time_points=N
         fate_N_tmp=len(selected_fates_tmp)
         node_names_history.append(node_names)
         X=fate_coupling_from_clones(adata,selected_fates=selected_fates_tmp,
-               plot_heatmap=False,selected_time_points=selected_time_points)
+               plot_heatmap=False,selected_time_points=selected_time_points,coupling_normalization=coupling_normalization)
 
         X_history.append(np.array(X))
         floor = X.min() - 100
@@ -2552,6 +2850,8 @@ def plot_neighbor_joining(output_directory, node_groups, celltype_names, X_histo
         axs[i].set_xticklabels(column_labels, rotation=90, ha='right')
         axs[i].set_xlim([-.5,X.shape[1]-.5])
         axs[i].set_ylim([X.shape[1]-.5,-.5])
+        axs[i].set_yticks(np.arange(X.shape[1])+.2)
+        axs[i].set_yticklabels(['' for grp in column_groups], rotation=90, ha='right')
     fig.set_size_inches((16,4))
     plt.savefig(output_directory+'/neighbor_joint_heatmaps.pdf')
 

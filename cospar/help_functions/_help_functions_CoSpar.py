@@ -64,7 +64,7 @@ def get_dge_SW(ad, mask1, mask2, min_frac_expr=0.05, pseudocount=1):
     
     df = pd.DataFrame({
         'gene': ad.var_names.values.astype(str)[gene_mask][sort_idx],
-        'pv': pv[sort_idx],
+        'Qvalue': pv[sort_idx],
         'mean_1': m1[sort_idx] - pseudocount, 
         'mean_2': m2[sort_idx] - pseudocount, 
         'ratio': r[sort_idx]
@@ -444,7 +444,9 @@ def filter_genes(E, base_ix = [], min_vscore_pctl = 85, min_counts = 3, min_cell
         plt.ylabel('log10(Fano factor)');
         plt.show()
 
-    return gene_ix[ix]
+    FanoFactor=yTh
+    Mean_value=xTh
+    return gene_ix[ix], Mean_value, FanoFactor
 
 # We found that this does not work
 def remove_corr_genes(E, gene_list, exclude_corr_genes_list, test_gene_idx, min_corr = 0.1):
@@ -581,7 +583,7 @@ def compute_state_potential(transition_map,state_annote,fate_array,
         If `map_backwards=True`, compute for initial cell states (rows of Tmap, at t1);
         else, for later cell states (columns of Tmap, at t2)
     method: `str`, optional (default: 'sum')
-        Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max'},
+        Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max','conditional'},
         which computes the sum, mean, or max of transition probability within a cluster as the final fate probability.
     
     Returns
@@ -914,7 +916,7 @@ def analyze_selected_fates(selected_fates,state_info):
     return mega_cluster_list[valid_idx],valid_fate_list,fate_array_flat,sel_index_list[valid_idx]
 
 
-def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='transition_map',map_backwards=True,method='sum',fate_count=True):
+def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='transition_map',map_backwards=True,method='conditional',fate_count=True):
     """
     Compute fate map and the relative bias compared to the expectation.
     
@@ -941,8 +943,8 @@ def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='tra
     map_backwards: `bool`, optional (default: True)
         If `map_backwards=True`, compute for initial cell states (rows of Tmap, at t1);
         else, compute for later cell states (columns of Tmap, at t2)
-    method: `str`, optional (default: 'sum')
-        Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max'},
+    method: `str`, optional (default: 'conditional')
+        Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max','conditional'},
         which computes the sum, mean, or max of transition probability within a cluster as the final fate probability.
     fate_count: `bool`, optional (default: True)
         Used to determine the method for computing the fate potential of a state.
@@ -964,8 +966,9 @@ def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='tra
         of fate clusters. It screens for valid fates, though. 
     """
 
-    if method not in ['max','sum','mean']:
-        logg.warn("method not in {'max','sum','mean'}; use the 'sum' method")
+    if method not in ['max','sum','mean','conditional']:
+        logg.warn("method not in {'max','sum','mean','conditional'}; use the 'conditional' method")
+        method='conditional'
 
 
     if map_backwards:
@@ -1039,7 +1042,7 @@ def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='tra
 
         relative_bias[:,jj]=(relative_bias[:,jj]+1)/2 # rescale to the range [0,1]
 
-    return fate_map,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list
+    return fate_map,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list,fate_entropy
     
 
 
@@ -1459,7 +1462,7 @@ def save_map(adata):
 
     file_name=f'{data_path}/{data_des}_adata_with_transition_map.h5ad'
     adata.write_h5ad(file_name, compression='gzip')
-    print(f"Saved file: data_des='{data_des}'")
+    print(f"Saved file: {file_name}")
 
 
 
@@ -1578,7 +1581,7 @@ def check_adata_structure(adata):
     if flag:
         print("The adata structure looks fine!")
 
-def save_preprocessed_adata(adata,data_des=''):
+def save_preprocessed_adata(adata,data_des=None):
     """
     Save preprocessed adata.
 
@@ -1586,13 +1589,23 @@ def save_preprocessed_adata(adata,data_des=''):
     prefix (data_des) to save the results if a new data_des is not provided. 
     """
 
-    if len(data_des)==0:
-        data_des=adata.uns['data_des'][-1]
+    if data_des is None:
+        data_des=adata.uns['data_des'][0]
+        
     data_path=settings.data_path
 
-    for xx in  ['fate_trajectory', 'multiTime_cell_id_t1', 'multiTime_cell_id_t2', 'fate_map','binary_fate_bias']:
+    for xx in  ['fate_trajectory', 'multiTime_cell_id_t1', 
+                'multiTime_cell_id_t2', 'fate_map','binary_fate_bias',
+                'transition_map','intraclone_transition_map','clonal_transition_map',
+               'OT_transition_map','HighVar_transition_map',
+               'Tmap_cell_id_t1', 'Tmap_cell_id_t2', 'available_map', 
+                'clonal_cell_id_t1', 'clonal_cell_id_t2']:
         if xx in adata.uns.keys():
             adata.uns.pop(xx)
+        if xx in adata.obs.keys():
+            adata.obs.pop(xx)
+        if xx in adata.obsm.keys():
+            adata.obsm.pop(xx)
 
     # check_list=list(adata.obsm.keys())
     # for xx in  check_list:
@@ -1604,8 +1617,9 @@ def save_preprocessed_adata(adata,data_des=''):
     #     if xx not in ['state_info', 'time_info']:
     #         adata.obs.pop(xx)
 
-    adata.write_h5ad(f'{data_path}/{data_des}_adata_preprocessed.h5ad', compression='gzip')
-    print(f"Saved file: data_des='{data_des}'")
+    file_name=f'{data_path}/{data_des}_adata_preprocessed.h5ad'
+    adata.write_h5ad(file_name, compression='gzip')
+    print(f"Saved file: {file_name}")
 
 def load_saved_adata_with_key(data_des):
     """
@@ -1755,4 +1769,48 @@ def compute_gene_exp_distance(adata,p0_indices,p1_indices,pc_n=30):
 
 
 
+
+def get_X_clone_with_reference_ordering(clone_data_cell_id,clone_data_barcode_id,reference_cell_id,reference_clone_id=None):
+    '''
+    Build the X_clone matrix from data.
+
+    Convert the raw clonal data table (long format): [clone_data_cell_id,clone_data_barcode_id] 
+    to X_clone (wide format) based on the reference_cell_id. 
+
+    Parameters
+    ---------- 
+    clone_data_cell_id: `list`
+        The list of cell id for each corresponding sequenced barcode.
+    clone_data_barcode_id: `list`
+        The list of barcode id from sequencing. It has the same shape as clone_data_cell_id.
+    reference_cell_id: `list`
+        A list of uniuqe cell id. X_clone will be generated based on its cell id ordering. 
+        This has to be provided to match the cell ordering in the adata object. 
+    reference_clone_id: `list`, optional (default: None)
+        A list of uniuqe clone id. If provided, X_clone will be generated based on its barcode ordering. 
+
+    Returns
+    -------
+    X_clone: `np.array`     
+        The clonal data matrix, with the row in cell id, and column in barcode id.
+    reference_clone_id: `list`
+    '''
+    
+    if reference_clone_id is None:
+        reference_clone_id=list(set(clone_data_barcode_id))
+        
+    reference_clone_id=np.array(reference_clone_id)
+    ## generate X_clone where the cell idx have been sorted
+    X_clone=np.zeros((len(reference_cell_id),len(reference_clone_id)))
+    logg.info(f"Total number of barcode entries: {len(clone_data_cell_id)}")
+    for j in range(len(clone_data_cell_id)):
+        if j%100000==0:
+            logg.info(f"Current barcode entry: {j}")
+        cell_id_1=np.nonzero(reference_cell_id==clone_data_cell_id[j])[0]
+        clone_id_1=np.nonzero(reference_clone_id==clone_data_barcode_id[j])[0]
+        #X_clone[cell_id_1,clone_id_1] += 1
+        X_clone[cell_id_1,clone_id_1] = 1
+        
+    sp_idx=X_clone.sum(0)>0
+    return X_clone[:,sp_idx],reference_clone_id[sp_idx]
 

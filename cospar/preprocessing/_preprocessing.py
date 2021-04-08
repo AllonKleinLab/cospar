@@ -15,7 +15,7 @@ from .. import settings
 from .. import logging as logg
 
 
-def initialize_adata_object(adata=None,cell_by_gene_matrix=None,gene_names=None,time_info=None,
+def initialize_adata_object(adata=None,cell_by_gene_matrix=None,cell_names=None,gene_names=None,time_info=None,
     X_clone=None,X_pca=None,X_emb=None,state_info=None,data_des='cospar'):
     """
     Initialized the :class:`~anndata.AnnData` object.
@@ -29,10 +29,13 @@ def initialize_adata_object(adata=None,cell_by_gene_matrix=None,gene_names=None,
     adata: :class:`~anndata.AnnData` object
     cell_by_gene_matrix: `np.ndarray` or `sp.spmatrix`, optional (default: None)
         The count matrix for state information. 
-        Rows correspond to cells and columns to genes. If adata_0 is provided, this
+        Rows correspond to cells and columns to genes. If adata is provided, this
+        is not necessary.
+    cell_names: `np.ndarray`, optional (default: None)
+        An array of cell ids. If adata is provided, this
         is not necessary.
     gene_names: `np.ndarray`, optional (default: None)
-        An array of gene names. If adata_0 is provided, this
+        An array of gene names. If adata is provided, this
         is not necessary.
     time_info: `np.ndarray`
         Time annotation for each cell in `str`,like 'Day27' or 'D27'.
@@ -87,10 +90,15 @@ def initialize_adata_object(adata=None,cell_by_gene_matrix=None,gene_names=None,
             logg.error('If adata is not provided, cell_by_gene_matrix and gene_names must be provided. Abort initialization.')
             return None
 
+    if cell_names is not None:
+        adata.obs_names=list(cell_names)
+
     if (time_info is None): 
         if 'time_info' not in adata.obs.keys():
-            logg.error("time_info not provided. Abort initialization.")
-            return None
+            logg.warn("time_info not provided. Initialize the time info to be ['0','0','0',...]")
+            time_info=['0' for xx in range(adata.shape[0])]
+            adata.obs['time_info']=pd.Categorical(time_info)
+            
     else:
         time_info=np.array(time_info)
         time_info=time_info.astype(str)
@@ -162,6 +170,8 @@ def initialize_adata_object(adata=None,cell_by_gene_matrix=None,gene_names=None,
     logg.warn(f"Default ascending ordering of time points are: {time_ordering}. If not correct, run cs.hf.update_time_ordering for correction.")
     adata.uns['time_ordering']=np.array(time_ordering)
 
+    logg.warn(f'CoSpar assumes that the count matrix adata.X is not log-transformed.')
+
     return adata
 
 
@@ -196,18 +206,21 @@ def get_highly_variable_genes(adata,normalized_counts_per_cell=10000,min_counts=
     If 'highly_variable' existed before, save a copy at  adata.obs['highly_variable_old']
     """
 
+    
     sc.pp.normalize_per_cell(adata, counts_per_cell_after=normalized_counts_per_cell)
 
     verbose=logg._settings_verbosity_greater_or_equal_than(2) # the highest level is 3
 
     logg.info('Finding highly variable genes...')
     gene_list=adata.var_names
-    highvar_genes = gene_list[hf.filter_genes(
+    gene_idx, Mean_value, FanoFactor=hf.filter_genes(
         adata.X, 
         min_counts=min_counts, 
         min_cells=min_cells, 
         min_vscore_pctl=min_gene_vscore_pctl, 
-        show_vscore_plot=verbose)]
+        show_vscore_plot=verbose)
+
+    highvar_genes = gene_list[gene_idx]
 
     if 'highly_variable' in adata.var.keys():
         adata.var['highly_variable_old']=adata.var['highly_variable'].copy()
@@ -216,6 +229,9 @@ def get_highly_variable_genes(adata,normalized_counts_per_cell=10000,min_counts=
     adata.var.loc[highvar_genes, 'highly_variable'] = True
     logg.info(f'Keeping {len(highvar_genes)} genes')
     
+    if FanoFactor[-1]<FanoFactor[0]:
+        logg.error(f'The estimated Fano factor is not in expected form, which would affect the results.\n'
+            'Please make sure that the count matrix adata.X is not log-transformed.')
 
 
 def remove_cell_cycle_correlated_genes(adata,cycling_gene_list=['Ube2c','Hmgb2', 'Hmgn2', 'Tuba1b', 'Ccnb1', 'Tubb5', 'Top2a','Tubb4b'],corr_threshold=0.1,confirm_change=False):
@@ -306,24 +322,34 @@ def get_X_pca(adata,n_pca_comp=40):
     If 'X_pca' existed before, save a copy at  adata.obs['X_pca_old']
     """
 
+    logg.warn(f'PCA construction assumes that the count matrix adata.X is not log-transformed.')
     if 'highly_variable' not in adata.var.keys():
-        logg.error("Did not find highly variable genes index in adata.var['highly_variable']\n"
-                   "Please run get_highly_variable_genes first!")
+        if adata.shape[1]>100:
+            logg.error("Did not find highly variable genes index in adata.var['highly_variable']\n"
+                       "Please run get_highly_variable_genes first!")
+            return None
+        else: 
+            logg.warn("Did not find highly variable genes index in adata.var['highly_variable']\n"
+                       "Compute X_pca with all genes")
+
+            highvar_genes_idx=np.ones(adata.shape[1]).astype(bool)
     else:
-
-        if 'X_pca' in adata.obsm.keys():
-            adata.obsm['X_pca_old']=adata.obsm['X_pca'].copy()
-
         highvar_genes_idx=np.array(adata.var['highly_variable'])
-        gene_list=np.array(adata.var_names)
-        highvar_genes=gene_list[highvar_genes_idx]
 
-        zero_idx=adata[:, highvar_genes].X.sum(0).A.flatten()==0
-        if np.sum(zero_idx)>0:
-            logg.warn(f"Genes {highvar_genes[zero_idx]} are not expressed. They are ignored.")
-            highvar_genes=highvar_genes[~zero_idx]
+    if n_pca_comp>adata.shape[1]: n_pca_comp=adata.shape[1]
 
-        adata.obsm['X_pca'] = hf.get_pca(adata[:, highvar_genes].X, numpc=n_pca_comp,keep_sparse=False,normalize=True,random_state=0)
+    if 'X_pca' in adata.obsm.keys():
+        adata.obsm['X_pca_old']=adata.obsm['X_pca'].copy()
+
+    gene_list=np.array(adata.var_names)
+    highvar_genes=gene_list[highvar_genes_idx]
+
+    zero_idx=adata[:, highvar_genes].X.sum(0).A.flatten()==0
+    if np.sum(zero_idx)>0:
+        logg.warn(f"Genes {highvar_genes[zero_idx]} are not expressed. They are ignored.")
+        highvar_genes=highvar_genes[~zero_idx]
+
+    adata.obsm['X_pca'] = hf.get_pca(adata[:, highvar_genes].X, numpc=n_pca_comp,keep_sparse=False,normalize=True,random_state=0)
 
 
 
@@ -392,6 +418,50 @@ def get_state_info(adata,n_neighbors=20,resolution=0.5):
  
 
 
+def get_X_clone(adata,clone_data_cell_id,clone_data_barcode_id,reference_cell_id=None,reference_clone_id=None):
+    '''
+    Build the X_clone matrix from data.
+
+    Convert the raw clonal data table (long format): [clone_data_cell_id,clone_data_barcode_id] 
+    to X_clone (wide format) based on the unique cell id ordering in adata
+    
+    Parameters
+    ---------- 
+    adata: :class:`~anndata.AnnData` object
+        We assume that adata.obs_names have been initialized.
+    clone_data_cell_id: `list`
+        The list of cell id for each corresponding sequenced barcode.
+    clone_data_barcode_id: `list`
+        The list of barcode id from sequencing. It has the same shape as clone_data_cell_id.
+    reference_cell_id: `list`, optional (default: None)
+        A list of uniuqe cell id. X_clone will be generated based on its cell id ordering. 
+        This has to be provided to match the cell ordering in the adata object. 
+    reference_clone_id: `list`, optional (default: None)
+        A list of uniuqe clone id. If provided, X_clone will be generated based on its barcode ordering. 
+        
+    Returns
+    -------
+    Update adata.obsm['X_clone']: `sp.spmatrix`
+    '''
+    
+    if reference_cell_id is None:
+        reference_cell_id=np.array(adata.obs_names)
+    else:
+        if len(reference_cell_id)==adata.shape[0]:
+            adata.obs_names=reference_cell_id
+        else:
+            logg.error('reference_cell_id does not have the size of adata.shape[0]')
+        
+    X_clone, reference_clone_id=hf.get_X_clone_with_reference_ordering(clone_data_cell_id,clone_data_barcode_id,reference_cell_id,reference_clone_id=reference_clone_id)
+    if X_clone.sum()==0:
+        logg.error("X_clone is not initialized. Zero entries detected.\n" 
+                   "Possible reason: the reference_cell_id (from adata.obs_names or directly provided) is not right")
+    else:
+        adata.obsm['X_clone']=ssp.csr_matrix(X_clone)
+        adata.uns['clone_id']=reference_clone_id
+        
+        hf.check_available_clonal_info(adata)
+    
 
 
 ############# refine clusters for state_info

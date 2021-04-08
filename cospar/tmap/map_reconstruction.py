@@ -372,8 +372,129 @@ def select_time_points(adata_orig,time_point=['day_1','day_2'],extend_Tmap_space
 
 ####################
 
-
 def refine_Tmap_through_cospar(MultiTime_cell_id_array_t1,MultiTime_cell_id_array_t2,
+    proportion,transition_map,X_clone,initial_similarity,final_similarity,
+    noise_threshold=0.1,normalization_mode=1):
+    """
+    This performs one iteration of coherent sparsity optimization.
+
+    This is our core algorithm for Tmap inference. It updates a map 
+    by considering clones spanning multiple time points.
+
+    Parameters
+    ----------
+    MultiTime_cell_id_array_t1: `np.array`
+        An array of cell id sub_array, where each sub_array consists of 
+        clonally-related cell id's at different time points
+    MultiTime_cell_id_array_t2: `np.array`
+        An corresponding array of sub_array, where each sub_array are id's of 
+        cells that are clonally related to the corresponding sub_array at 
+        MultiTime_cell_id_array_t1.
+    proportion: `list`
+        A weight factor for each time point.
+    transition_map: `np.array` or `sp.spmatrix`
+        initialized transition map, or map from a previous iteration.
+    X_clone: `sp.spmatrix`
+        clonal matrix
+    initial_similarity: `np.array`
+        similarity matrix for all cells belonging 
+        to MultiTime_cell_id_array_t1
+    final_similarity: `np.array`
+        similarity matrix for all cells belonging 
+        to MultiTime_cell_id_array_t2
+    noise_threshold: `float`, optional (default: 0.1)
+        The relative threshold to remove noises in the updated transition map,
+        in the range [0,1].
+    normalization_mode: `int`, optional (default: 1)
+        Normalization method. Choice: [0,1].
+        0, single-cell normalization; 1, Clone normalization. The clonal 
+        normalization suppresses the contribution of large
+        clones, and is much more robust. 
+
+    Returns
+    -------
+    smoothed_new_transition_map: `np.array`
+    un_SM_transition_map: `np.array`
+    """
+
+    resol=10**(-10)
+    
+    if normalization_mode==0: logg.info("Single-cell normalization")
+    if normalization_mode==1: logg.info("Clone normalization")
+
+    if ssp.issparse(X_clone):
+        X_clone=ssp.csr_matrix(X_clone)
+
+    cell_N,clone_N=X_clone.shape
+    N1,N2=transition_map.shape
+    new_coupling_matrix=ssp.lil_matrix((N1,N2))
+
+    # cell id order in the similarity matrix is obtained by concatenating the cell id 
+    # list in MultiTime_cell_id_array_t1. So, we need to offset the id if we move to the next list
+    offset_N1=0; 
+    offset_N2=0;
+    for j in range(len(MultiTime_cell_id_array_t1)):
+        
+        logg.hint("Relative time point pair index:",j)
+        cell_id_array_t1=MultiTime_cell_id_array_t1[j]
+        cell_id_array_t2=MultiTime_cell_id_array_t2[j]
+
+
+        for clone_id in range(clone_N):
+            #pdb.set_trace()
+            
+            if clone_id%1000==0: logg.hint("Clone id:",clone_id)
+            idx1=X_clone[cell_id_array_t1,clone_id].A.flatten()
+            idx2=X_clone[cell_id_array_t2,clone_id].A.flatten()
+            if idx1.sum()>0 and idx2.sum()>0:
+                ## update the new_coupling matrix
+                id_1=offset_N1+np.nonzero(idx1)[0]
+                id_2=offset_N2+np.nonzero(idx2)[0]
+                prob=transition_map[id_1][:,id_2]
+                
+
+                ## try row normalization
+                if normalization_mode==0:
+                    prob=hf.sparse_rowwise_multiply(prob,1/(resol+np.sum(prob,1))) # cell-level normalization
+                else:
+                    prob=prob/(resol+np.sum(prob)) # clone level normalization, account for proliferation
+
+                weight_factor=np.sqrt(np.mean(idx1[idx1>0])*np.mean(idx2[idx2>0])) # the contribution of a particular clone can be tuned by its average entries
+                if (weight_factor>1):
+                    logg.hint("X_clone has entries not 0 or 1. Using weight modulation",weight_factor)
+
+                #Use the add mode, add up contributions from each clone
+                new_coupling_matrix[id_1[:,np.newaxis],id_2]=new_coupling_matrix[id_1[:,np.newaxis],id_2]+proportion[j]*prob*weight_factor 
+
+        ## update offset
+        offset_N1=offset_N1+len(cell_id_array_t1)
+        offset_N2=offset_N2+len(cell_id_array_t2)
+            
+
+    ## rescale
+    #new_coupling_matrix=new_coupling_matrix/(new_coupling_matrix.A.max())
+
+    ## convert to sparse matrix form
+    new_coupling_matrix=new_coupling_matrix.tocsr()
+
+    
+    logg.info("Start to smooth the refined clonal map")
+    t=time.time()
+    temp=new_coupling_matrix*final_similarity
+    
+    logg.info("Phase I: time elapsed -- ", time.time()-t)
+    smoothed_new_transition_map=initial_similarity.dot(temp)
+    
+    logg.info("Phase II: time elapsed -- ", time.time()-t)
+
+    # both return are numpy array
+    un_SM_transition_map=new_coupling_matrix.A
+    smoothed_new_transition_map=hf.matrix_row_or_column_thresholding(smoothed_new_transition_map,noise_threshold,row_threshold=True)
+
+    return smoothed_new_transition_map, un_SM_transition_map
+
+
+def refine_Tmap_through_cospar_v0(MultiTime_cell_id_array_t1,MultiTime_cell_id_array_t2,
     proportion,transition_map,X_clone,initial_similarity,final_similarity,
     noise_threshold=0.1,normalization_mode=1):
     """
@@ -465,7 +586,7 @@ def refine_Tmap_through_cospar(MultiTime_cell_id_array_t1,MultiTime_cell_id_arra
 
                 weight_factor=np.sqrt(np.mean(idx1[idx1>0])*np.mean(idx2[idx2>0])) # the contribution of a particular clone can be tuned by its average entries
                 if (weight_factor>1):
-                    logg.hint("marker gene weight",weight_factor)
+                    logg.hint("X_clone has entries not 0 or 1. Using weight modulation",weight_factor)
 
                 #Use the add mode, add up contributions from each clone
                 new_coupling_matrix[id_1[:,np.newaxis],id_2]=new_coupling_matrix[id_1[:,np.newaxis],id_2]+proportion[j]*prob*weight_factor 
@@ -644,7 +765,7 @@ def infer_Tmap_from_multitime_clones(adata_orig,clonal_time_points=None,
     later_time_points: `list`, optional (default: None)
         If specified, the function will produce a map T between these early 
         time points among `clonal_time_points` and the `later_time_point`.
-        If not specified, it produces a map T between neighboring time points.
+        If not specified, it produces a map T between neighboring clonal time points. 
     smooth_array: `list`, optional (default: [15,10,5])
         List of smooth rounds at initial runs of iteration. 
         Suppose that it has a length N. For iteration n<N, The n-th entry of 
@@ -1005,8 +1126,6 @@ def infer_Tmap_from_multitime_clones_private(adata,smooth_array=[15,10,5],neighb
 
 
     #smooth_iter_N=len(smooth_array)
-    convergence_corr=np.zeros(max_iter_N+1)
-    convergence_corr[0]=-100
     for j in range(max_iter_N):
         
         logg.info("Current iteration:",j)
@@ -1030,27 +1149,26 @@ def infer_Tmap_from_multitime_clones_private(adata,smooth_array=[15,10,5],neighb
             proportion,transition_map,X_clone,used_initial_similarity,used_final_similarity,noise_threshold=noise_threshold,normalization_mode=normalization_mode)
 
 
-        # # check convergency
-        # #if j>(len(smooth_array)-1):
-        # if transition_map.shape[0]<1000:
-        #     sample_N=transition_map.shape[0]
-        # else:
-        #     sample_N=1000
-
-        # cell_id=np.arange(transition_map.shape[0])
-        # np.random.shuffle(cell_id)
-        # X_map_0=transition_map_new[cell_id[:sample_N],:]
-        # X_map_1=transition_map[cell_id[:sample_N],:]
+        #if (j>=2):
+        # sample cell states to perform the accuracy test
+        sample_N_0=1000
         t0=time.time()
-        X_map_0=transition_map_new
-        X_map_1=transition_map
-        convergence_corr[j+1]=np.diag(hf.corr2_coeff(X_map_0,X_map_1)).mean()
-        print(f"Covergency test (CoSpar core): corr(previous_T, current_T)={convergence_corr[j+1]}; cost time={time.time()-t0}")
-        
-        transition_map=transition_map_new
-        if (abs(convergence_corr[j+1]-convergence_corr[j])<epsilon_converge) and (j>=2):
-            break
+        if transition_map.shape[0]<sample_N_0:
+            sample_id_temp=np.arange(transition_map.shape[0])
+        else:
+            xx=np.arange(transition_map.shape[0])
+            yy=list(np.nonzero(xx%3==0)[0])+list(np.nonzero(xx%3==1)[0])+list(np.nonzero(xx%3==2)[0])
+            sample_id_temp=yy[:sample_N_0]
 
+        X_map_0=transition_map_new[sample_id_temp,:]
+        X_map_1=transition_map[sample_id_temp,:]
+
+        corr_X=np.diag(hf.corr2_coeff(X_map_0,X_map_1)).mean()
+        print(f"Covergence test (CoSpar core): corr(previous_T, current_T)={corr_X}; cost time={time.time()-t0}")
+
+        if (1-corr_X)<epsilon_converge: break
+
+        transition_map=transition_map_new
 
     ### expand the map to other cell states
     ratio_t1=np.sum(np.in1d(Tmap_cell_id_t1,clonal_cell_id_t1))/len(Tmap_cell_id_t1)
@@ -1737,27 +1855,24 @@ def infer_Tmap_from_one_time_clones_private(adata,initialized_map,
         # update, for the next iteration
         if 'transition_map' in adata.uns.keys():
             
-
-            # check convergency
-            #if j>(len(smooth_array)-1):
-            # if map_temp.shape[0]<1000:
-            #     sample_N=map_temp.shape[0]
-            # else:
-            #     sample_N=1000
-
-            # cell_id=np.arange(map_temp.shape[0])
-            # np.random.shuffle(cell_id)
-            # X_map_0=map_temp[cell_id[:sample_N],:].A
-            # X_map_1=adata.uns['transition_map'][cell_id[:sample_N],:].A
-
+            # sample cell states to perform the accuracy test
+            sample_N_0=1000
             t0=time.time()
-            X_map_0=map_temp.A
-            X_map_1=adata.uns['transition_map'].A
-            convergence_corr[x0+1]=np.diag(hf.corr2_coeff(X_map_0,X_map_1)).mean()
-            print(f"Covergency test for JointOptimization: corr(previous_T, current_T)={convergence_corr[x0+1]}; time cost={time.time()-t0}")
-            
-            if (abs(convergence_corr[x0+1]-convergence_corr[x0])<epsilon_converge[0]):
-                break
+            cell_N_tot=map_temp.shape[0]
+            if cell_N_tot<sample_N_0:
+                sample_id_temp=np.arange(cell_N_tot)
+            else:
+                xx=np.arange(cell_N_tot)
+                yy=list(np.nonzero(xx%3==0)[0])+list(np.nonzero(xx%3==1)[0])+list(np.nonzero(xx%3==2)[0])
+                sample_id_temp=yy[:sample_N_0]
+
+            X_map_0=adata.uns['transition_map'][sample_id_temp,:].A
+            X_map_1=map_temp[sample_id_temp,:].A
+
+            corr_X=np.diag(hf.corr2_coeff(X_map_0,X_map_1)).mean()
+            print(f"Covergence test (Joint Optimization): corr(previous_T, current_T)={corr_X}; cost time={time.time()-t0}")
+
+            if abs(1-corr_X)<epsilon_converge[0]: break
 
             map_temp=adata.uns['transition_map']
         else:

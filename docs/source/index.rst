@@ -9,9 +9,9 @@ CoSpar - dynamic inference by integrating state and lineage information
 
 **CoSpar** is a toolkit for dynamic inference from lineage-traced single cells. |br|
 The methods are based on
-`S.-W. Wang & A.M. Klein (ToBeSubmitted, 2021) <https://doi.org/xxx>`_.
+`S.-W. Wang & A.M. Klein (2021) <https://doi.org/xxx>`_.
 
-Dynamic inference based on single-cell state measurement alone requires serious simplifications. On the other hand, direct dynamic measurement via lineage tracing only captures partial information and is very noisy. CoSpar integrates both state and lineage information to infer the transition map of a development/differentiation system. It gains superior robustness and accuracy by exploiting both the local coherence and sparsity of differentiation transitions, i.e., neighboring initial states share similar yet sparse fate outcomes.  Building around the most popular :class:`~anndata.AnnData` object in the single-cell community, CoSpar provides an integrated analysis framework for datasets with both state and lineage information. It offers essential toolkits for analyzing lineage data, state information, or their integration. 
+Dynamic inference based on single-cell state measurement alone requires serious simplifications. On the other hand, direct dynamic measurement via lineage tracing only captures partial information and its interpretation is challenging. CoSpar integrates both state and lineage information to infer the finite-time transition map of a development/differentiation system. It gains superior robustness and accuracy by exploiting both the local coherence and sparsity of differentiation transitions, i.e., neighboring initial states share similar yet sparse fate outcomes.  Building around the most popular :class:`~anndata.AnnData` object in the single-cell community, CoSpar provides an integrated analysis framework for datasets with both state and lineage information. When only state information is available, CoSpar also improves upon existing dynamic inference methods by imposing sparsity and coherence. It offers essential toolkits for analyzing lineage data, state information, or their integration. 
 
 CoSpar's key application
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -21,6 +21,7 @@ CoSpar's key application
 - predict gene expression dynamics along the trajectory. 
 - predict putative driver genes.
 - estimate fate coupling.
+- generate putative fate hierarchy. 
 
 
 .. Upcoming talks
@@ -34,7 +35,6 @@ Reference
 ^^^^^^^^^
 Shou-Wen Wang & Allon M. Klein (2021), Learning clonal dynamics by coherent sparse optimization,
 `ToBeSubmitted <https://doi.org/xxx>`_.
-|dim|
 
 
 Support

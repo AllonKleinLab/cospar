@@ -11,7 +11,7 @@ Import CoSpar as::
 CoSpar is built around the :class:`~anndata.AnnData` object (usually called `adata`). For each cell, we store its RNA count matrix at ``adata.X``, the gene names at ``adata.var_names``,time information at ``adata.obs['time_info']``, state annotation at ``adata.obs['state_info']``,  clonal information at ``adata.obsm['X_clone']``, and 2-d embedding at ``adata.obsm['X_emb']``. 
 
 
-Once the :class:`~anndata.AnnData` object is initialized via :func:`cs.pp.initialize_adata_object`, the typical flow of analysis is to 1) perform preprocessing and dimension reduction (``cs.pp.*``); 2) visualize and analyzing clonal data alone (``cs.pl.*``); 3) infer transition map (``cs.tmap.*``); and 4) analyze inferred map using the plotting functions (``cs.pl.*``). We also provide 7 built-in datasets (``cs.datasets.*``) and miscellaneous functions to assist with the analysis (``cs.hf.*``). See :doc:`tutorial <getting_started>` for details. 
+Once the :class:`~anndata.AnnData` object is initialized via :func:`cs.pp.initialize_adata_object`, the typical flow of analysis is to 1) perform preprocessing and dimension reduction (``cs.pp.*``); 2) visualize and analyzing clonal data alone (``cs.pl.*``); 3) infer transition map (``cs.tmap.*``); and 4) analyze inferred map using the plotting functions (``cs.pl.*``). We also provide several built-in datasets (``cs.datasets.*``) and miscellaneous functions to assist with the analysis (``cs.hf.*``). See :doc:`tutorial <getting_started>` for details. 
 
 
 
@@ -78,8 +78,9 @@ Plotting
 
    pl.clones_on_manifold
    pl.barcode_heatmap
-   pl.fate_coupling_from_clones
    pl.clonal_fate_bias
+   pl.fate_coupling_from_clones
+   pl.fate_hierarchy_from_clones
 
 
 
@@ -90,11 +91,12 @@ Plotting
 
    pl.single_cell_transition
    pl.fate_map
-   pl.binary_fate_bias
-   pl.dynamic_trajectory_from_binary_fate_bias
+   pl.fate_bias
+   pl.dynamic_trajectory_from_fate_bias
    pl.dynamic_trajectory_via_iterative_mapping
    pl.gene_expression_dynamics
    pl.fate_coupling_from_Tmap
+   pl.fate_hierarchy_from_Tmap
 
 
 **Differential gene expression analysis** 
@@ -140,7 +142,6 @@ Help functions
    hf.read
    hf.save_map
    hf.save_preprocessed_adata
-   hf.load_saved_adata_with_key
    hf.check_adata_structure
    hf.check_available_choices
    hf.update_time_ordering
