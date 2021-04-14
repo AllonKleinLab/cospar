@@ -9,19 +9,18 @@ CoSpar - dynamic inference by integrating state and lineage information
 
 **CoSpar** is a toolkit for dynamic inference from lineage-traced single cells. |br|
 The methods are based on
-`S.-W. Wang & A.M. Klein (2021) <https://doi.org/xxx>`_.
+`Wang et al. (2021) <https://doi.org/xxx>`_.
 
-Dynamic inference based on single-cell state measurement alone requires serious simplifications. On the other hand, direct dynamic measurement via lineage tracing only captures partial information and its interpretation is challenging. CoSpar integrates both state and lineage information to infer the finite-time transition map of a development/differentiation system. It gains superior robustness and accuracy by exploiting both the local coherence and sparsity of differentiation transitions, i.e., neighboring initial states share similar yet sparse fate outcomes.  Building around :class:`~anndata.AnnData` object, CoSpar provides an integrated analysis framework for datasets with both state and lineage information. When only state information is available, CoSpar also improves upon existing dynamic inference methods by imposing sparsity and coherence. It offers essential toolkits for analyzing lineage data, state information, or their integration. 
+Dynamic inference based on single-cell state measurement alone requires serious simplifications. On the other hand, direct dynamic measurement via lineage tracing only captures partial information and its interpretation is challenging. CoSpar integrates both state and lineage information to infer a finite-time transition map of a development/differentiation system. It gains superior robustness and accuracy by exploiting both the local coherence and sparsity of differentiation transitions, i.e., neighboring initial states share similar yet sparse fate outcomes.  Building around the :class:`~anndata.AnnData` object, CoSpar provides an integrated analysis framework for datasets with both state and lineage information. When only state information is available, CoSpar also improves upon existing dynamic inference methods by imposing sparsity and coherence. It offers essential toolkits for analyzing lineage data, state information, or their integration. 
 
-CoSpar's key application
-^^^^^^^^^^^^^^^^^^^^^^^^
+CoSpar's key applications
+^^^^^^^^^^^^^^^^^^^^^^^^^
 - infer transition maps from lineage data, state measurements, or their integration. 
-- predict early fate bias or commitment. 
-- learn differentiation trajectories leading to a fate.
-- predict gene expression dynamics along the trajectory. 
-- predict putative driver genes.
-- estimate fate coupling.
-- generate putative fate hierarchy. 
+- predict the fate bias of progenitor cells. 
+- order cells along a differentiation trajectory leading to a given cell fate.
+- predict gene expression dynamics along a trajectory. 
+- predict genes whose expression correlates with future fate outcome.
+- generate a putative fate hierarchy, ordering fates by their lineage distances. 
 
 
 .. Upcoming talks
@@ -33,8 +32,9 @@ CoSpar's key application
 
 Reference
 ^^^^^^^^^
-Shou-Wen Wang & Allon M. Klein (2021), Learning clonal dynamics by coherent sparse optimization,
+Shou-Wen Wang, Michael J Herriges, Kilian Hurley, Darrell N. Kotton, and Allon M. Klein (2021), Learning clonal dynamics by coherent sparse optimization,
 `ToBeSubmitted <https://doi.org/xxx>`_.
+
 
 
 Support
@@ -45,7 +45,7 @@ Your help to improve CoSpar is highly appreciated.
 
 Acknowledgment
 ^^^^^^^^^^^^^^
-Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthedocs.io/>`_ for inspiring him to make this website. He also wants to acknowledge the community that maintains `scanpy <https://scanpy.readthedocs.io/>`_ and `scvelo <https://scvelo.readthedocs.io/>`_, where he learned about proper code documentation. He thanks Tal Debrobrah Scully, Qiu Wu  and other lab members for testing the package. Shou-Wen  wants to thank especially Allon Klein for his mentorship and generosity. Finally, he wants to acknowledge the generous support of the Damon Runyon Foundation through the Quantitative Biology Fellowship.     
+Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthedocs.io/>`_ for inspiring him to make this website. He also wants to acknowledge the community that maintains `scanpy <https://scanpy.readthedocs.io/>`_ and `scvelo <https://scvelo.readthedocs.io/>`_, where he learned about proper code documentation. He thanks Tal Debrobrah Scully, Qiu Wu  and other lab members for testing the package. Shou-Wen  wants to thank especially Allon Klein for his mentorship. Finally, he wants to acknowledge the generous support of the Damon Runyon Foundation through the Quantitative Biology Fellowship.     
 
 
 .. toctree::

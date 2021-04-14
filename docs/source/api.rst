@@ -13,7 +13,7 @@ Import CoSpar as::
 CoSpar is built around the :class:`~anndata.AnnData` object (usually called `adata`). For each cell, we store its RNA count matrix at ``adata.X``, the gene names at ``adata.var_names``,time information at ``adata.obs['time_info']``, state annotation at ``adata.obs['state_info']``,  clonal information at ``adata.obsm['X_clone']``, and 2-d embedding at ``adata.obsm['X_emb']``. 
 
 
-Once the :class:`~anndata.AnnData` object is initialized via :func:`cs.pp.initialize_adata_object`, the typical flow of analysis is to 1) perform preprocessing and dimension reduction (``cs.pp.*``); 2) visualize and analyzing clonal data alone (``cs.pl.*``); 3) infer transition map (``cs.tmap.*``); and 4) analyze inferred map using the plotting functions (``cs.pl.*``). We also provide several built-in datasets (``cs.datasets.*``) and miscellaneous functions to assist with the analysis (``cs.hf.*``). See :doc:`tutorial <getting_started>` for details. 
+Once the :class:`~anndata.AnnData` object is initialized via :func:`cs.pp.initialize_adata_object`, the typical flow of analysis is to 1) perform preprocessing and dimension reduction (``cs.pp.*``); 2) visualize and analyze clonal data alone (``cs.pl.*``); 3) infer transition map (``cs.tmap.*``); and 4) analyze inferred map using the plotting functions (``cs.pl.*``). We also provide several built-in datasets (``cs.datasets.*``) and miscellaneous functions to assist with the analysis (``cs.hf.*``). See :doc:`tutorial <getting_started>` for details. 
 
 
 
@@ -68,8 +68,8 @@ Transition map inference
       tmap.infer_Tmap_from_one_time_clones_twoTime
 
 
-Plotting
---------
+Plotting and Analysis
+---------------------
 
 
 **Clone analysis** (clone visualization, clustering etc.)

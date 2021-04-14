@@ -82,13 +82,13 @@ def reprogramming(data_des='CellTagging'):
     return load_data_core(data_path,figure_path,data_name,data_des)
 
 
-def reprogramming_Day0Day3(data_des='CellTagging'):
+def reprogramming_Day0_3_28(data_des='Reprog_128'):
     """
     The reprogramming dataset from 
 
     * Biddy, B. A. et al. `Single-cell mapping of lineage and identity in direct reprogramming`. Nature 564, 219–224 (2018).
 
-    This dataset has multiple time points for both the clones and the state measurements. 
+    This dataset has time points on day 0, day 3, and day 28. Only day 28 has clonal information. 
     The cells are barcoded over 3 rounds during the entire differentiation process. 
     There are multiple ways to assemble the barcodes on day 0, day 3, and day 13 
     into a clonal ID. Below, we concatenate barcodes on day 0 and day 13, 
@@ -196,7 +196,7 @@ def hematopoiesis(data_des='LARRY'):
     return load_data_core(data_path,figure_path,data_name,data_des)
 
 
-def hematopoiesis_Gata1_states(data_des='LARRY_Gata1'):
+def hematopoiesis_Gata1_states(data_des='LARRY_Gata1_lineage'):
     """
     All of the hematopoiesis data set from 
 
