@@ -28,14 +28,15 @@ CoSpar is formulated assuming that we have initial clonal information by re-samp
    :align: center
 
 Below, we formalize the coherent sparse optimization by which CoSpar infers the transition map.
-To learn the transition map, we denote :math:`I(t)` as a clone-by-cell matrix and introduce :math:`S` as a similarity matrix of cell-cell similarity over all observed cell states, including those lacking clonal information. In a model of stochastic differentiation, the transition map :math:`T` directly links any two density profiles :math:`P(t_{1,2})`  at two time points: 
+
+In a model of stochastic differentiation, cells in a clone are distributed across states with a time-dependent  density profile :math:`P(t)`. A transition map :math:`T` directly links clonal density profiles :math:`P(t_{1,2})`  between time points: 
 
 .. math::
 	\begin{equation}
-	P(t_2 )= P(t_1 )T(t_1,t_2),
+	P_i(t_2 )= \sum_j P_j(t_1 )T_{ji}(t_1,t_2),
 	\end{equation}
 
-where the density profiles are estimated as :math:`P(t)\approx I(t)S(t)`. 
+From multiple clonal observations, our goal is to learn :math:`T`. To do so, we denote :math:`I(t)` as a clone-by-cell matrix and introduce :math:`S` as a matrix of cell-cell similarity over all observed cell states, including those lacking clonal information. The density profiles of all observed clones are estimated as :math:`P(t)\approx I(t)S(t)`. 
 
 
 Since the matrices :math:`P(t_{1,2})` are determined directly from data, with enough information :math:`T(t_1,t_2)` could be learnt by matrix inversion. However, in most cases, the number of clones is far less than the number of states. To constrain the map, we require that: 1)  :math:`T` is a sparse matrix; 2)  :math:`T` is locally coherent; and 3) :math:`T` is a non-negative matrix. With these requirements, the inference becomes an optimization problem: 

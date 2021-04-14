@@ -7,7 +7,7 @@ from . import logging as logg
 
 url_prefix='https://kleintools.hms.harvard.edu/tools/downloads/cospar'
 
-def synthetic_bifurcation_static_BC(data_des='bifur'):
+def synthetic_bifurcation(data_des='bifur'):
     """
     Synthetic clonal dataset with static barcoding.
 
@@ -25,7 +25,8 @@ def synthetic_bifurcation_static_BC(data_des='bifur'):
 
     data_path=settings.data_path
     figure_path=settings.figure_path
-    data_name='bifurcation_static_BC_adata_preprocessed.h5ad'
+    #data_name='bifurcation_static_BC_adata_preprocessed.h5ad'
+    data_name='bifur_adata_preprocessed.h5ad'
     return load_data_core(data_path,figure_path,data_name,data_des)
 
 def synthetic_bifurcation_dynamic_BC(data_des='bifur_conBC'):
@@ -48,6 +49,63 @@ def synthetic_bifurcation_dynamic_BC(data_des='bifur_conBC'):
     figure_path=settings.figure_path
     data_name='bifurcation_dynamic_BC_adata_preprocessed.h5ad'
     return load_data_core(data_path,figure_path,data_name,data_des)
+
+
+def reprogramming(data_des='CellTagging'):
+    """
+    The reprogramming dataset from 
+
+    * Biddy, B. A. et al. `Single-cell mapping of lineage and identity in direct reprogramming`. Nature 564, 219–224 (2018).
+
+    This dataset has multiple time points for both the clones and the state measurements. 
+    The cells are barcoded over 3 rounds during the entire differentiation process. 
+    There are multiple ways to assemble the barcodes on day 0, day 3, and day 13 
+    into a clonal ID. Below, we provide three variants:
+
+    * Concatenate barcodes on day 0 and day 13, as in the original analysis (adata.obsm['X_clone_Concat_D0D3'], the default);
+
+    * Concatenate barcodes on day 0, day 3, and day 13 (adata.obsm['X_clone_Concat_D0D3D13']);
+
+    * No concatenation; each cell has up to 3 barcodes (adata.obsm['X_clone_NonConcat_D0D3D13']).
+
+    The last choice keeps the nested clonal structure in the data. You choose any one of the clonal arrangement, e.g, adata.obsm['X_clone']=adata_orig.obsm['X_clone_Concat_D0D3']. The three clonal arrangement gives very similar fate prediction.
+
+    Parameters
+    ----------
+    data_des: `str`
+        A key to label this dataset. 
+    """
+
+    data_path=settings.data_path
+    figure_path=settings.figure_path
+    data_name='CellTagging_adata_preprocessed.h5ad'
+    return load_data_core(data_path,figure_path,data_name,data_des)
+
+
+def reprogramming_Day0Day3(data_des='CellTagging'):
+    """
+    The reprogramming dataset from 
+
+    * Biddy, B. A. et al. `Single-cell mapping of lineage and identity in direct reprogramming`. Nature 564, 219–224 (2018).
+
+    This dataset has multiple time points for both the clones and the state measurements. 
+    The cells are barcoded over 3 rounds during the entire differentiation process. 
+    There are multiple ways to assemble the barcodes on day 0, day 3, and day 13 
+    into a clonal ID. Below, we concatenate barcodes on day 0 and day 13, 
+    as in the original analysis.
+
+
+    Parameters
+    ----------
+    data_des: `str`
+        A key to label this dataset. 
+    """
+
+    data_path=settings.data_path
+    figure_path=settings.figure_path
+    data_name='Reprog_128_D0D3_adata_preprocessed.h5ad'
+    return load_data_core(data_path,figure_path,data_name,data_des)
+
 
 def reprogramming_static_BC(data_des='CellTagging'):
     """
@@ -116,7 +174,7 @@ def lung(data_des='Lung'):
     data_name='Lung_pos17_21_D27_adata_preprocessed.h5ad'
     return load_data_core(data_path,figure_path,data_name,data_des)
 
-def hematopoiesis_all(data_des='LARRY'):
+def hematopoiesis(data_des='LARRY'):
     """
     All of the hematopoiesis data set from 
 
@@ -137,6 +195,27 @@ def hematopoiesis_all(data_des='LARRY'):
     data_name='LARRY_adata_preprocessed.h5ad'
     return load_data_core(data_path,figure_path,data_name,data_des)
 
+
+def hematopoiesis_Gata1_states(data_des='LARRY_Gata1'):
+    """
+    All of the hematopoiesis data set from 
+
+    * Weinreb, C., Rodriguez-Fraticelli, A., Camargo, F. D. & Klein, A. M. Science 367, (2020)
+
+    This dataset has 3 time points for both the clonal and state measurements. This dataset 
+    has ~50000 cells. Running the whole pipeline for the first time could take several hours in 
+    a standard personal computer. 
+    
+    Parameters
+    ----------
+    data_des: `str`
+        A key to label this dataset. 
+    """
+
+    data_path=settings.data_path
+    figure_path=settings.figure_path
+    data_name='LARRY_Gata1_lineage_adata_preprocessed.h5ad'
+    return load_data_core(data_path,figure_path,data_name,data_des)
 
 
 def hematopoiesis_subsampled(data_des='LARRY_sp500_ranking1'):

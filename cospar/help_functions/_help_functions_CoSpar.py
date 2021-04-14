@@ -429,24 +429,29 @@ def filter_genes(E, base_ix = [], min_vscore_pctl = 85, min_counts = 3, min_cell
     min_vscore = np.percentile(Vscores, min_vscore_pctl)
     ix = (((E[:,gene_ix] >= min_counts).sum(0).A.squeeze() >= min_cells) & (Vscores >= min_vscore))
     
+
+    x_min = 0.5*np.min(mu_gene)
+    x_max = 2*np.max(mu_gene)
+    Mean_value = x_min * np.exp(np.log(x_max/x_min)*np.linspace(0,1,100))
+    FanoFactor = (1 + a)*(1+b) + b * Mean_value
+
+
     if show_vscore_plot:
-        import matplotlib.pyplot as plt
-        x_min = 0.5*np.min(mu_gene)
-        x_max = 2*np.max(mu_gene)
-        xTh = x_min * np.exp(np.log(x_max/x_min)*np.linspace(0,1,100))
-        yTh = (1 + a)*(1+b) + b * xTh
         plt.figure(figsize=(4, 3));
         plt.scatter(np.log10(mu_gene), np.log10(FF_gene), c = [[.8,.8,.8]], alpha = 0.3, s = 3);
         plt.scatter(np.log10(mu_gene)[ix], np.log10(FF_gene)[ix], c = [[0,0,0]], alpha = 0.3,  s= 3);
-        plt.plot(np.log10(xTh),np.log10(yTh));
+        plt.plot(np.log10(Mean_value),np.log10(FanoFactor));
         plt.title(sample_name)
         plt.xlabel('log10(mean)');
         plt.ylabel('log10(Fano factor)');
         plt.show()
 
-    FanoFactor=yTh
-    Mean_value=xTh
-    return gene_ix[ix], Mean_value, FanoFactor
+    if FanoFactor[-1]<FanoFactor[0]:
+        logg.error(f'The estimated Fano factor is NOT in expected form, which would affect the results.\n'
+            'Please make sure that the count matrix adata.X is NOT log-transformed.')
+        return None
+    else:
+        return gene_ix[ix]
 
 # We found that this does not work
 def remove_corr_genes(E, gene_list, exclude_corr_genes_list, test_gene_idx, min_corr = 0.1):
@@ -558,12 +563,12 @@ def converting_id_from_subSpace_to_fullSpace(query_id_array_subSpace,subSpace_id
 
 ## based on mean
 def compute_state_potential(transition_map,state_annote,fate_array,
-    fate_count=False,map_backwards=True,method='sum'):
+    fate_count=False,map_backward=True,method='sum'):
     """
     Compute state probability towards/from given clusters
 
     Before any calculation, we row-normalize the transition map.  
-    If map_backwards=True, compute the fate map towards given 
+    If map_backward=True, compute the fate map towards given 
     clusters. Otherwise, compute the ancestor map, the probabilities 
     of a state to originate from given clusters. 
 
@@ -579,11 +584,11 @@ def compute_state_potential(transition_map,state_annote,fate_array,
         Relevant for compute the fate_entropy. If true, just count 
         the number of possible (Prob>0) fate outcomes for each state;
         otherwise, compute the shannon entropy of fate outcome for each state
-    map_backwards: `bool`, optional (default: True)
-        If `map_backwards=True`, compute for initial cell states (rows of Tmap, at t1);
+    map_backward: `bool`, optional (default: True)
+        If `map_backward=True`, compute for initial cell states (rows of Tmap, at t1);
         else, for later cell states (columns of Tmap, at t2)
     method: `str`, optional (default: 'sum')
-        Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max','conditional'},
+        Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max','norm-sum'},
         which computes the sum, mean, or max of transition probability within a cluster as the final fate probability.
     
     Returns
@@ -600,9 +605,9 @@ def compute_state_potential(transition_map,state_annote,fate_array,
     fate_N=len(fate_array)
     N1,N2=transition_map.shape
 
-    logg.info(f"Use the method={method} to compute differentiation bias")
+    #logg.info(f"Use the method={method} to compute differentiation bias")
 
-    if map_backwards:
+    if map_backward:
         idx_array=np.zeros((N2,fate_N),dtype=bool)
         for k in range(fate_N):
             idx_array[:,k]=(state_annote==fate_array[k])
@@ -620,9 +625,9 @@ def compute_state_potential(transition_map,state_annote,fate_array,
 
 
         # rescale. After this, the fate map value spreads between [0,1]. Otherwise, they can be tiny.
-        if (method!='sum') and (method!='conditional'):
+        if (method!='sum') and (method!='norm-sum'):
             fate_map=fate_map/np.max(fate_map)
-        elif (method=='conditional'):
+        elif (method=='norm-sum'):
             # perform normalization of the fate map. This works only if there are more than two fates
             if fate_N>1:
                 #logg.info('conditional method: perform column normalization')
@@ -659,9 +664,9 @@ def compute_state_potential(transition_map,state_annote,fate_array,
                 fate_map[:,k]=np.sum(transition_map[idx_array[:,k],:],0).A.flatten()
 
         # rescale. After this, the fate map value spreads between [0,1]. Otherwise, they can be tiny.
-        if (method!='sum') and (method!='conditional'):
+        if (method!='sum') and (method!='norm-sum'):
             fate_map=fate_map/np.max(fate_map)
-        elif (method=='conditional'):
+        elif (method=='norm-sum'):
             # perform normalization of the fate map. This works only if there are more than two fates
             if fate_N>1:
                 #logg.info('conditional method: perform column normalization')
@@ -684,159 +689,6 @@ def compute_state_potential(transition_map,state_annote,fate_array,
 
 
 
-## based on summation
-def compute_state_potential_v0(transition_map,state_annote,fate_array,
-    fate_count=False,map_backwards=True):
-    """
-    Compute state probability towards/from given clusters
-
-    Before any calculation, we row-normalize the transition map.  
-    If map_backwards=True, compute the fate map towards given 
-    clusters. Otherwise, compute the ancestor map, the probabilities 
-    of a state to originate from given clusters. 
-
-    Parameters
-    ----------
-    transition_map: `sp.spmatrix` (also accept `np.array`)
-        Transition map of the shape: (n_t1_cells, n_t2_cells). 
-    state_annote: `np.array`
-        Annotation for each cell state.
-    fate_array: `np.array` or `list`
-        List of targeted clusters, consistent with state_annote.
-    fate_count: `bool`, optional (default: False)
-        Relevant for compute the fate_entropy. If true, just count 
-        the number of possible (Prob>0) fate outcomes for each state;
-        otherwise, compute the shannon entropy of fate outcome for each state
-    map_backwards: `bool`, optional (default: True)
-        If `map_backwards=True`, compute for initial cell states (rows of Tmap, at t1);
-        else, for later cell states (columns of Tmap, at t2)
-
-    Returns
-    -------
-    fate_map: `np.array`, shape (n_cells, n_fates)
-        A matrix of fate potential for each state
-    fate_entropy: `np.array`, shape (n_fates,)
-        A vector of fate entropy for each state
-    """
-    
-    if not ssp.issparse(transition_map): transition_map=ssp.csr_matrix(transition_map).copy()
-    resol=10**(-10)
-    transition_map=sparse_rowwise_multiply(transition_map,1/(resol+np.sum(transition_map,1).A.flatten()))
-    fate_N=len(fate_array)
-    N1,N2=transition_map.shape
-
-    if map_backwards:
-        idx_array=np.zeros((N2,fate_N),dtype=bool)
-        for k in range(fate_N):
-            idx_array[:,k]=(state_annote==fate_array[k])
-
-        fate_map=np.zeros((N1,fate_N))
-        fate_entropy=np.zeros(N1)
-
-        for k in range(fate_N):
-            fate_map[:,k]=np.sum(transition_map[:,idx_array[:,k]],1).A.flatten()
-
-        for j in range(N1):
-                ### compute the "fate-entropy" for each state
-            if fate_count:
-                p0=fate_map[j,:]
-                fate_entropy[j]=np.sum(p0>0)
-            else:
-                p0=fate_map[j,:]
-                p0=p0/(resol+np.sum(p0))+resol
-                for k in range(fate_N):
-                    fate_entropy[j]=fate_entropy[j]-p0[k]*np.log(p0[k])
-
-    ### forward map
-    else:
-        idx_array=np.zeros((N1,fate_N),dtype=bool)
-        for k in range(fate_N):
-            idx_array[:,k]=(state_annote==fate_array[k])
-
-        fate_map=np.zeros((N2,fate_N))
-        fate_entropy=np.zeros(N2)
-
-        for k in range(fate_N):
-            fate_map[:,k]=np.sum(transition_map[idx_array[:,k],:],0).A.flatten()
-
-
-        for j in range(N1):
-                
-                ### compute the "fate-entropy" for each state
-            if fate_count:
-                p0=fate_map[j,:]
-                fate_entropy[j]=np.sum(p0>0)
-            else:
-                p0=fate_map[j,:]
-                p0=p0/(resol+np.sum(p0))+resol
-                for k in range(fate_N):
-                    fate_entropy[j]=fate_entropy[j]-p0[k]*np.log(p0[k])
-
-    return fate_map, fate_entropy
-
-
-
-def compute_fate_probability_map(adata,fate_array=None,used_Tmap='transition_map',map_backwards=True,method='sum',fate_count=True):
-    """
-    Compute fate map from the adata object
-
-    Parameters
-    ----------
-    adata: :class:`~anndata.AnnData` object
-        Assume to contain transition maps at adata.uns.
-    fate_array: `list`, optional (default: all)
-        List of targeted clusters, consistent with adata.obs['state_info'].
-        If set to be None, use all fate clusters in adata.obs['state_info'].
-    used_Tmap: `str`
-        The transition map to be used for plotting: {'transition_map',
-        'intraclone_transition_map','weinreb_transition_map','naive_transition_map',
-        'OT_transition_map','HighVar_transition_map'}. The actual available
-        map depends on adata itself, which can be accessed at adata.uns['available_map']
-    map_backwards: `bool`, optional (default: True)
-        If `map_backwards=True`, compute for initial cell states (rows of Tmap, at t1);
-        else, compute for later cell states (columns of Tmap, at t2)
-    method: `str`, optional (default: 'sum')
-        Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max'},
-        which computes the sum, mean, or max of transition probability within a cluster as the final fate probability.
-    fate_count: `bool`, optional (default: True)
-        Used to determine the method for computing the fate potential of a state.
-        If ture, jus to count the number of possible fates; otherwise, use the Shannon entropy.
-
-    Returns
-    -------
-    Update `fate_array`, `fate_map`, `fate_entropy` as a dictionary in adata.uns['fate_map']. 
-    """
-    
-    #transition_map=adata.uns['transition_map']
-    #demultiplexed_map=adata.uns['demultiplexed_map']
-    state_annote_0=adata.obs['state_info']
-    if map_backwards:
-        cell_id_t1=adata.uns['Tmap_cell_id_t1']
-        cell_id_t2=adata.uns['Tmap_cell_id_t2']
-
-    else:
-        cell_id_t2=adata.uns['Tmap_cell_id_t1']
-        cell_id_t1=adata.uns['Tmap_cell_id_t2']
-
-    x_emb=adata.obsm['X_emb'][:,0]
-    y_emb=adata.obsm['X_emb'][:,1]
-    data_des=adata.uns['data_des'][-1]
-    
-    if fate_array is None: 
-        fate_array=list(set(state_annote_0))
-    
-
-    state_annote_BW=state_annote_0[cell_id_t2]
-    
-    if used_Tmap in adata.uns.keys():
-        used_map=adata.uns[used_Tmap]
-
-        potential_vector, fate_entropy=compute_state_potential(used_map,state_annote_BW,fate_array,fate_count=fate_count,map_backwards=map_backwards,method=method)
-
-        adata.uns['fate_map']={'fate_array':fate_array,'fate_map':potential_vector,'fate_entropy':fate_entropy}
-
-    else:
-        logg.error(f"used_Tmap should be among adata.uns.keys(), with _transition_map as suffix")
 
         
 
@@ -916,7 +768,7 @@ def analyze_selected_fates(selected_fates,state_info):
     return mega_cluster_list[valid_idx],valid_fate_list,fate_array_flat,sel_index_list[valid_idx]
 
 
-def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='transition_map',map_backwards=True,method='conditional',fate_count=True):
+def compute_fate_probability_map(adata,selected_fates=None,used_Tmap='transition_map',map_backward=True,method='norm-sum',fate_count=True):
     """
     Compute fate map and the relative bias compared to the expectation.
     
@@ -940,11 +792,11 @@ def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='tra
         'intraclone_transition_map','weinreb_transition_map','naive_transition_map',
         'OT_transition_map','HighVar_transition_map'}. The actual available
         map depends on adata itself, which can be accessed at adata.uns['available_map']
-    map_backwards: `bool`, optional (default: True)
-        If `map_backwards=True`, compute for initial cell states (rows of Tmap, at t1);
+    map_backward: `bool`, optional (default: True)
+        If `map_backward=True`, compute for initial cell states (rows of Tmap, at t1);
         else, compute for later cell states (columns of Tmap, at t2)
-    method: `str`, optional (default: 'conditional')
-        Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max','conditional'},
+    method: `str`, optional (default: 'norm-sum')
+        Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max','norm-sum'},
         which computes the sum, mean, or max of transition probability within a cluster as the final fate probability.
     fate_count: `bool`, optional (default: True)
         Used to determine the method for computing the fate potential of a state.
@@ -966,12 +818,12 @@ def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='tra
         of fate clusters. It screens for valid fates, though. 
     """
 
-    if method not in ['max','sum','mean','conditional']:
-        logg.warn("method not in {'max','sum','mean','conditional'}; use the 'conditional' method")
-        method='conditional'
+    if method not in ['max','sum','mean','norm-sum']:
+        logg.warn("method not in {'max','sum','mean','norm-sum'}; use the 'norm-sum' method")
+        method='norm-sum'
 
 
-    if map_backwards:
+    if map_backward:
         cell_id_t2=adata.uns['Tmap_cell_id_t2']
     else:
         cell_id_t2=adata.uns['Tmap_cell_id_t1']
@@ -981,12 +833,9 @@ def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='tra
     mega_cluster_list,valid_fate_list,fate_array_flat,sel_index_list=analyze_selected_fates(selected_fates,state_annote)
 
 
-    ############# compute the map
-    #compute_fate_probability_map(adata,fate_array=fate_array_flat,used_Tmap=used_Tmap,map_backwards=map_backwards,fate_count=fate_count,method=method)
-    #fate_map_0=adata.uns['fate_map']['fate_map']
 
     state_annote_0=np.array(adata.obs['state_info'])
-    if map_backwards:
+    if map_backward:
         cell_id_t1=adata.uns['Tmap_cell_id_t1']
         cell_id_t2=adata.uns['Tmap_cell_id_t2']
 
@@ -1008,7 +857,7 @@ def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='tra
     if used_Tmap in adata.uns.keys():
         used_map=adata.uns[used_Tmap]
 
-        fate_map, fate_entropy=compute_state_potential(used_map,state_annote_BW,mega_cluster_list,fate_count=fate_count,map_backwards=map_backwards,method=method)
+        fate_map, fate_entropy=compute_state_potential(used_map,state_annote_BW,mega_cluster_list,fate_count=fate_count,map_backward=map_backward,method=method)
 
         adata.uns['fate_map']={'fate_array':mega_cluster_list,'fate_map':fate_map,'fate_entropy':fate_entropy}
 
@@ -1045,102 +894,6 @@ def compute_fate_map_and_intrinsic_bias(adata,selected_fates=None,used_Tmap='tra
     return fate_map,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list,fate_entropy
     
 
-
-
-def compute_fate_map_and_intrinsic_bias_v0(adata,selected_fates=None,used_Tmap='transition_map',map_backwards=True,method='sum',fate_count=True):
-    """
-    Compute fate map and the relative bias compared to the expectation.
-    
-    `selected_fates` could contain a nested list of clusters. If so, we combine each sub-list 
-    into a mega-fate cluster and compute the fate map correspondingly. 
-
-    The relative bias is obtained by comparing the fate_prob with the 
-    expected_prob from the relative size of the targeted cluster. It ranges from [0,1], 
-    with 0.5 being the point that the fate_prob agrees with expected_prob. 
-    1 is extremely biased. 
-
-    Parameters
-    ----------
-    adata: :class:`~anndata.AnnData` object
-        Assume to contain transition maps at adata.uns.
-    selected_fates: `list`, optional (default: all)
-        List of targeted clusters, consistent with adata.obs['state_info'].
-        If set to be None, use all fate clusters in adata.obs['state_info'].
-    used_Tmap: `str`
-        The transition map to be used for plotting: {'transition_map',
-        'intraclone_transition_map','weinreb_transition_map','naive_transition_map',
-        'OT_transition_map','HighVar_transition_map'}. The actual available
-        map depends on adata itself, which can be accessed at adata.uns['available_map']
-    map_backwards: `bool`, optional (default: True)
-        If `map_backwards=True`, compute for initial cell states (rows of Tmap, at t1);
-        else, compute for later cell states (columns of Tmap, at t2)
-    method: `str`, optional (default: 'sum')
-        Method to aggregate the transition probability within a cluster. Available options: {'sum','mean','max'},
-        which computes the sum, mean, or max of transition probability within a cluster as the final fate probability.
-    fate_count: `bool`, optional (default: True)
-        Used to determine the method for computing the fate potential of a state.
-        If ture, jus to count the number of possible fates; otherwise, use the Shannon entropy.
-
-    Returns
-    -------
-    Store `fate_array`, `fate_map`, `fate_entropy` in adata.uns['fate_map']. 
-
-    fate_map: `np.array`, shape (n_cell, n_fate)
-        n_fate is the number of mega cluster, equals len(selected_fates).
-    mega_cluster_list: `list`, shape (n_fate)
-        The list of names for the mega cluster. This is relevant when 
-        `selected_fates` has a nested structure. 
-    relative_bias: `np.array`, shape (n_cell, n_fate)
-    expected_prob: `np.array`, shape (n_fate,)
-    valid_fate_list: `list`, shape (n_fate)
-        It is the same as selected_fates, could contain a nested list
-        of fate clusters. It screens for valid fates, though. 
-    """
-
-    if method not in ['max','sum','mean']:
-        logg.warn("method not in {'max','sum','mean'}; use the 'sum' method")
-
-
-    if map_backwards:
-        cell_id_t2=adata.uns['Tmap_cell_id_t2']
-    else:
-        cell_id_t2=adata.uns['Tmap_cell_id_t1']
-
-    state_annote=adata.obs['state_info']
-    if selected_fates is None: selected_fates=list(set(state_annote))
-    mega_cluster_list,valid_fate_list,fate_array_flat,sel_index_list=analyze_selected_fates(selected_fates,state_annote)
-
-
-    compute_fate_probability_map(adata,fate_array=fate_array_flat,used_Tmap=used_Tmap,map_backwards=map_backwards,fate_count=fate_count,method=method)
-    fate_map_0=adata.uns['fate_map']['fate_map']
-
-    N_macro=len(valid_fate_list)
-    fate_map=np.zeros((fate_map_0.shape[0],N_macro))
-    relative_bias=np.zeros((fate_map_0.shape[0],N_macro))
-    expected_prob=np.zeros(N_macro)
-    for jj in range(N_macro):
-        idx=np.in1d(fate_array_flat,valid_fate_list[jj])
-        if method=='max':
-            fate_map[:,jj]=fate_map_0[:,idx].max(1)
-        elif method=='mean':
-            fate_map[:,jj]=fate_map_0[:,idx].mean(1)
-        else: # use the sum method
-            fate_map[:,jj]=fate_map_0[:,idx].sum(1)
-
-
-        for yy in valid_fate_list[jj]:
-            expected_prob[jj]=expected_prob[jj]+np.sum(state_annote[cell_id_t2]==yy)/len(cell_id_t2)
-
-        # transformation, this is useful only when the method =='sum'
-        temp_idx=fate_map[:,jj]<expected_prob[jj]
-        temp_diff=fate_map[:,jj]-expected_prob[jj]
-        relative_bias[temp_idx,jj]=temp_diff[temp_idx]/expected_prob[jj]
-        relative_bias[~temp_idx,jj]=temp_diff[~temp_idx]/(1-expected_prob[jj])
-
-        relative_bias[:,jj]=(relative_bias[:,jj]+1)/2 # rescale to the range [0,1]
-
-    return fate_map,mega_cluster_list,relative_bias,expected_prob,valid_fate_list,sel_index_list
-    
 
     
 
@@ -1284,42 +1037,6 @@ def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances'
     return  ShortPath_dis_final
 
 
-# v0, the old methods
-def compute_shortest_path_distance_from_raw_matrix(data_matrix,num_neighbors_target=5,mode='distance',limit=np.inf):
-    """
-    Compute shortest path distance from raw data.
-
-    The distance matrix has two modes: 'connectivity' or 'distance'.
-    We found that the 'connectivity' version is sensitive to local cell 
-    density heterogeneity, and the 'distance' version is more robust.
-    This discrepancy might be due to that the KNN graph construction does not
-    directly take into account local density heterogeneity. 
-
-    Parameters
-    ----------
-    data_matrix: `np.array`
-    num_neighbors_target: `int`, optional (default: 5)
-        Used to construct the KNN graph.
-    mode: `str`, optional (default: 'distance')
-        Options: {'distance','connectivity')
-    limit: `float`, optional (default: np.inf)
-        If the distance is about this, stop computation, and set 
-        the distance beyong this limist by `limit`. This can speed up computation.
-
-    Returns
-    -------
-    The normalized distance matrix is returned.
-    """
-
-    adj_matrix = kneighbors_graph(data_matrix, num_neighbors_target, mode=mode, include_self=True)
-    ShortPath_dis = dijkstra(csgraph = ssp.csr_matrix(adj_matrix), directed = False,return_predecessors = False,limit=limit)
-    ShortPath_dis_max = np.nanmax(ShortPath_dis[ShortPath_dis != np.inf])
-    ShortPath_dis[ShortPath_dis > ShortPath_dis_max] = ShortPath_dis_max #set threshold for shortest paths
-
-    # Set normalized cost matrices based on shortest paths matrices at target and source spaces
-    return ShortPath_dis / ShortPath_dis.max()
-
-
 def add_neighboring_cells_to_a_map(initial_idx,adata,neighbor_N=5):
     """
     Add neighboring cells to an initially selected population
@@ -1396,6 +1113,10 @@ def get_normalized_covariance(data,method='Weinreb'):
     Normalized covariance matrix.
     """
 
+    if method not in ['Weinreb','SW']:
+        logg.warn('method not among [Weinreb, SW]; set method=SW')
+        method='SW'
+
     if method=='Weinreb':
         cc = np.cov(data.T)
         mm = np.mean(data,axis=0) + .0001
@@ -1456,7 +1177,8 @@ def save_map(adata):
 
 
     # need to remove these, otherwise, it does not work
-    for xx in  ['fate_trajectory', 'multiTime_cell_id_t1', 'multiTime_cell_id_t2', 'fate_map','binary_fate_bias']:
+    for xx in  ['fate_trajectory', 'multiTime_cell_id_t1', 
+    'multiTime_cell_id_t2', 'fate_map','binary_fate_bias','fate_map_output','fate_bias']:
         if xx in adata.uns.keys():
             adata.uns.pop(xx)
 
@@ -1689,6 +1411,9 @@ def check_available_clonal_info(adata):
     X_clone=adata.obsm['X_clone']
     time_info=adata.obs['time_info']
 
+    if 'time_ordering' not in adata.uns.keys():
+        update_time_ordering(adata)
+
     # record time points with clonal information
     if ssp.issparse(X_clone):
         clone_N_per_cell=X_clone.sum(1).A.flatten()
@@ -1700,6 +1425,10 @@ def check_available_clonal_info(adata):
         idx=np.array(time_info)==xx
         if np.sum(clone_N_per_cell[idx])>0:
             clonal_time_points.append(xx)
+
+    time_ordering=adata.uns['time_ordering']
+    sel_idx_temp=np.in1d(time_ordering,clonal_time_points)
+    clonal_time_points=time_ordering[sel_idx_temp]
     adata.uns['clonal_time_points']=clonal_time_points
 
 
@@ -1718,8 +1447,9 @@ def check_available_choices(adata):
 
     print("Available transition maps:",available_map)
     print("Available clusters:", list(set(adata.obs['state_info'])))
-    print("Available time points:", list(set(adata.obs['time_info'])))
+    print("Available time points:", adata.uns['time_ordering'])
     print("Clonal time points:",clonal_time_points)
+
 
 def compute_pca(m1, m2, n_components):
     matrices = list()

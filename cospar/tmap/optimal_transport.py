@@ -7,6 +7,7 @@ https://github.com/broadinstitute/wot/blob/master/wot/ot/optimal_transport.py
 #import logging # this is a buildin package from Python
 
 import numpy as np
+from .. import logging as logg
 
 #logger = logging.getLogger('wot')
 
@@ -148,7 +149,7 @@ def optimal_transport_duality_gap(C, G, lambda1, lambda2, epsilon, batch_size, t
                     a, b = np.ones(I), np.ones(J)
 
                 if current_iter >= max_iter:
-                    print("Reached max_iter with duality gap still above threshold. Returning")
+                    logg.warn("Reached max_iter with duality gap still above threshold. Returning")
                     return (K.T * a).T * b
 
             # The real dual variables. a and b are only the stabilized variables
@@ -167,7 +168,8 @@ def optimal_transport_duality_gap(C, G, lambda1, lambda2, epsilon, batch_size, t
                     np.linalg.norm(_b - old_b * np.exp(v / epsilon_i)) / (1 + np.linalg.norm(_b)))
 
     if np.isnan(duality_gap):
-        raise RuntimeError("Overflow encountered in duality gap computation, please report this incident")
+        #raise RuntimeError("Overflow encountered in duality gap computation, please report this incident")
+        logg.error("Overflow encountered in duality gap computation, please report this incident")
     return R / C.shape[1]
 
 

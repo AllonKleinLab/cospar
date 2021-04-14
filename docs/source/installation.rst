@@ -69,7 +69,7 @@ If you run into issues, do not hesitate to approach us or raise a `GitHub issue`
 Testing CoSpar in a new environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In case you want to test cospar without affecting exisiting python packages, you can create a new conda environment and install CoSpar there::
+In case you want to test cospar without affecting existing python packages, you can create a new conda environment and install CoSpar there::
 
 	conda create -n test_cospar python=3.6
 	source activate test_cospar
@@ -83,7 +83,7 @@ If you encounter an error related to ``nbconvert``, run (this is optional)::
 
 	pip3 install --upgrade --user nbconvert
 
-Finally, install the jupyter notebook kernal related to this environment::
+Finally, install the jupyter notebook kernel related to this environment::
 
 	python -m ipykernel install --user --name=test_cospar
 

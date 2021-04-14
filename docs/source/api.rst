@@ -3,6 +3,8 @@
 API
 ===
 
+..    include:: <isonum.txt>
+
 Import CoSpar as::
 
    import cospar as cs
@@ -40,7 +42,6 @@ Transition map inference
    :toctree: .
 
    tmap.infer_Tmap_from_multitime_clones
-   tmap.infer_intraclone_Tmap
    tmap.infer_Tmap_from_one_time_clones
    tmap.infer_Tmap_from_state_info_alone
    tmap.infer_Tmap_from_clonal_info_alone
@@ -50,7 +51,7 @@ Transition map inference
 
    .. autosummary::
       :toctree: .
-
+      tmap.infer_intraclone_Tmap
       tmap.generate_similarity_matrix
       tmap.generate_initial_similarity
       tmap.generate_final_similarity
@@ -91,6 +92,7 @@ Plotting
 
    pl.single_cell_transition
    pl.fate_map
+   pl.fate_potency
    pl.fate_bias
    pl.dynamic_trajectory_from_fate_bias
    pl.dynamic_trajectory_via_iterative_mapping
@@ -106,6 +108,7 @@ Plotting
    
    pl.differential_genes
    pl.differential_genes_for_given_fates
+   pl.gene_expression_heat_map
    
 **General**
 
@@ -123,13 +126,13 @@ Datasets
 .. autosummary::
    :toctree: .
 
+   datasets.hematopoiesis
    datasets.hematopoiesis_subsampled
-   datasets.hematopoiesis_all
+   datasets.hematopoiesis_Gata1_states
    datasets.lung
-   datasets.reprogramming_static_BC
-   datasets.reprogramming_dynamic_BC
-   datasets.synthetic_bifurcation_static_BC
-   datasets.synthetic_bifurcation_dynamic_BC
+   datasets.reprogramming
+   datasets.synthetic_bifurcation
+
 
 
 

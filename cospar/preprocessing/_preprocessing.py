@@ -15,7 +15,7 @@ from .. import settings
 from .. import logging as logg
 
 
-def initialize_adata_object(adata=None,cell_by_gene_matrix=None,cell_names=None,gene_names=None,time_info=None,
+def initialize_adata_object(adata=None,X_state=None,cell_names=None,gene_names=None,time_info=None,
     X_clone=None,X_pca=None,X_emb=None,state_info=None,data_des='cospar'):
     """
     Initialized the :class:`~anndata.AnnData` object.
@@ -27,7 +27,7 @@ def initialize_adata_object(adata=None,cell_by_gene_matrix=None,cell_names=None,
     Parameters
     ---------- 
     adata: :class:`~anndata.AnnData` object
-    cell_by_gene_matrix: `np.ndarray` or `sp.spmatrix`, optional (default: None)
+    X_state: `np.ndarray` or `sp.spmatrix`, optional (default: None)
         The count matrix for state information. 
         Rows correspond to cells and columns to genes. If adata is provided, this
         is not necessary.
@@ -82,12 +82,12 @@ def initialize_adata_object(adata=None,cell_by_gene_matrix=None,cell_names=None,
     
 
     if (adata is None):
-        if (cell_by_gene_matrix is not None) and (gene_names) is not None:
+        if (X_state is not None) and (gene_names) is not None:
             logg.info('Create new anndata object')
-            adata=sc.AnnData(ssp.csr_matrix(cell_by_gene_matrix))
+            adata=sc.AnnData(ssp.csr_matrix(X_state))
             adata.var_names=list(gene_names)
         else:
-            logg.error('If adata is not provided, cell_by_gene_matrix and gene_names must be provided. Abort initialization.')
+            logg.error('If adata is not provided, X_state and gene_names must be provided. Abort initialization.')
             return None
 
     if cell_names is not None:
@@ -112,17 +112,28 @@ def initialize_adata_object(adata=None,cell_by_gene_matrix=None,cell_names=None,
     if X_clone is None:
         if 'X_clone' not in adata.obsm.keys():
             X_clone=np.zeros((adata.shape[0],1))
-            adata.obsm['X_clone']=ssp.csr_matrix(X_clone)
-    else:
-        if X_clone.shape[0]==adata.shape[0]:
-            adata.obsm['X_clone']=ssp.csr_matrix(X_clone)
         else:
+            X_clone=adata.obsm['X_clone']
+    else:
+        if X_clone.shape[0]!=adata.shape[0]:
             logg.error("X_clone.shape[0] not equal to cell number. Abort initialization.")
             return None
 
-    
-    adata.uns['data_des']=[data_des]
-    hf.check_available_clonal_info(adata)
+    # remove clones without a cell
+    if X_clone.shape[1]>1:
+        ini_clone_N=X_clone.shape[1]
+        X_clone=ssp.csr_matrix(X_clone)
+        valid_clone_id=np.nonzero(X_clone.sum(0).A.flatten()>0)[0]
+        X_clone_temp=X_clone[:,valid_clone_id]
+        adata.obsm['X_clone']=ssp.csr_matrix(X_clone_temp)
+        if adata.obsm['X_clone'].shape[1]<ini_clone_N:
+            logg.info("Clones without any cells are removed.")
+    else:
+        adata.obsm['X_clone']=ssp.csr_matrix(X_clone)
+
+
+    if 'data_des' not in adata.uns.keys():
+        adata.uns['data_des']=[data_des]
 
 
     if (X_pca is not None):
@@ -132,7 +143,7 @@ def initialize_adata_object(adata=None,cell_by_gene_matrix=None,cell_names=None,
             logg.error("X_pca.shape[0] not equal to cell number")
     else:
         if 'X_pca' not in adata.obsm.keys():
-            logg.warn("X_pca not provided. Downstrean processing is needed to generate X_pca before computing the transition map.")
+            logg.warn("X_pca not provided. Downstream processing is needed to generate X_pca before computing the transition map.")
 
     if (state_info is not None):
         if (len(state_info)==adata.shape[0]):
@@ -145,7 +156,7 @@ def initialize_adata_object(adata=None,cell_by_gene_matrix=None,cell_names=None,
                 logg.warn("Use adata.obs['leiden'] as the default state annotation. If not desirable, please use downstream analysis to improve the annotation.")
                 adata.obs['state_info']=adata.obs['leiden']
             else:
-                logg.warn("state_info not provided. Downstrean processing is needed before analyzing the transition map.")
+                logg.warn("state_info not provided. Downstream processing is needed before analyzing the transition map.")
 
 
     if (X_emb is not None):
@@ -159,18 +170,20 @@ def initialize_adata_object(adata=None,cell_by_gene_matrix=None,cell_names=None,
                 logg.warn("Use X_umap as the default embedding")
                 adata.obsm['X_emb']=adata.obsm['X_umap']
             else:
-                logg.warn("X_emb not provided. Downstrean processing is needed before analyzing the transition map.")
+                logg.warn("X_emb not provided. Downstream processing is needed before analyzing the transition map.")
       
 
-    logg.info(f"All time points: {set(adata.obs['time_info'])}")
-    logg.info(f"Time points with clonal info: {set(adata.uns['clonal_time_points'])}")
+    #logg.info(f"All time points: {set(adata.obs['time_info'])}")
+    #logg.info(f"Time points with clonal info: {set(adata.uns['clonal_time_points'])}")
             
-
+    
     time_ordering=np.sort(list(set(adata.obs['time_info'])))
-    logg.warn(f"Default ascending ordering of time points are: {time_ordering}. If not correct, run cs.hf.update_time_ordering for correction.")
-    adata.uns['time_ordering']=np.array(time_ordering)
+    adata.uns['time_ordering']=time_ordering
+    hf.check_available_clonal_info(adata)
+    logg.info(f"Time points with clonal info: {adata.uns['clonal_time_points']}")
+    logg.warn(f"Default ascending order of time points are: {adata.uns['time_ordering']}. If not correct, run cs.hf.update_time_ordering for correction.")
 
-    logg.warn(f'CoSpar assumes that the count matrix adata.X is not log-transformed.')
+    logg.warn(f'Please make sure that the count matrix adata.X is NOT log-transformed.')
 
     return adata
 
@@ -213,13 +226,8 @@ def get_highly_variable_genes(adata,normalized_counts_per_cell=10000,min_counts=
 
     logg.info('Finding highly variable genes...')
     gene_list=adata.var_names
-    gene_idx, Mean_value, FanoFactor=hf.filter_genes(
-        adata.X, 
-        min_counts=min_counts, 
-        min_cells=min_cells, 
-        min_vscore_pctl=min_gene_vscore_pctl, 
-        show_vscore_plot=verbose)
-
+    gene_idx=hf.filter_genes(adata.X, min_counts=min_counts, min_cells=min_cells, 
+        min_vscore_pctl=min_gene_vscore_pctl, show_vscore_plot=verbose)
     highvar_genes = gene_list[gene_idx]
 
     if 'highly_variable' in adata.var.keys():
@@ -229,10 +237,6 @@ def get_highly_variable_genes(adata,normalized_counts_per_cell=10000,min_counts=
     adata.var.loc[highvar_genes, 'highly_variable'] = True
     logg.info(f'Keeping {len(highvar_genes)} genes')
     
-    if FanoFactor[-1]<FanoFactor[0]:
-        logg.error(f'The estimated Fano factor is not in expected form, which would affect the results.\n'
-            'Please make sure that the count matrix adata.X is not log-transformed.')
-
 
 def remove_cell_cycle_correlated_genes(adata,cycling_gene_list=['Ube2c','Hmgb2', 'Hmgn2', 'Tuba1b', 'Ccnb1', 'Tubb5', 'Top2a','Tubb4b'],corr_threshold=0.1,confirm_change=False):
     """
@@ -262,7 +266,7 @@ def remove_cell_cycle_correlated_genes(adata,cycling_gene_list=['Ube2c','Hmgb2',
 
     if 'highly_variable' not in adata.var.keys():
         logg.error("Did not find highly variable genes index in adata.var['highly_variable']\n"
-                   "Please run get_highly_variable_genes first!")
+                   "Please run cs.pl.get_highly_variable_genes first!")
 
     else:
         gene_list=np.array(adata.var_names)
@@ -322,11 +326,11 @@ def get_X_pca(adata,n_pca_comp=40):
     If 'X_pca' existed before, save a copy at  adata.obs['X_pca_old']
     """
 
-    logg.warn(f'PCA construction assumes that the count matrix adata.X is not log-transformed.')
+    logg.warn(f'get_X_pca assumes that the count matrix adata.X is NOT log-transformed.')
     if 'highly_variable' not in adata.var.keys():
         if adata.shape[1]>100:
             logg.error("Did not find highly variable genes index in adata.var['highly_variable']\n"
-                       "Please run get_highly_variable_genes first!")
+                       "Please run cs.pl.get_highly_variable_genes first!")
             return None
         else: 
             logg.warn("Did not find highly variable genes index in adata.var['highly_variable']\n"
@@ -466,7 +470,7 @@ def get_X_clone(adata,clone_data_cell_id,clone_data_barcode_id,reference_cell_id
 
 ############# refine clusters for state_info
 
-def refine_state_info_by_leiden_clustering(adata,selected_time_points=None,
+def refine_state_info_by_leiden_clustering(adata,selected_times=None,
     resolution=0.5,n_neighbors=20,confirm_change=False,cluster_name_prefix='S'):
     """
     Refine state info by clustering states at given time points.
@@ -479,7 +483,7 @@ def refine_state_info_by_leiden_clustering(adata,selected_time_points=None,
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
-    selected_time_points: `list`, optional (default: include all)
+    selected_times: `list`, optional (default: include all)
         A list of selected time points for clustering. Should be 
         among adata.obs['time_info']. 
     adata: :class:`~anndata.AnnData` object
@@ -502,23 +506,19 @@ def refine_state_info_by_leiden_clustering(adata,selected_time_points=None,
     time_info=adata.obs['time_info']
     available_time_points=list(set(time_info))
     
-    if selected_time_points==None:
-        selected_time_points=available_time_points
+    if selected_times==None:
+        selected_times=available_time_points
 
-    if np.sum(np.in1d(selected_time_points,available_time_points))!=len(selected_time_points):
+    if np.sum(np.in1d(selected_times,available_time_points))!=len(selected_times):
         logg.error(f"Selected time points not available. Please select from {available_time_points}")
 
     else:
         sp_idx=np.zeros(adata.shape[0],dtype=bool)
-        for xx in selected_time_points:
+        for xx in selected_times:
             idx=time_info==xx
             sp_idx[idx]=True
             
-        adata_sp=sc.AnnData(adata.X[sp_idx]);
-        #adata_sp.var_names=adata.var_names
-        adata_sp.obsm['X_pca']=adata.obsm['X_pca'][sp_idx]
-        adata_sp.obsm['X_emb']=adata.obsm['X_emb'][sp_idx]
-        
+        adata_sp=adata[sp_idx];
         sc.pp.neighbors(adata_sp, n_neighbors=n_neighbors)
         sc.tl.leiden(adata_sp,resolution=resolution)
 
@@ -542,7 +542,7 @@ def refine_state_info_by_leiden_clustering(adata,selected_time_points=None,
 
 
 def refine_state_info_by_marker_genes(adata,marker_genes,express_threshold=0.1,
-    selected_time_points=None,new_cluster_name='new_cluster',confirm_change=False,add_neighbor_N=5):
+    selected_times=None,new_cluster_name='new_cluster',confirm_change=False,add_neighbor_N=5):
     """
     Refine state info according to marker gene expression.
 
@@ -565,7 +565,7 @@ def refine_state_info_by_marker_genes(adata,marker_genes,express_threshold=0.1,
         Relative threshold of marker gene expression, in the range [0,1].
         A state must have an expression above this threshold for all genes
         to be included.
-    selected_time_points: `list`, optional (default: all)
+    selected_times: `list`, optional (default: all)
         A list of selected time points for performing clustering,
         among adata.obs['time_info']. 
     new_cluster_name: `str`, optional (default: 'new_cluster')
@@ -586,11 +586,11 @@ def refine_state_info_by_marker_genes(adata,marker_genes,express_threshold=0.1,
     y_emb=adata.obsm['X_emb'][:,1]
     available_time_points=list(set(time_info))
     
-    if selected_time_points==None:
-        selected_time_points=available_time_points
+    if selected_times==None:
+        selected_times=available_time_points
         
     sp_idx=np.zeros(adata.shape[0],dtype=bool)
-    for xx in selected_time_points:
+    for xx in selected_times:
         idx=time_info==xx
         sp_idx[idx]=True
         
