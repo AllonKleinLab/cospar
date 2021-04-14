@@ -1,7 +1,7 @@
 About CoSpar
 ------------
 
-The following information is adapted from `Wang et al. (2021) <https://doi.org/>`_,
+The following information is adapted from `Wang et al. (2021) <https://doi.org/>`_.
 High-throughput single-cell measurements have enabled unbiased studies of development and differentiation, leading to numerous methods for dynamic inference. However, single-cell RNA sequencing (scRNA-seq) data alone does not fully constrain the differentiation dynamics, and existing methods inevitably operate under simplified assumptions. In parallel, the lineage information of individual cells can be profiled simultaneously along with their transcriptome by using a heritable and expressible DNA barcode as a lineage tracer. The barcode may remain static or evolve over time.
 
 

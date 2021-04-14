@@ -13,6 +13,7 @@ from .. import logging as logg
 import statsmodels.sandbox.stats.multicomp
 import scipy.stats as stats
 import matplotlib as mpl
+from ete3 import Tree
 
 ####################
 
@@ -2726,7 +2727,7 @@ def print_hierarchy(parent_map, celltype_names):
         else: return '('+','.join([get_newick(nn) for nn in sorted(child_map[n])[::-1]])+')'
     tree_string = get_newick(np.max(list(child_map.keys())))+';'
     
-    from ete3 import Tree
+    
     t = Tree(tree_string)
     print(t)
 
