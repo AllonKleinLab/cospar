@@ -341,7 +341,7 @@ def single_cell_transition(adata,selected_state_id_list,used_Tmap='transition_ma
         'intraclone_transition_map',...}. The actual available
         map depends on adata itself, which can be accessed at adata.uns['available_map']
     map_backward: `bool`, optional (default: True)
-        plot the probability of source states where the current cell state comes from;
+        If `map_backward=True`, plot the probability of source states where the current cell state comes from;
         otherwise, plot future state probability starting from given initial state.
     initial_point_size: `int`, optional (default: 3)
         Relative size of the data point for the selected cells.
@@ -431,11 +431,22 @@ def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
     """
     Plot transition probability to given fate/ancestor clusters.
 
-    If `map_backward=True`, plot transition probability of early 
-    states to given fate clusters (fate map); else, plot transition 
-    probability of later states from given ancestor clusters (ancestor map).
-    Figures are saved at the defined directory at settings.figure_path.
+    Given a transition map :math:`T_{ij}`, we explore build
+    the fate map :math:`P_i(\mathcal{C})` towards a set of states annotated with 
+    fate :math:`\mathcal{C}` in the following ways. 
 
+    Step 1: Map normalization: :math:`T_{ij}\leftarrow T_{ij}/\sum_j T_{ij}`. 
+
+    Step 2: If `map_backward=False`, perform matrix transpose :math:`T_{ij} \leftarrow T_{ji}`.
+
+    Step 3: aggregate fate probabiliteis within a given cluster :math:`\mathcal{C}`: 
+
+    * method='sum': :math:`P_i(\mathcal{C})=\sum_j T_{ij};\; j \in \mathcal{C}`.
+      This gives the intuitive meaning of fate probability.
+
+    * method='norm-sum': We normalize the map from 'sum' method, i.e. 
+      :math:`P_i(\mathcal{C})\leftarrow P_i(\mathcal{C})/\sum_j P_j(\mathcal{C})`. 
+      This gives the probability that a fate cluster originates from an initial state.
 
     Parameters
     ----------
@@ -450,17 +461,13 @@ def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
         'intraclone_transition_map',...}. The actual available
         map depends on adata itself, which can be accessed at adata.uns['available_map']
     map_backward: `bool`, optional (default: True)
-        If `map_backward=True`, analyze forward transitions :math:`(i,t_1) ->(j,t_2)`, 
-        and plot initial cell states :math:`i`; otherwise, analyze backward 
-        transitions and show later cell states :math:`j`.
+        If `map_backward=True`, show fate properties of initial cell states :math:`i`; 
+        otherwise, show progenitor properties of later cell states :math:`j`.
+        This is used for building the fate map :math:`P_i(\mathcal{C})`. See :func:`.fate_map`.
     method: `str`, optional (default: 'norm-sum')
-        Method to aggregate the transition probability within a cluster. 
-        Available options: {'sum','norm-sum'}. The 'sum' method sums over 
-        transition probability within a fate cluster :math:`\mathcal{C}`
-        as the fate probability (:math:`P_i(\mathcal{C})=\sum_j T_{ij};\; j \in \mathcal{C}`). 
-        The 'norm-sum' gives the probability that a fate cluster originates from an initial
-        state. To do so, it takes the output from the 'sum' method and normalize it 
-        within each cluster: :math:`P_i(\mathcal{C})\leftarrow P_i(\mathcal{C})/\sum_j P_j(\mathcal{C})`.  
+        Method to obtain the fate probability map :math:`P_i(\mathcal{C})` towards a set 
+        of states annotated with fate :math:`\mathcal{C}`. Available options: 
+        {'sum', 'norm-sum'}. See :func:`.fate_map`.
     selected_times: `list`, optional (default: all)
         A list of time points to further restrict the cell states to plot. 
         The default choice is not to constrain the cell states to show. 
@@ -480,10 +487,9 @@ def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
     figure_index: `str`, optional (default: '')
         String index for annotate filename for saved figures. Used to distinuigh plots from different conditions. 
 
-
     Returns
     -------
-    Store a dictionary of results {"raw_fate_map","normalized_fate_map","expected_prob","fate_potency"} at adata.uns['fate_map_output']. 
+    The fate map output is stored as a dictionary at adata.uns['fate_map']. 
     """
 
     hf.check_available_map(adata)
@@ -578,7 +584,10 @@ def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
                 fig.savefig(f'{figure_path}/{data_des}_intrinsic_fate_bias_BW{map_backward}_histogram{figure_index}.{settings.file_format_figs}')
 
             ## save data to adata
-            adata.uns['fate_map_output']={"fate_map":fate_map[sp_idx,:]}
+            fate_map_dictionary={'cell_id':cell_id_t1[sp_idx]}
+            for j,fate in enumerate(mega_cluster_list):
+                fate_map_dictionary[fate]=fate_map[sp_idx,j]
+            adata.uns['fate_map']=pd.DataFrame(fate_map_dictionary)
 
 
 def fate_potency(adata,selected_fates=None,used_Tmap='transition_map',
@@ -587,6 +596,19 @@ def fate_potency(adata,selected_fates=None,used_Tmap='transition_map',
     auto_color_scale=True,color_bar=True,figure_index=''):
     """
     Plot fate potency of early cell states for a given set of fates.
+
+    Given a fate map :math:`P_i(\mathcal{C})` towards a set of 
+    fate clusters :math:`\{\mathcal{C}_1,\mathcal{C}_2,\mathcal{C}_3,...\}` 
+    constructed as in :func:`.fate_map`, we estimate the fate potency of a
+    state :math:`i` in the following two ways:
+
+    * fate_count=True: count the number of possible fates (with non-zero fate probabilities) 
+      at state :math:`i`, i.e., :math:`\sum_x H\Big(P_i(\mathcal{C}_x)\Big)`, 
+      where :math:`H(y)=\{1` for y>0; 0 otherwise}.
+
+    * fate_count=False: calculate the Shannon entropy of the fate probability 
+      starting at state :math:`i`, i.e., :math:`-\sum_x P_i(\mathcal{C}_x)\ln P_i(\mathcal{C}_x)`,
+
 
     Parameters
     ----------
@@ -601,17 +623,13 @@ def fate_potency(adata,selected_fates=None,used_Tmap='transition_map',
         'intraclone_transition_map',...}. The actual available
         map depends on adata itself, which can be accessed at adata.uns['available_map']
     map_backward: `bool`, optional (default: True)
-        If `map_backward=True`, analyze forward transitions :math:`(i,t_1) ->(j,t_2)`, 
-        and plot initial cell states :math:`i`; otherwise, analyze backward 
-        transitions and show later cell states :math:`j`.
+        If `map_backward=True`, show fate properties of initial cell states :math:`i`; 
+        otherwise, show progenitor properties of later cell states :math:`j`.
+        This is used for building the fate map :math:`P_i(\mathcal{C})`. See :func:`.fate_map`.
     method: `str`, optional (default: 'norm-sum')
-        Method to aggregate the transition probability within a cluster. 
-        Available options: {'sum','norm-sum'}. The 'sum' method sums over 
-        transition probability within a fate cluster :math:`\mathcal{C}`
-        as the fate probability (:math:`P_i(\mathcal{C})=\sum_j T_{ij};\; j \in \mathcal{C}`). 
-        The 'norm-sum' gives the probability that a fate cluster originates from an initial
-        state. To do so, it takes the output from the 'sum' method and normalize it 
-        within each cluster: :math:`P_i(\mathcal{C})\leftarrow P_i(\mathcal{C})/\sum_j P_j(\mathcal{C})`.  
+        Method to obtain the fate probability map :math:`P_i(\mathcal{C})` towards a set 
+        of states annotated with fate :math:`\mathcal{C}`. Available options: 
+        {'sum', 'norm-sum'}. See :func:`.fate_map`.
     fate_count: `bool`, optional (default: False)
         Used to determine the method for computing the fate potential of a state.
         If ture, jus to count the number of possible fates; otherwise, use the Shannon entropy.
@@ -627,7 +645,7 @@ def fate_potency(adata,selected_fates=None,used_Tmap='transition_map',
 
     Returns
     -------
-    Store a dictionary of results {"raw_fate_map","normalized_fate_map","expected_prob","fate_potency"} at adata.uns['fate_map_output']. 
+    The result is stored at adata.uns['fate_potency'].
     """
 
     hf.check_available_map(adata)
@@ -692,7 +710,7 @@ def fate_potency(adata,selected_fates=None,used_Tmap='transition_map',
             fig.savefig(f'{figure_path}/{data_des}_fate_potency{figure_index}.{settings.file_format_figs}')
 
             ## save data to adata
-            adata.uns['fate_map_output']={"raw_fate_map":fate_map[sp_idx,:],"normalized_fate_map":relative_bias[sp_idx,:],"expected_prob":expected_prob,"fate_potency":fate_entropy[sp_idx]}
+            adata.uns['fate_potency']=pd.DataFrame({'cell_id':cell_id_t1[sp_idx],'fate_potency':fate_entropy[sp_idx]})
 
 
 def fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
@@ -701,15 +719,15 @@ def fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
     plot_target_state=False,color_bar=True,show_histogram=True,pseudo_count=0,
     target_transparency=0.2,figure_index=''):
     """
-    Plot fate bias to given two fate/ancestor clusters (A, B).
+    Plot fate bias to given two fate clusters (A, B).
 
-    Fate bias is a `scalar` between (0,1) at each state, defined as 
-    competition between two fate clusters. It is computed from the 
-    fate probability Prob(X) towards cluster X.
-    Specifically, the bias of a state between fate A and B is
+    Given a fate map :math:`P_i` towards two fate clusters 
+    :math:`\{\mathcal{A}, \mathcal{B}\}`, constructed according 
+    to :func:`.fate_map`, we compute the fate bias of state :math:`i` as
 
-    * :math:`[P(A)+c_0]/[P(A)+P(B)+2c_0]`
-    where :math:`c_0`=pseudo_count*(maximum fate probability) is a re-scaled pseudocount.
+    * :math:`[P(\mathcal{A})+c_0]/[P(\mathcal{A})+P(\mathcal{B})+2c_0]`
+      where :math:`c_0=a * \max_{i,\mathcal{C}} P_i(\mathcal{C})`
+      is a re-scaled pseudocount, with :math:`a` given by pseudo_count. 
 
     Parameters
     ----------
@@ -724,17 +742,13 @@ def fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
         'intraclone_transition_map',...}. The actual available
         map depends on adata itself, which can be accessed at adata.uns['available_map']
     map_backward: `bool`, optional (default: True)
-        If `map_backward=True`, analyze forward transitions :math:`(i,t_1) ->(j,t_2)`, 
-        and plot initial cell states :math:`i`; otherwise, analyze backward 
-        transitions and show later cell states :math:`j`.
+        If `map_backward=True`, show fate properties of initial cell states :math:`i`; 
+        otherwise, show progenitor properties of later cell states :math:`j`.
+        This is used for building the fate map :math:`P_i(\mathcal{C})`. See :func:`.fate_map`.
     method: `str`, optional (default: 'norm-sum')
-        Method to aggregate the transition probability within a cluster. 
-        Available options: {'sum','norm-sum'}. The 'sum' method sums over 
-        transition probability within a fate cluster :math:`\mathcal{C}`
-        as the fate probability (:math:`P_i(\mathcal{C})=\sum_j T_{ij};\; j \in \mathcal{C}`). 
-        The 'norm-sum' gives the probability that a fate cluster originates from an initial
-        state. To do so, it takes the output from the 'sum' method and normalize it 
-        within each cluster: :math:`P_i(\mathcal{C})\leftarrow P_i(\mathcal{C})/\sum_j P_j(\mathcal{C})`.  
+        Method to obtain the fate probability map :math:`P_i(\mathcal{C})` towards a set 
+        of states annotated with fate :math:`\mathcal{C}`. Available options: 
+        {'sum', 'norm-sum'}. See :func:`.fate_map`.
     selected_times: `list`, optional (default: all)
         A list of time points to further restrict the cell states to plot. 
         The default choice is not to constrain the cell states to show. 
@@ -757,12 +771,11 @@ def fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
     figure_index: `str`, optional (default: '')
         String index for annotate filename for saved figures. Used to distinuigh plots from different conditions. 
     pseudo_count: `float`, optional (default: 0)
-        Pseudo count to compute the fate bias. The bias = (Pa+c0)/(Pa+Pb+2*c0), 
-        where c0=pseudo_count*(maximum fate probability) is a rescaled pseudo count. 
+        Pseudo count to compute the fate bias. See above.
 
     Returns
     -------
-    The results are stored at adata.uns['fate_bias']
+    The results are stored at adata.uns['fate_bias'].
     """
 
     hf.check_available_map(adata)
@@ -871,12 +884,13 @@ def fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
 
 
 
-                #adata.uns['fate_bias']=vector_array
-                vector_array_fullSpace=np.zeros(len(x_emb))+0.5
-                vector_array_fullSpace[cell_id_t1_sp[valid_idx]]=vector_array
-                adata.uns['fate_bias']=[vector_array,vector_array_fullSpace]
+                # #adata.uns['fate_bias']=vector_array
+                # vector_array_fullSpace=np.zeros(len(x_emb))+0.5
+                # vector_array_fullSpace[cell_id_t1_sp[valid_idx]]=vector_array
+                # adata.uns['fate_bias']=[vector_array,vector_array_fullSpace]
 
-                
+                ## save data to adata
+                adata.uns['fate_bias']=pd.DataFrame({'cell_id':cell_id_t1_sp[valid_idx][new_idx],'fate_bias':vector_array[new_idx]})
 
                 if show_histogram:
                     xxx=vector_array
@@ -899,7 +913,15 @@ def fate_coupling_from_Tmap(adata,selected_fates=None,used_Tmap='transition_map'
     """
     Plot fate coupling determined by the transition map.
 
-    We use the fate map of cell states at t1 to compute the fate coupling.
+    We use the fate map :math:`P_i(\mathcal{C}_l)` towards a set of 
+    fate clusters :math:`\{\mathcal{C}_l, l=0,1,2...\}` to compute the
+    fate coupling :math:`Y_{ll'}`.
+
+    * If method='SW': we first obtain :math:`Y_{ll'}=\sum_i P_i(\mathcal{C}_l)P_i(\mathcal{C}_{l'})`.
+      Then, we normalize the the coupling: :math:`Y_{ll'}\leftarrow Y_{ll'}/\sqrt{Y_{ll}Y_{l'l'}}`.
+
+    * If method='Weinreb', we calculate the normalized 
+      covariance as in :func:`~cospar.hf.get_normalized_covariance`
 
     Parameters
     ----------
@@ -917,13 +939,9 @@ def fate_coupling_from_Tmap(adata,selected_fates=None,used_Tmap='transition_map'
         A list of time points to further restrict the cell states to plot. 
         The default choice is not to constrain the cell states to show. 
     fate_map_method: `str`, optional (default: 'sum')
-        Method to aggregate the transition probability within a cluster. 
-        Available options: {'sum','norm-sum'}. The 'sum' method sums over 
-        transition probability within a fate cluster :math:`\mathcal{C}`
-        as the fate probability (:math:`P_i(\mathcal{C})=\sum_j T_{ij};\; j \in \mathcal{C}`). 
-        The 'norm-sum' gives the probability that a fate cluster originates from an initial
-        state. To do so, it takes the output from the 'sum' method and normalize it 
-        within each cluster: :math:`P_i(\mathcal{C})\leftarrow P_i(\mathcal{C})/\sum_j P_j(\mathcal{C})`.  
+        Method to obtain the fate probability map :math:`P_i(\mathcal{C})` towards a set 
+        of states annotated with fate :math:`\mathcal{C}`. Available options: 
+        {'sum', 'norm-sum'}. See :func:`.fate_map`.
     color_bar: `bool`, optional (default: True)
         Plot the color bar.
     method: `str`, optional (default: 'SW')
@@ -980,8 +998,7 @@ def fate_coupling_from_Tmap(adata,selected_fates=None,used_Tmap='transition_map'
             logg.error("No cells selected. Computation aborted!")
             return None
         else:
-            # normalize the map to enhance the fate choice difference among selected clusters
-    
+
             if rename_fates is None: 
                 rename_fates=mega_cluster_list
 
@@ -1259,15 +1276,14 @@ def dynamic_trajectory_from_fate_bias(adata,selected_fates=None,used_Tmap='trans
     """
     Identify trajectories towards/from two given clusters.
 
-    Fate bias is a `scalar` between (0,1) at each state, defined as competition between 
-    two fate clusters, as in :func:`.fate_bias`. Given the fate probability 
-    Prob(X) towards cluster X, the selected ancestor population satisfies:
+    Given fate bias :math:`Q_i` for a state :math:`i` as defined in :func:`.fate_bias`, 
+    the selected ancestor population satisfies:
 
-       * Prob(A)+Prob(B)>sum_fate_prob_thresh; 
+       * :math:`P_i(\mathcal{A})+P_i(\mathcal{B})>`sum_fate_prob_thresh; 
 
-       * for A: Bias>bias_threshold_A
+       * Ancestor population for fate :math:`\mathcal{A}`: :math:`Q_i>`bias_threshold_A
 
-       * for B: bias<bias_threshold_B
+       * Ancestor population for :math:`\mathcal{B}`: :math:`Q_i>`<bias_threshold_B
 
     Parameters
     ----------
@@ -1281,17 +1297,13 @@ def dynamic_trajectory_from_fate_bias(adata,selected_fates=None,used_Tmap='trans
         'intraclone_transition_map',...}. The actual available
         map depends on adata itself, which can be accessed at adata.uns['available_map']
     map_backward: `bool`, optional (default: True)
-        If `map_backward=True`, analyze forward transitions :math:`(i,t_1) ->(j,t_2)`, 
-        and plot initial cell states :math:`i`; otherwise, analyze backward 
-        transitions and show later cell states :math:`j`.
+        If `map_backward=True`, show fate properties of initial cell states :math:`i`; 
+        otherwise, show progenitor properties of later cell states :math:`j`.
+        This is used for building the fate map :math:`P_i(\mathcal{C})`. See :func:`.fate_map`.
     method: `str`, optional (default: 'norm-sum')
-        Method to aggregate the transition probability within a cluster. 
-        Available options: {'sum','norm-sum'}. The 'sum' method sums over 
-        transition probability within a fate cluster :math:`\mathcal{C}`
-        as the fate probability (:math:`P_i(\mathcal{C})=\sum_j T_{ij};\; j \in \mathcal{C}`). 
-        The 'norm-sum' gives the probability that a fate cluster originates from an initial
-        state. To do so, it takes the output from the 'sum' method and normalize it 
-        within each cluster: :math:`P_i(\mathcal{C})\leftarrow P_i(\mathcal{C})/\sum_j P_j(\mathcal{C})`.  
+        Method to obtain the fate probability map :math:`P_i(\mathcal{C})` towards a set 
+        of states annotated with fate :math:`\mathcal{C}`. Available options: 
+        {'sum', 'norm-sum'}. See :func:`.fate_map`.
     selected_times: `list`, optional (default: all)
         A list of time points to further restrict the cell states to plot. 
         The default choice is not to constrain the cell states to show. 
@@ -1482,9 +1494,9 @@ def dynamic_trajectory_via_iterative_mapping(adata,selected_fate,used_Tmap='tran
         'intraclone_transition_map',...}. The actual available
         map depends on adata itself, which can be accessed at adata.uns['available_map']
     map_backward: `bool`, optional (default: True)
-        If `map_backward=True`, analyze forward transitions :math:`(i,t_1) ->(j,t_2)`, 
-        and plot initial cell states :math:`i`; otherwise, analyze backward 
-        transitions and show later cell states :math:`j`.
+        If `map_backward=True`, show fate properties of initial cell states :math:`i`; 
+        otherwise, show progenitor properties of later cell states :math:`j`.
+        This is used for building the fate map :math:`P_i(\mathcal{C})`. See :func:`.fate_map`.
     plot_separately: `bool`, optional (default: False)
         Plot the inferred trajecotry separately for each time point.
     map_threshold: `float`, optional (default: 0.1)
@@ -1898,12 +1910,12 @@ def clonal_fate_bias(adata,selected_fate='',clone_size_thresh=3,compute_new=True
     """
     Plot clonal fate bias towards a cluster.
 
-    The clonal fate bias is -log(Q-value), where Q-value 
-    (or Benjamini-Hochberg corrected P-value) is for the 
-    observation cell fraction of a clone in a targeted cluster as 
-    compared to randomized clones, accounting for clone size using 
-    Fisher-Exact test. The alternative hypothesis options are: 
-    {'two-sided','greater','less'}. The default is 'two-sided'.
+    The clonal fate bias is -log(Q-value). We calculated a P-value that 
+    that a clone is enriched (or depleted) in a fate, using Fisher-Exact 
+    test (accounting for clone size). The P-value is then corrected to 
+    give a Q-value by Benjamini-Hochberg procedure. The alternative 
+    hypothesis options are: {'two-sided','greater','less'}. 
+    The default is 'two-sided'.
 
     Parameters
     ----------
@@ -2402,7 +2414,7 @@ def fate_coupling_from_clones(adata,selected_times=None,selected_fates=None,colo
     Plot fate coupling based on clonal information.
 
     We select one time point with clonal measurement and show the normalized 
-    clonal covariance among these fates.
+    clonal covariance among these fates. See :func:`~cospar.hf.get_normalized_covariance`.
 
     Parameters
     ----------
@@ -2480,6 +2492,11 @@ def fate_hierarchy_from_Tmap(adata,selected_fates=None,used_Tmap='transition_map
     """
     Construct the fate hierarchy from the transition map.
 
+    Based on the fate coupling matrix from :func:`.fate_coupling_from_Tmap`,
+    we use neighbor-joining to build the fate hierarchy iteratively. 
+    This function is adapted from clinc package https://pypi.org/project/clinc/
+    (Weinreb & Klein, PNAS, 2021).
+
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
@@ -2534,6 +2551,11 @@ def fate_hierarchy_from_clones(adata,selected_times=None,selected_fates=None,ren
                                plot_history=True,method='SW'):
     """
     Construct the fate hierarchy from clonal data.
+
+    Based on the fate coupling matrix from :func:`.fate_coupling_from_clones`,
+    we use neighbor-joining to build the fate hierarchy iteratively. 
+    This function is adapted from clinc package https://pypi.org/project/clinc/
+    (Weinreb & Klein, PNAS, 2021).
 
     Parameters
     ----------

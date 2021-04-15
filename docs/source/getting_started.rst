@@ -45,8 +45,10 @@ Assuming basic quality control (excluding cells with low read count etc.) have b
     cs.pp.get_X_pca(adata,**params)
     cs.pp.get_X_emb(adata,**params)
     cs.pp.get_state_info(adata,**params)
+    cs.pp.get_X_clone(adata,**params)
 
-The first step ``get_highly_variable_genes`` also includes count matrix normalization. The second step, which is optional but recommended, removes cell cycle correlated genes among the selected highly variable genes. In ``get_X_pca``, we apply z-score transformation for each gene expression before computing the PCA. In ``get_X_emb``, we simply use the umap function from :mod:`~scanpy`. We also extract state information using leiden clustering implemented in :mod:`~scanpy`. As mentioned before, this preprocessing assumes that the count matrix is not log-transformed.
+The first step ``get_highly_variable_genes`` also includes count matrix normalization. The second step, which is optional but recommended, removes cell cycle correlated genes among the selected highly variable genes. In ``get_X_pca``, we apply z-score transformation for each gene expression before computing the PCA. In ``get_X_emb``, we simply use the umap function from :mod:`~scanpy`. With ``get_state_info``, we extract state information using leiden clustering implemented in :mod:`~scanpy`. 
+In `get_X_clone`, we faciliate the conversion of the raw clonal data into a cell-by-clone matrix. As mentioned before, this preprocessing assumes that the count matrix is not log-transformed.
 
 
 

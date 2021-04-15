@@ -1093,11 +1093,18 @@ def get_normalized_covariance(data,method='Weinreb'):
     """
     Compute the normalized correlation of the data matrix.
 
-    This is used to compute the fate coupling. 
-    Two methods are provided, the `Weinreb` method and 'SW'.
-    The `Weinreb` method performs normalization against the mean observation
-    for each fate; while the `SW` method normalizes against the square root of 
-    the self-coupling, bringing the self-coupling to 1 after normalization.
+    For a given data matrix :math:`X_{il}`, where :math:`i` can be 
+    a state id or a barcode id, while :math:`l` is a id for fate cluster. 
+    We want to compute the coupling :math:`Y_{ll'}` between two fate clusters. 
+
+    * If method='SW': we first obtain :math:`Y_{ll'}=\sum_i X_{il}X_{il'}`.
+      Then, we normalize the the coupling: :math:`Y_{ll'}\leftarrow Y_{ll'}/\sqrt{Y_{ll}Y_{l'l'}}`.
+    
+    * If method='Weinreb', we first compute the mean over variable :math:`i`, i.e., :math:`X^*_l`.
+      Then, the covariance: :math:`Y_{ll'}=\sum_i (X_{il}-X^*_l)(X_{il'}-X^*_{l'})`.
+      Finally, normalization by mean: :math:`Y_{ll'}\leftarrow Y_{ll'}/(X^*_lX^*_{l'})`.
+      This method is developed to infer lineage coupling from clonal data 
+      (Weinreb & Klein, 2021, PNAS). 
 
     Parameters
     ----------
@@ -1106,7 +1113,7 @@ def get_normalized_covariance(data,method='Weinreb'):
         could be the number of barcodes in each fate, or the probability
         of a cell to enter a fate. 
     method: `str`, optional (default: 'Weinreb')
-        Method for computing the normalized covariance. Choice: {'Weinreb','SW'}
+        Method for computing the normalized covariance. Choice: {'Weinreb', 'SW'}
 
     Returns
     -------
@@ -1178,7 +1185,7 @@ def save_map(adata):
 
     # need to remove these, otherwise, it does not work
     for xx in  ['fate_trajectory', 'multiTime_cell_id_t1', 
-    'multiTime_cell_id_t2', 'fate_map','binary_fate_bias','fate_map_output','fate_bias']:
+    'multiTime_cell_id_t2', 'fate_map','fate_bias','fate_potency']:
         if xx in adata.uns.keys():
             adata.uns.pop(xx)
 
@@ -1317,7 +1324,7 @@ def save_preprocessed_adata(adata,data_des=None):
     data_path=settings.data_path
 
     for xx in  ['fate_trajectory', 'multiTime_cell_id_t1', 
-                'multiTime_cell_id_t2', 'fate_map','binary_fate_bias',
+                'multiTime_cell_id_t2', 'fate_map','fate_bias', 'fate_potency',
                 'transition_map','intraclone_transition_map','clonal_transition_map',
                'OT_transition_map','HighVar_transition_map',
                'Tmap_cell_id_t1', 'Tmap_cell_id_t2', 'available_map', 

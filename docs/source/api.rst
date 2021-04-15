@@ -28,9 +28,11 @@ Preprocessing
    pp.remove_cell_cycle_correlated_genes
    pp.get_X_pca
    pp.get_X_emb
+   pp.get_X_clone
    pp.get_state_info
    pp.refine_state_info_by_marker_genes
    pp.refine_state_info_by_leiden_clustering
+
 
 
 
@@ -149,7 +151,8 @@ Help functions
    hf.check_adata_structure
    hf.check_available_choices
    hf.update_time_ordering
-
+   hf.get_normalized_covariance
+   hf.get_X_clone_with_reference_ordering
 
 
 ..

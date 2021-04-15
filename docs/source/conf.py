@@ -62,6 +62,7 @@ intersphinx_mapping = dict(
     python=("https://docs.python.org/3", None),
     anndata=("https://anndata.readthedocs.io/en/latest/", None),
     scanpy=("https://scanpy.readthedocs.io/en/latest/", None),
+    cospar=("https://cospar.readthedocs.io/en/latest/", None),
     cellrank=("https://cellrank.readthedocs.io/en/latest/", None),
 )
 
@@ -72,7 +73,7 @@ master_doc = "index"
 # General information about the project.
 project = "CoSpar"
 author = "Shou-Wen Wang"
-title = "Coherent sparsity optimization for dynamic inference by integrating state and lineage information"
+title = "CoSpar - dynamic inference by integrating state and lineage information"
 copyright = f"{datetime.now():%Y}, {author}"
 
 version = cospar.__version__.replace(".dirty", "")
