@@ -29,26 +29,26 @@ def synthetic_bifurcation(data_des='bifur'):
     data_name='bifur_adata_preprocessed.h5ad'
     return load_data_core(data_path,figure_path,data_name,data_des)
 
-def synthetic_bifurcation_dynamic_BC(data_des='bifur_conBC'):
-    """
-    Synthetic clonal dataset with dynamic barcoding.
+# def synthetic_bifurcation_dynamic_BC(data_des='bifur_conBC'):
+#     """
+#     Synthetic clonal dataset with dynamic barcoding.
 
-    We simulated a differentiation process over a bifurcation fork. 
-    Cells are barcoded, and the barcodes could accumulate mutations, which we call 
-    `dynamic barcoding`. In the simulation, we resample clones over time, 
-    like the experimental design to obtain the hematopoietic dataset 
-    or the reprogramming dataset. The dataset has two time points. 
+#     We simulated a differentiation process over a bifurcation fork. 
+#     Cells are barcoded, and the barcodes could accumulate mutations, which we call 
+#     `dynamic barcoding`. In the simulation, we resample clones over time, 
+#     like the experimental design to obtain the hematopoietic dataset 
+#     or the reprogramming dataset. The dataset has two time points. 
 
-    Parameters
-    ----------
-    data_des: `str`
-        A key to label this dataset. 
-    """
+#     Parameters
+#     ----------
+#     data_des: `str`
+#         A key to label this dataset. 
+#     """
 
-    data_path=settings.data_path
-    figure_path=settings.figure_path
-    data_name='bifurcation_dynamic_BC_adata_preprocessed.h5ad'
-    return load_data_core(data_path,figure_path,data_name,data_des)
+#     data_path=settings.data_path
+#     figure_path=settings.figure_path
+#     data_name='bifurcation_dynamic_BC_adata_preprocessed.h5ad'
+#     return load_data_core(data_path,figure_path,data_name,data_des)
 
 
 def reprogramming(data_des='CellTagging'):
@@ -107,52 +107,52 @@ def reprogramming_Day0_3_28(data_des='Reprog_128'):
     return load_data_core(data_path,figure_path,data_name,data_des)
 
 
-def reprogramming_static_BC(data_des='CellTagging'):
-    """
-    The reprogramming dataset from 
+# def reprogramming_static_BC(data_des='CellTagging'):
+#     """
+#     The reprogramming dataset from 
 
-    * Biddy, B. A. et al. `Single-cell mapping of lineage and identity in direct reprogramming`. Nature 564, 219–224 (2018).
+#     * Biddy, B. A. et al. `Single-cell mapping of lineage and identity in direct reprogramming`. Nature 564, 219–224 (2018).
 
-    This dataset has multiple time points for both the clones and the state measurements. 
+#     This dataset has multiple time points for both the clones and the state measurements. 
 
-    The cells are barcoded over 3 rounds during the entire differentiation process. 
-    We combine up to 3 tags from the same cell into a single clonal label in representing 
-    the X_clone matrix. In this representation, each cell has at most one clonal label. 
-    Effectively, we convert the barcodes into static labels that do not carry temporal information.
+#     The cells are barcoded over 3 rounds during the entire differentiation process. 
+#     We combine up to 3 tags from the same cell into a single clonal label in representing 
+#     the X_clone matrix. In this representation, each cell has at most one clonal label. 
+#     Effectively, we convert the barcodes into static labels that do not carry temporal information.
     
-    Parameters
-    ----------
-    data_des: `str`
-        A key to label this dataset. 
-    """
+#     Parameters
+#     ----------
+#     data_des: `str`
+#         A key to label this dataset. 
+#     """
 
-    data_path=settings.data_path
-    figure_path=settings.figure_path
-    data_name='CellTagging_ConcatenateClone_adata_preprocessed.h5ad'
-    return load_data_core(data_path,figure_path,data_name,data_des)
+#     data_path=settings.data_path
+#     figure_path=settings.figure_path
+#     data_name='CellTagging_ConcatenateClone_adata_preprocessed.h5ad'
+#     return load_data_core(data_path,figure_path,data_name,data_des)
 
-def reprogramming_dynamic_BC(data_des='CellTagging_NoConcat'):
-    """
-    The reprogramming dataset from 
+# def reprogramming_dynamic_BC(data_des='CellTagging_NoConcat'):
+#     """
+#     The reprogramming dataset from 
 
-    * Biddy, B. A. et al. `Single-cell mapping of lineage and identity in direct reprogramming`. Nature 564, 219–224 (2018).
+#     * Biddy, B. A. et al. `Single-cell mapping of lineage and identity in direct reprogramming`. Nature 564, 219–224 (2018).
 
-    This dataset has multiple time points for both the clones and the state measurements. 
+#     This dataset has multiple time points for both the clones and the state measurements. 
 
-    The cells are barcoded over 3 rounds during the entire differentiation process. 
-    We treat barcode tags from each round as independent clonal label here. In this 
-    representation, each cell can have multiple clonal labels at different time points.
+#     The cells are barcoded over 3 rounds during the entire differentiation process. 
+#     We treat barcode tags from each round as independent clonal label here. In this 
+#     representation, each cell can have multiple clonal labels at different time points.
     
-    Parameters
-    ----------
-    data_des: `str`
-        A key to label this dataset. 
-    """
+#     Parameters
+#     ----------
+#     data_des: `str`
+#         A key to label this dataset. 
+#     """
 
-    data_path=settings.data_path
-    figure_path=settings.figure_path
-    data_name='CellTagging_NoConcat_adata_preprocessed.h5ad'
-    return load_data_core(data_path,figure_path,data_name,data_des)
+#     data_path=settings.data_path
+#     figure_path=settings.figure_path
+#     data_name='CellTagging_NoConcat_adata_preprocessed.h5ad'
+#     return load_data_core(data_path,figure_path,data_name,data_des)
 
 def lung(data_des='Lung'):
     """
@@ -176,12 +176,12 @@ def lung(data_des='Lung'):
 
 def hematopoiesis(data_des='LARRY'):
     """
-    All of the hematopoiesis data set from 
+    The hematopoiesis data set from 
 
     * Weinreb, C., Rodriguez-Fraticelli, A., Camargo, F. D. & Klein, A. M. Science 367, (2020)
 
-    This dataset has 3 time points for both the clonal and state measurements. This dataset 
-    has ~50000 cells. Running the whole pipeline for the first time could take several hours in 
+    This dataset has 3 time points for both the clonal and state measurements. It only contains cells with clonal 
+    labels, which has ~50000 cells. Running the whole pipeline for the first time could take several hours in 
     a standard personal computer. 
     
     Parameters
@@ -195,6 +195,25 @@ def hematopoiesis(data_des='LARRY'):
     data_name='LARRY_adata_preprocessed.h5ad'
     return load_data_core(data_path,figure_path,data_name,data_des)
 
+def hematopoiesis_130K(data_des='LARRY'):
+    """
+    The hematopoiesis data set from 
+
+    * Weinreb, C., Rodriguez-Fraticelli, A., Camargo, F. D. & Klein, A. M. Science 367, (2020)
+
+    This dataset has 3 time points for both the clonal and state measurements. It includes
+    cells with or without clonal labels, which has a total of ~130K cells. 
+    
+    Parameters
+    ----------
+    data_des: `str`
+        A key to label this dataset. 
+    """
+
+    data_path=settings.data_path
+    figure_path=settings.figure_path
+    data_name='Complete_LARRY_dataset_adata_preprocessed.h5ad'
+    return load_data_core(data_path,figure_path,data_name,data_des)
 
 def hematopoiesis_Gata1_states(data_des='LARRY_Gata1_lineage'):
     """

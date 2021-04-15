@@ -127,6 +127,7 @@ Datasets
    :toctree: .
 
    datasets.hematopoiesis
+   datasets.hematopoiesis_130K
    datasets.hematopoiesis_subsampled
    datasets.hematopoiesis_Gata1_states
    datasets.lung

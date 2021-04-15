@@ -578,7 +578,7 @@ def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
                 fig.savefig(f'{figure_path}/{data_des}_intrinsic_fate_bias_BW{map_backward}_histogram{figure_index}.{settings.file_format_figs}')
 
             ## save data to adata
-            adata.uns['fate_map_output']={"raw_fate_map":fate_map[sp_idx,:],"normalized_fate_map":relative_bias[sp_idx,:],"expected_prob":expected_prob,"fate_potency":fate_entropy[sp_idx]}
+            adata.uns['fate_map_output']={"fate_map":fate_map[sp_idx,:]}
 
 
 def fate_potency(adata,selected_fates=None,used_Tmap='transition_map',
