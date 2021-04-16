@@ -143,10 +143,16 @@ def embedding(adata,basis='X_emb',color=None):
     fig=plt.figure(figsize=(fig_width,fig_height));
     ax=plt.subplot(1,1,1)
 
-    sc.pl.embedding(adata,basis=basis,color=color,ax=ax)
-    plt.tight_layout()
-    fig.savefig(f'{settings.figure_path}/{data_des}_embedding.png', dpi=300)
+    flag=False
+    if color in adata.obs.keys(): flag=True
+    if color in adata.var_names: flag=True
 
+    if flag:
+        sc.pl.embedding(adata,basis=basis,color=color,ax=ax)
+        plt.tight_layout()
+        fig.savefig(f'{settings.figure_path}/{data_des}_embedding.png', dpi=300)
+    else:
+        logg.error(f'Could not find key {color} in .var_names or .obs.columns.')
 
 # This one show correct color bar range
 def customized_embedding(x, y, vector, normalize=False, title=None, ax=None, 
@@ -327,8 +333,9 @@ def single_cell_transition(adata,selected_state_id_list,used_Tmap='transition_ma
     """
     Plot transition probability from given initial cell states.
 
-    If `map_backward=True`, plot the probability of source states where the current cell state comes from;
-    otherwise, plot future state probability starting from given initial state.
+    If `map_backward=True`, plot the probability :math:`T_{ij}` over initial states :math:`i` 
+    at a given later state :math:`j`. Otherwise, plot the probability :math:`T_{ij}` 
+    over later states :math:`j` at a fixed initial state :math:`i`.
 
     Parameters
     ----------
@@ -441,12 +448,13 @@ def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
 
     Step 3: aggregate fate probabiliteis within a given cluster :math:`\mathcal{C}`: 
 
-    * method='sum': :math:`P_i(\mathcal{C})=\sum_j T_{ij};\; j \in \mathcal{C}`.
+    * method='sum': :math:`P_i(\mathcal{C})=\sum_{j\in \mathcal{C}} T_{ij}`.
       This gives the intuitive meaning of fate probability.
 
-    * method='norm-sum': We normalize the map from 'sum' method, i.e. 
+    * method='norm-sum': We normalize the map from 'sum' method within a cluster, i.e. 
       :math:`P_i(\mathcal{C})\leftarrow P_i(\mathcal{C})/\sum_j P_j(\mathcal{C})`. 
-      This gives the probability that a fate cluster originates from an initial state.
+      This gives the probability that a fate cluster :math:`\mathcal{C}` originates 
+      from an initial state :math:`i`.
 
     Parameters
     ----------
@@ -489,7 +497,9 @@ def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
 
     Returns
     -------
-    The fate map output is stored as a dictionary at adata.uns['fate_map']. 
+    adata.uns['fate_map']: `pd.DataFrame`
+        The fate map output is attached to the adata object as a dictionary
+        {cell_id, fate_probability}. 
     """
 
     hf.check_available_map(adata)
@@ -645,7 +655,9 @@ def fate_potency(adata,selected_fates=None,used_Tmap='transition_map',
 
     Returns
     -------
-    The result is stored at adata.uns['fate_potency'].
+    adata.uns['fate_potency']: `pd.DataFrame`
+        The fate potency is attached to the adata object as a dictionary
+        {cell_id, fate_potency}. 
     """
 
     hf.check_available_map(adata)
@@ -724,10 +736,9 @@ def fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
     Given a fate map :math:`P_i` towards two fate clusters 
     :math:`\{\mathcal{A}, \mathcal{B}\}`, constructed according 
     to :func:`.fate_map`, we compute the fate bias of state :math:`i` as
-
-    * :math:`[P(\mathcal{A})+c_0]/[P(\mathcal{A})+P(\mathcal{B})+2c_0]`
-      where :math:`c_0=a * \max_{i,\mathcal{C}} P_i(\mathcal{C})`
-      is a re-scaled pseudocount, with :math:`a` given by pseudo_count. 
+    :math:`[P(\mathcal{A})+c_0]/[P(\mathcal{A})+P(\mathcal{B})+2c_0]`,
+    where :math:`c_0=a * \max_{i,\mathcal{C}} P_i(\mathcal{C})`
+    is a re-scaled pseudocount, with :math:`a` given by pseudo_count. 
 
     Parameters
     ----------
@@ -775,7 +786,9 @@ def fate_bias(adata,selected_fates=None,used_Tmap='transition_map',
 
     Returns
     -------
-    The results are stored at adata.uns['fate_bias'].
+    adata.uns['fate_bias']: `pd.DataFrame`
+        The fate bias is attached to the adata object as a dictionary
+        {cell_id, fate_bias}. 
     """
 
     hf.check_available_map(adata)
@@ -945,7 +958,7 @@ def fate_coupling_from_Tmap(adata,selected_fates=None,used_Tmap='transition_map'
     color_bar: `bool`, optional (default: True)
         Plot the color bar.
     method: `str`, optional (default: 'SW')
-        Method to normalize the coupling matrix: {'SW','Weinreb'}.
+        Method to normalize the coupling matrix: {'SW', 'Weinreb'}.
     rename_fates: `list`, optional (default: [])
         Provide new names in substitution of names in selected_fates.
         For this to be effective, the new name list needs to have names 
@@ -955,7 +968,8 @@ def fate_coupling_from_Tmap(adata,selected_fates=None,used_Tmap='transition_map'
 
     Returns
     -------
-    Return the coupling matrix. 
+    X_coupling: `np.array`
+        A inferred coupling matrix between selected fate clusters.
     """
 
     hf.check_available_map(adata)
@@ -1006,11 +1020,11 @@ def fate_coupling_from_Tmap(adata,selected_fates=None,used_Tmap='transition_map'
                 logg.warn('rename_fates does not have the same length as selected_fates, thus not used.') 
                 rename_fates=mega_cluster_list
 
-            X_ICSLAM = hf.get_normalized_covariance(fate_map[sp_idx],method=method)
+            X_coupling = hf.get_normalized_covariance(fate_map[sp_idx],method=method)
             if plot_heatmap:
-                heatmap(figure_path, X_ICSLAM, rename_fates,color_bar_label='Fate coupling',color_bar=color_bar,data_des=data_des)
+                heatmap(figure_path, X_coupling, rename_fates,color_bar_label='Fate coupling',color_bar=color_bar,data_des=data_des)
 
-            return X_ICSLAM
+            return X_coupling
 
 ####################
 
@@ -1279,11 +1293,11 @@ def dynamic_trajectory_from_fate_bias(adata,selected_fates=None,used_Tmap='trans
     Given fate bias :math:`Q_i` for a state :math:`i` as defined in :func:`.fate_bias`, 
     the selected ancestor population satisfies:
 
-       * :math:`P_i(\mathcal{A})+P_i(\mathcal{B})>`sum_fate_prob_thresh; 
+       * :math:`P_i(\mathcal{A})+P_i(\mathcal{B})` > sum_fate_prob_thresh; 
 
-       * Ancestor population for fate :math:`\mathcal{A}`: :math:`Q_i>`bias_threshold_A
+       * Ancestor population for fate :math:`\mathcal{A}` satisfies :math:`Q_i` > bias_threshold_A
 
-       * Ancestor population for :math:`\mathcal{B}`: :math:`Q_i>`<bias_threshold_B
+       * Ancestor population for fate :math:`\mathcal{B}` satisfies :math:`Q_i` < bias_threshold_B
 
     Parameters
     ----------
@@ -1334,9 +1348,12 @@ def dynamic_trajectory_from_fate_bias(adata,selected_fates=None,used_Tmap='trans
 
     Returns
     -------
-    Store the inferred ancestor states in adata.uns['cell_group_A'] and adata.uns['cell_group_B']
-
-    Combine ancestor states and target states into adata.uns['dynamic_trajectory'] for each fate. 
+    adata.obs['cell_group_A']: `np.array` of `bool`
+        A boolean array for selected progenitor states towards fate :math:`\mathcal{A}`.
+    adata.obs['cell_group_B']: `np.array` of `bool`
+        A boolean array for selected progenitor states towards fate :math:`\mathcal{B}`.
+    adata.obs[f'traj_{fate_name}']: `np.array`
+        A binary array for indicating states belonging to a trajectory.
     """
 
     diff_gene_A=[]
@@ -1450,24 +1467,16 @@ def dynamic_trajectory_from_fate_bias(adata,selected_fates=None,used_Tmap='trans
 
                 #diff_gene_A,diff_gene_B=differential_genes(adata,plot_groups=plot_groups,gene_N=gene_N,plot_gene_N=plot_gene_N,savefig=savefig,point_size=point_size)
         
-                if 'dynamic_trajectory' not in adata.uns.keys():
-                    adata.uns['dynamic_trajectory']={}
-
                 # store the trajectory
                 temp_list=[group_A_idx_full,group_B_idx_full]
                 for j, fate_name in enumerate(mega_cluster_list):
                     selected_idx=sel_index_list[j]
-                    #fate_name,selected_idx=flexible_selecting_cells(adata,selected_fate)
-                    combined_prob=temp_list[j].astype(int)+selected_idx.astype(int)
-
-                    if map_backward:
-                        adata.uns['dynamic_trajectory'][fate_name]={'map_backward':combined_prob} # include both the targeted fate cluster and the inferred earlier states
-                    else:
-                        adata.uns['dynamic_trajectory'][fate_name]={'map_backward':combined_prob} 
+                    combined_prob_temp=temp_list[j].astype(int)+selected_idx.astype(int)
+                    adata.obs[f'traj_{fate_name}']=combined_prob_temp
 
 
 
-def dynamic_trajectory_via_iterative_mapping(adata,selected_fate,used_Tmap='transition_map',
+def dynamic_trajectory_via_iterative_mapping(adata,selected_fate=None,used_Tmap='transition_map',
     map_backward=True,map_threshold=0.1,plot_separately=False,
     apply_time_constaint=False,color_bar=True):
     """
@@ -1509,7 +1518,8 @@ def dynamic_trajectory_via_iterative_mapping(adata,selected_fate,used_Tmap='tran
 
     Returns
     -------
-    Results are stored at adata.uns['dynamic_trajectory'] 
+    adata.obs[f'traj_{fate_name}']: `np.array`
+        The probability of each state to belong to a trajectory.
     """        
 
     # We always use the probabilistic map, which is more realiable. Otherwise, the result is very sensitive to thresholding
@@ -1625,25 +1635,20 @@ def dynamic_trajectory_via_iterative_mapping(adata,selected_fate,used_Tmap='tran
             if color_bar:
                 fig.colorbar(plt.cm.ScalarMappable(cmap=plt.cm.Reds), ax=ax1,label='Fate Probability')
 
-            if 'dynamic_trajectory' not in adata.uns.keys():
-                adata.uns['dynamic_trajectory']={}
-
             combined_prob=cumu_prob+prob_0r
-            if map_backward:
-                adata.uns['dynamic_trajectory'][fate_name]={'map_backward':combined_prob} # include both the targeted fate cluster and the inferred earlier states
-            else:
-                adata.uns['dynamic_trajectory'][fate_name]={'map_backward':combined_prob} 
+            adata.obs[f'traj_{fate_name}']=combined_prob
+
 
 
 def gene_expression_dynamics(adata,selected_fate,gene_name_list,traj_threshold=0.1,
-    map_backward=True,invert_PseudoTime=False,include_target_states=True,
+    invert_PseudoTime=False,mask=None,
     compute_new=True,gene_exp_percentile=99,n_neighbors=8,
     plot_raw_data=False,stat_smooth_method='loess'):
     """
     Plot gene trend along the inferred dynamic trajectory.
 
     We assume that the dynamic trajecotry at given specification is already
-    available at adata.uns['dynamic_trajectory'], which can be created via
+    available at adata.obs[f'traj_{fate_name}'], which can be created via
     :func:`.dynamic_trajectory_via_iterative_mapping` or
     :func:`.dynamic_trajectory_from_fate_bias`.
 
@@ -1668,14 +1673,11 @@ def gene_expression_dynamics(adata,selected_fate,gene_name_list,traj_threshold=0
         List of genes to plot on the dynamic trajectory. 
     traj_threshold: `float`, optional (default: 0.1), range: (0,1)
         Relative threshold, used to thresholding the inferred dynamic trajecotry to select states. 
-    map_backward: `bool`, optional (default: True)
-        If `map_backward=True`, use the backward trajectory computed before; 
-        otherwise, use the forward trajectory computed before.
     invert_PseudoTime: `bool`, optional (default: False)
         If true, invert the pseudotime: 1-pseuotime. This is useful when the direction
         of pseudo time does not agree with intuition.
-    include_target_states: `bool`, optional (default: True)
-        If true, include the target states to the dynamic trajectory.
+    mask: `np.array`, optional (default: None)
+        A boolean array for further selecting cell states.  
     compute_new: `bool`, optional (default: True)
         If true, compute everyting from stratch (as we save computed pseudotime)
     gene_exp_percentile: `int`, optional (default: 99)
@@ -1695,14 +1697,18 @@ def gene_expression_dynamics(adata,selected_fate,gene_name_list,traj_threshold=0
         'lowess' (Locally Weighted Regression (simple)),
         'loess' (Locally Weighted Regression),
         'mavg' (Moving Average),
-        'gpr' (Gaussian Process Regressor)}.
-
-    Returns
-    -------
-    An adata object with only selected cell states. It can be used for dynamic inference with other packages. 
+        'gpr' (Gaussian Process Regressor)}. 
     """
     
-    
+    if mask==None:
+        final_mask=np.ones(adata.shape[0]).astype(bool)
+    else:
+        if (mask.shape[0]==adata.shape[0]):
+            final_mask=mask
+        else:
+            logg.error("mask must be a boolean array with the same size as adata.shape[0].")
+            return None
+
     hf.check_available_map(adata)
     fig_width=settings.fig_width; fig_height=settings.fig_height; point_size=settings.fig_point_size
 
@@ -1710,23 +1716,6 @@ def gene_expression_dynamics(adata,selected_fate,gene_name_list,traj_threshold=0
         logg.error(f"There is no transition map available yet")
 
     else:
-
-        state_annote_0=np.array(adata.obs['state_info'])
-        time_info=np.array(adata.obs['time_info'])
-
-        if map_backward:
-            cell_id_t1=adata.uns['Tmap_cell_id_t1']
-            cell_id_t2=adata.uns['Tmap_cell_id_t2']
-
-        else:
-            cell_id_t2=adata.uns['Tmap_cell_id_t1']
-            cell_id_t1=adata.uns['Tmap_cell_id_t2']
-
-        time_index_t1=np.zeros(len(time_info),dtype=bool)
-        time_index_t2=np.zeros(len(time_info),dtype=bool)
-        time_index_t1[cell_id_t1]=True
-        time_index_t2[cell_id_t2]=True
-        
 
         if type(selected_fate)==str:
             selected_fate=[selected_fate]
@@ -1744,27 +1733,21 @@ def gene_expression_dynamics(adata,selected_fate,gene_name_list,traj_threshold=0
             data_des=adata.uns['data_des'][-1]
             data_path=settings.data_path
             figure_path=settings.figure_path
-            file_name=f'{data_path}/{data_des}_fate_trajectory_pseudoTime_{fate_name}_{map_backward}.npy'
+            file_name=f'{data_path}/{data_des}_fate_trajectory_pseudoTime_{fate_name}.npy'
 
 
-            if map_backward:
-                map_choice='map_backward'
-            else:
-                map_choice='map_backward'
 
-            if ('dynamic_trajectory' not in adata.uns.keys()) or (fate_name not in adata.uns['dynamic_trajectory'].keys()) or (map_choice not in adata.uns['dynamic_trajectory'][fate_name].keys()):
-                logg.error(f"The target fate trajectory for {fate_name} at map_backward={map_backward} have not been inferred yet.\n" 
-                    "Please run one of the two dynamic trajectory inference methods first.\n"
-                    "like: cs.pl.dynamic_trajectory_from_fate_bias, with the corresponding selected_fate and map_backward choice.")
+            traj_name=f'traj_{fate_name}'
+            if traj_name not in adata.obs.keys():
+                logg.error(f"The target fate trajectory for {fate_name} have not been inferred yet.\n" 
+                    "Please infer the trajectory with first with cs.pl.dynamic_trajectory_from_fate_bias, \n"
+                    "or cs.pl.dynamic_trajectory_via_iterative_mapping.")
                 
             else:
-                prob_0=np.array(adata.uns['dynamic_trajectory'][fate_name][map_choice])
+                prob_0=np.array(adata.obs[traj_name])
                 
-                if not include_target_states:
-                    sel_cell_idx=(prob_0>traj_threshold*np.max(prob_0)) & time_index_t1
-                else:
-                    sel_cell_idx=prob_0>traj_threshold*np.max(prob_0)
-                    
+                sel_cell_idx=(prob_0>traj_threshold*np.max(prob_0)) & final_mask
+
                 #logg.error(sel_cell_idx)
                 sel_cell_id=np.nonzero(sel_cell_idx)[0]
 
@@ -1806,7 +1789,7 @@ def gene_expression_dynamics(adata,selected_fate,gene_name_list,traj_threshold=0
                 customized_embedding(x_emb[sel_cell_idx],y_emb[sel_cell_idx],PseudoTime,ax=ax1,title='Pseudo Time',point_size=point_size)
                 #customized_embedding(x_emb[final_id],y_emb[final_id],PseudoTime,ax=ax1,title='Pseudo time')
                 Clb=fig.colorbar(plt.cm.ScalarMappable(cmap=plt.cm.Reds), ax=ax1,label='Pseudo time')
-                fig.savefig(f'{figure_path}/{data_des}_fate_trajectory_pseudoTime_{fate_name}_{map_backward}.{settings.file_format_figs}')
+                fig.savefig(f'{figure_path}/{data_des}_fate_trajectory_pseudoTime_{fate_name}.{settings.file_format_figs}')
 
                 temp_dict={'PseudoTime':PseudoTime}
                 for gene_name in gene_name_list:
@@ -1825,10 +1808,9 @@ def gene_expression_dynamics(adata,selected_fate,gene_name_list,traj_threshold=0
                      y="Normalized gene expression",
                       color="Gene name")
 
-                gplot.save(f'{figure_path}/{data_des}_fate_trajectory_pseutoTime_gene_expression_{fate_name}_{map_backward}.{settings.file_format_figs}',width=fig_width, height=fig_height,verbose=False)
+                gplot.save(f'{figure_path}/{data_des}_fate_trajectory_pseutoTime_gene_expression_{fate_name}.{settings.file_format_figs}',width=fig_width, height=fig_height,verbose=False)
                 gplot.draw()
 
-                return adata[sel_cell_idx]
 
 
 ##################
@@ -1938,10 +1920,7 @@ def clonal_fate_bias(adata,selected_fate='',clone_size_thresh=3,compute_new=True
 
     Returns
     -------
-    fate_bias: `np.array`
-        Computed clonal fate bias.
-    sort_idx: `np.array`
-        Corresponding clone id list. 
+    result: `pd.DataFrame` 
     """
 
     if alternative not in ['two-sided','less','greater']:
@@ -2347,8 +2326,8 @@ def barcode_heatmap(adata,selected_times=None,selected_fates=None,color_bar=True
     """
     Plot barcode heatmap among different fate clusters.
 
-    We select one time point with clonal measurement and show the 
-    heatmap of barcodes among selected fate clusters. 
+    We clonal measurement at selected time points and show the 
+    corresponding heatmap among selected fate clusters. 
 
     Parameters
     ----------
@@ -2359,7 +2338,7 @@ def barcode_heatmap(adata,selected_times=None,selected_fates=None,color_bar=True
         List of fate clusters to use. If set to be [], use all.
     color_bar: `bool`, optional (default: True)
         Plot color bar. 
-    rename_fates: `list`, optional (default: [])
+    rename_fates: `list`, optional (default: None)
         Provide new names in substitution of names in selected_fates.
         For this to be effective, the new name list needs to have names 
         in exact correspondence to those in the old list. 
@@ -2432,7 +2411,12 @@ def fate_coupling_from_clones(adata,selected_times=None,selected_fates=None,colo
     plot_heatmap: `bool`, optional (default: True)
         Plot the inferred fate coupling in heatmap.
     method: `str`, optional (default: 'SW')
-        Method to normalize the coupling matrix: {'SW','Weinreb'}.
+        Method to normalize the coupling matrix: {'SW', 'Weinreb'}.
+
+    Returns
+    -------
+    X_coupling: `np.array`
+        A inferred coupling matrix between selected fate clusters.
     """
 
     time_info=np.array(adata.obs['time_info'])
@@ -2471,12 +2455,12 @@ def fate_coupling_from_clones(adata,selected_times=None,selected_fates=None,colo
                 logg.warn('rename_fates does not have the same length as selected_fates, thus not used.') 
                 rename_fates=mega_cluster_list
 
-            X_weinreb = hf.get_normalized_covariance(coarse_clone_annot.T,method=method)
+            X_coupling = hf.get_normalized_covariance(coarse_clone_annot.T,method=method)
 
             if plot_heatmap:
-                heatmap(figure_path, X_weinreb, rename_fates,color_bar_label='Coupling',color_bar=color_bar,data_des=data_des)
+                heatmap(figure_path, X_coupling, rename_fates,color_bar_label='Coupling',color_bar=color_bar,data_des=data_des)
 
-            return X_weinreb
+            return X_coupling
 
 
 #################
@@ -2513,7 +2497,7 @@ def fate_hierarchy_from_Tmap(adata,selected_fates=None,used_Tmap='transition_map
         A list of time points to further restrict the cell states to plot. 
         The default choice is not to constrain the cell states to show. 
     method: `str`, optional (default: 'SW')
-        Method to normalize the coupling matrix: {'SW','Weinreb'}.
+        Method to normalize the coupling matrix: {'SW', 'Weinreb'}.
     rename_fates: `list`, optional (default: None)
         Provide new names in substitution of names in selected_fates.
         For this to be effective, the new name list needs to have names 
@@ -2572,7 +2556,7 @@ def fate_hierarchy_from_clones(adata,selected_times=None,selected_fates=None,ren
     plot_history: `bool`, optional (default: True)
         Plot the history of constructing the hierarchy.
     method: `str`, optional (default: 'SW')
-        Method to normalize the coupling matrix: {'SW','Weinreb'}.
+        Method to normalize the coupling matrix: {'SW', 'Weinreb'}.
     """
     
     hf.check_available_map(adata)

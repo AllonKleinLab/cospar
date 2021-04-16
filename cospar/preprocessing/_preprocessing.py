@@ -59,9 +59,11 @@ def initialize_adata_object(adata=None,X_state=None,cell_names=None,gene_names=N
             
     Returns
     -------
-    Generate an :class:`~anndata.AnnData` object with the following entries 
+    Generate an :class:`~anndata.AnnData` object with the following entries
+    adata.var_names: gene names
+    adata.obs_names: cell IDs 
     obs: 'time_info', 'state_info'
-    uns: 'data_des', 'clonal_time_points'
+    uns: 'data_des', 'clonal_time_points', 'time_ordering'
     obsm: 'X_clone', 'X_pca', 'X_emb'
     """
    
@@ -215,8 +217,8 @@ def get_highly_variable_genes(adata,normalized_counts_per_cell=10000,min_counts=
 
     Returns
     -------
-    None. Modify adata.var['highly_variable'].
-    If 'highly_variable' existed before, save a copy at  adata.obs['highly_variable_old']
+    Modify adata.var['highly_variable']. 
+    If 'highly_variable' existed before, save a copy at adata.obs['highly_variable_old']
     """
 
     
@@ -322,7 +324,7 @@ def get_X_pca(adata,n_pca_comp=40):
 
     Returns
     -------
-    None. Modify adata.obsm['X_pca']. 
+    Modify adata.obsm['X_pca']. 
     If 'X_pca' existed before, save a copy at  adata.obs['X_pca_old']
     """
 
@@ -373,7 +375,7 @@ def get_X_emb(adata,n_neighbors=20,umap_min_dist=0.3):
 
     Returns
     -------
-    None. Modify adata.obsm['X_emb'].
+    Modify adata.obsm['X_emb'].
     If 'X_emb' existed before, save a copy at  adata.obs['X_emb_old']
     """
 

@@ -628,15 +628,15 @@ def infer_Tmap_from_multitime_clones(adata_orig,clonal_time_points=None,
     the core function :func:`.refine_Tmap_through_cospar` to update 
     the transition map. 
 
-    If `later_time_point=None`, the inferred map allows transitions 
-    between neighboring time points. For example, if 
-    clonal_time_points=['day1','day2','day3'], then it computes transitions 
-    for pairs (day1, day2) and (day2, day3), but not (day1, day3).
+    * If `later_time_point=None`, the inferred map allows transitions 
+      between neighboring time points. For example, if 
+      clonal_time_points=['day1','day2','day3'], then it computes transitions 
+      for pairs (day1, day2) and (day2, day3), but not (day1, day3).
 
-    If `later_time_point` is specified, the function produces a map 
-    between earlier time points and this later time point. For example, if 
-    `later_time_point='day3`, the map allows transitions for pairs (day1, day3)
-    and (day2, day3), but not (day1,day2).
+    * If `later_time_point` is specified, the function produces a map 
+      between earlier time points and this later time point. For example, if 
+      `later_time_point='day3`, the map allows transitions for pairs (day1, day3)
+      and (day2, day3), but not (day1,day2).
 
     Parameters
     ------------
@@ -1574,7 +1574,7 @@ def infer_Tmap_from_optimal_transport_v0(adata,OT_epsilon=0.02,OT_dis_KNN=5,
 # We tested that, for clones of all different sizes, where np.argsort gives unique results, 
 # this method reproduces the v01, v1 results, when use_fixed_clonesize_t1=True, and when change
 # sort_clone=0,1,-1.
-def infer_Tmap_from_one_time_clones_private(adata,initialized_map,
+def refine_Tmap_through_joint_optimization(adata,initialized_map,
     smooth_array=[15,10,5],max_iter_N=[3,5],epsilon_converge=[0.05,0.05],
     CoSpar_KNN=20,normalization_mode=1,sparsity_threshold=0.2,
     use_full_Smatrix=True,trunca_threshold=[0.001,0.01],compute_new=True,
@@ -1886,11 +1886,11 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points=None,later_ti
     """
     Infer transition map from clones with a single time point
 
-    We iteratively infer a transition map between each of the initial 
+    We jointly infer a transition map and the initial clonal observation
+    through iteration. The inferred map is between each of the initial 
     time points ['day_1','day_2',...,] and the time point with clonal 
-    observation. Given the two time points, after initializing the map 
-    by either the OT method or HighVar method, we jointly infer the likely 
-    initial clonal cells and the corresponding transition map.  
+    observation. We initialize the transition map by either the OT 
+    method or HighVar method.  
 
     **Summary**
         
@@ -1899,17 +1899,15 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points=None,later_ti
 
     * Initialization methods:
 
-        * 'OT': optional transport based method. It tends to be more accurate 
-           than `HighVar`, but not reliable under batch differences between 
-           time points.  Key parameters: `OT_epsilon, OT_dis_KNN`. 
+        * 'OT': optional transport based method. Key parameters: `OT_epsilon, OT_dis_KNN`.
+          See :func:`.infer_Tmap_from_optimal_transport`. 
     
-        * 'HighVar': a method that converts highly variable genes into pseudo 
-           clones and runs coherent sparsity optimization to generate an initialized 
-           map. Although it is not as accurate as OT, it is robust to batch effect 
-           across time points. Key parameter: `HighVar_gene_pctl`.
+        * 'HighVar': a customized approach, assuming that cells similar in gene 
+          expression across time points share clonal origin. Key parameter: `HighVar_gene_pctl`.
+          See :func:`.infer_Tmap_from_HighVar`.
 
-    * Key parameters relevant for coherent sparsity optimization itself: 
-      `smooth_array, CoSpar_KNN, sparsity_threshold`.
+    * Key parameters relevant for joint optimization itself (which relies on coherent sparse optimization): 
+      `smooth_array, CoSpar_KNN, sparsity_threshold`. See :func:`.refine_Tmap_through_joint_optimization`.
 
 
     Parameters
@@ -2004,7 +2002,7 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points=None,later_ti
         Update adata.obsm['X_clone'] and adata.uns['transition_map'],
         as well as adata.uns['OT_transition_map'] or 
         adata.uns['HighVar_transition_map'], depending on the initialization.
-        adata.obsm['X_clone'] remains the same. 
+        adata_orig.obsm['X_clone'] remains the same. 
     """
 
     t0=time.time()
@@ -2191,122 +2189,8 @@ def infer_Tmap_from_state_info_alone(adata_orig,initial_time_points=None,later_t
     """
     Infer transition map from state information alone.
 
-    We iteratively infer a transition map between each of the initial 
-    time points ['day_1','day_2',...,] and the time point with clonal 
-    observation. We artificially generate an X_clone matrix where each 
-    cell is labeled by a distinct barcode. Given the two time points, 
-    after initializing the map by either the OT method or HighVar method, 
-    we jointly infer the likely initial clonal cells and the corresponding 
-    transition map.  
-
-    **Summary**
-        
-    * Parameters relevant for cell state selection:  initial_time_points, 
-      later_time_point.
-
-    * Initialization methods:
-
-        * 'OT': optional transport based method. It tends to be more accurate 
-           than `HighVar`, but not reliable under batch differences between 
-           time points.  Key parameters: `OT_epsilon, OT_dis_KNN`. 
-    
-        * 'HighVar': a method that converts highly variable genes into pseudo 
-           clones and runs coherent sparsity optimization to generate an initialized 
-           map. Although it is not as accurate as OT, it is robust to batch effect 
-           across time points. Key parameter: `HighVar_gene_pctl`.
-
-    * Key parameters relevant for coherent sparsity optimization itself: 
-      `smooth_array, normalization_mode, CoSpar_KNN, sparsity_threshold`.
-
-
-    Parameters
-    ----------
-    adata_orig: :class:`~anndata.AnnData` object
-        It is assumed to be preprocessed and has multiple time points.
-    initial_time_points: `list`, optional (default, all time points) 
-        List of initial time points to be included for the transition map. 
-        Like ['day_1','day_2']. Entries consistent with adata.obs['time_info']. 
-    later_time_point: `str`, optional (default, the last time point)  
-        The time point with clonal observation. Its value should be 
-        consistent with adata.obs['time_info']. 
-    initialize_method: `str`, optional (default 'OT') 
-        Method to initialize the transition map from state information. 
-        Choice: {'OT', 'HighVar'}.
-    OT_epsilon: `float`, optional (default: 0.02)  
-        The entropic regularization, >0. A larger value increases 
-        uncertainty of the transition. Relevant when `initialize_method='OT'`.
-    OT_dis_KNN: `int`, optional (default: 5)
-        Number of nearest neighbors to construct the KNN graph for
-        computing the shortest path distance. Relevant when `initialize_method='OT'`. 
-    OT_cost: `str`, optional (default: `SPD`), options {'GED','SPD'}
-        The cost metric. We provide gene expression distance (GED), and also
-        shortest path distance (SPD). GED is much faster, but SPD is more accurate.
-        However, cospar is robust to the initialization. 
-    HighVar_gene_pctl: `int`, optional (default: 85)
-        Percentile threshold to select highly variable genes to construct pseudo-clones. 
-        A higher value selects more variable genes. Range: [0,100]. 
-        Relevant when `initialize_method='HighVar'`.
-    normalization_mode: `int`, optional (default: 1)
-        Normalization method. Choice: [0,1].
-        0, single-cell normalization; 1, Clone normalization. The clonal 
-        normalization suppresses the contribution of large
-        clones, and is much more robust. 
-    smooth_array: `list`, optional (default: [15,10,5])
-        List of smooth rounds at initial runs of iteration. 
-        Suppose that it has a length N. For iteration n<N, the n-th entry of 
-        smooth_array determines the kernel exponent to build the S matrix at the n-th 
-        iteration. When n>N, we use the last entry of smooth_array to compute 
-        the S matrix. We recommend starting with more smoothing depth and gradually 
-        reduce the depth, as inspired by simulated annealing. Data with higher 
-        clonal dispersion should start with higher smoothing depth. The final depth should 
-        depend on the manifold itself. For fewer cells, it results in a small KNN graph, 
-        and a small final depth should be used. We recommend to use a number at 
-        the multiple of 5 for computational efficiency i.e., 
-        smooth_array=[20, 15, 10, 5], or [20,15,10]
-    max_iter_N: `list`, optional (default: [3,5])
-        A list for maximum iterations for the Joint optimization and CoSpar core function, respectively.
-    epsilon_converge: `list`, optional (default: [0.05,0.05])
-        A list of convergence threshold for the Joint optimization and CoSpar core function, respectively. 
-        The convergence threshold is for the change of map correlations between consecutive iterations.
-        For CoSpar core function, this convergence test is activated only when CoSpar has iterated for 3 times. 
-    CoSpar_KNN: `int`, optional (default: 20)
-        The number of neighbors for KNN graph used for computing the similarity matrix.
-    trunca_threshold: `list`, optional (default: [0.001,0.01])
-        Threshold to reset entries of a matrix to zero. The first entry is for
-        Similarity matrix; the second entry is for the Tmap. 
-        This is only for computational and storage efficiency. 
-    sparsity_threshold: `float`, optional (default: 0.1)
-        The relative threshold to remove noises in the updated transition map,
-        in the range [0,1].
-    save_subset: `bool`, optional (default: True)
-        If true, save only Smatrix at smooth round [5,10,15,...];
-        Otherwise, save Smatrix at each round. 
-    use_full_Smatrix: `bool`, optional (default: True)
-        If true, extract the relevant Smatrix from the full Smatrix defined by all cells.
-        This tends to be more accurate. The package is optimized around this choice. 
-    use_fixed_clonesize_t1: `bool`, optional (default: False)
-        If true, fix the number of initial states as the same for all clones
-    sort_clone: `int`, optional (default: 1)
-        The order to infer initial states for each clone: {1,-1,others}.
-        1, sort clones by size from small to large;
-        -1, sort clones by size from large to small;
-        others, do not sort. 
-    compute_new: `bool`, optional (default: False)
-        If True, compute everything (ShortestPathDis, OT_map, etc.) from scratch, 
-        whether it was computed and saved before or not. Regarding the Smatrix, it is 
-        recomputed only when `use_full_Smatrix=False`.
-    use_existing_KNN_graph: `bool`, optional (default: False)
-        If true and adata.obsp['connectivities'], use the existing knn graph
-        to compute the shortest-path distance. Revelant if initialize_method='OT'.
-        This overrides all other relevant parameters for building shortest-path distance. 
-
-    Returns
-    -------
-    adata: :class:`~anndata.AnnData` object
-        Update adata.obsm['X_clone'] and adata.uns['transition_map'],
-        as well as adata.uns['OT_transition_map'] or 
-        adata.uns['HighVar_transition_map'], depending on the initialization. 
-        adata.obsm['X_clone'] remains the same. 
+    After initializing the clonal matrix as such that each cell has a unique barcode,
+    it runs :func:`.infer_Tmap_from_one_time_clones` to infer the transition map.  
     """
 
     if 'data_des' not in adata_orig.uns.keys():
@@ -2497,7 +2381,7 @@ def infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=
 
                 t=time.time()
 
-                infer_Tmap_from_one_time_clones_private(adata,initialized_map,normalization_mode=normalization_mode,
+                refine_Tmap_through_joint_optimization(adata,initialized_map,normalization_mode=normalization_mode,
                     sparsity_threshold=sparsity_threshold,
                     CoSpar_KNN=CoSpar_KNN,use_full_Smatrix=use_full_Smatrix,smooth_array=smooth_array,
                     max_iter_N=max_iter_N,epsilon_converge=epsilon_converge,
@@ -2516,11 +2400,11 @@ def infer_Tmap_from_one_time_clones_twoTime(adata_orig,selected_two_time_points=
 
 
 def infer_Tmap_from_clonal_info_alone_private(adata_orig,method='naive',clonal_time_points=None,
-    selected_fates=[]):
+    selected_fates=None):
     """
     Compute transition map using only the lineage information.
 
-    Here, we simply compute the transition map between neighboring time points.
+    Here, we compute the transition map between neighboring time points.
 
     We simply average transitions across all clones (or selected clones when method='Weinreb'),
     assuming that the intra-clone transition is uniform within the same clone. 
@@ -2548,7 +2432,8 @@ def infer_Tmap_from_clonal_info_alone_private(adata_orig,method='naive',clonal_t
 
     Returns
     -------
-    Return a new `adata` object with the attributes adata_orig.uns['clonal_transition_map']
+    adata: :class:`~anndata.AnnData` object
+        The transition map is stored at adata.uns['clonal_transition_map']
     """
 
     adata_1=select_time_points(adata_orig,time_point=clonal_time_points,extend_Tmap_space=True)
@@ -2574,7 +2459,7 @@ def infer_Tmap_from_clonal_info_alone_private(adata_orig,method='naive',clonal_t
         else:
             logg.info("Use only uni-potent clones (weinreb et al., 2020)")
             state_annote=np.array(adata_1.obs['state_info'])
-            if len(selected_fates)==0:
+            if selected_fates==None:
                 selected_fates=list(set(state_annote))
             potential_vector_clone, fate_entropy_clone=hf.compute_state_potential(clone_annot[cell_id_t2_temp].T,state_annote[cell_id_t2_temp],selected_fates,fate_count=True)
 
@@ -2597,15 +2482,21 @@ def infer_Tmap_from_clonal_info_alone_private(adata_orig,method='naive',clonal_t
 # the v2 version, it is the same format as infer_Tmap_from_multiTime_clones.
 # We return a new adata object that will throw away existing annotations in uns. 
 def infer_Tmap_from_clonal_info_alone(adata_orig,method='naive',clonal_time_points=None,
-    later_time_point=None,selected_fates=[]):
+    later_time_point=None,selected_fates=None):
     """
     Compute transition map using only the lineage information.
 
-    We can either compute the map between neighboring time points, if later_time_point=None;
-    otherwise we compute the map between each of the initial states and the later time point.
+    As in :func:`.infer_Tmap_from_multitime_clones`, we provide two modes of inference:
 
-    We simply average transitions across all clones (or selected clones when method='Weinreb'),
-    assuming that the intra-clone transition is uniform within the same clone. 
+    * If `later_time_point=None`, the inferred map allows transitions 
+      between neighboring time points. For example, if 
+      clonal_time_points=['day1','day2','day3'], then it computes transitions 
+      for pairs (day1, day2) and (day2, day3), but not (day1, day3).
+
+    * If `later_time_point` is specified, the function produces a map 
+      between earlier time points and this later time point. For example, if 
+      `later_time_point='day3`, the map allows transitions for pairs (day1, day3)
+      and (day2, day3), but not (day1,day2).
 
     Parameters
     ----------
@@ -2630,7 +2521,8 @@ def infer_Tmap_from_clonal_info_alone(adata_orig,method='naive',clonal_time_poin
 
     Returns
     -------
-    Return a new `adata` object with the attributes adata_orig.uns['clonal_transition_map']
+    adata: :class:`~anndata.AnnData` object
+        The transition map is stored at adata.uns['clonal_transition_map']
     """
 
     if 'data_des' not in adata_orig.uns.keys():

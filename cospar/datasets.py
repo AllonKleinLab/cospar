@@ -62,13 +62,17 @@ def reprogramming(data_des='CellTagging'):
     There are multiple ways to assemble the barcodes on day 0, day 3, and day 13 
     into a clonal ID. Below, we provide three variants:
 
-    * Concatenate barcodes on day 0 and day 13, as in the original analysis (adata.obsm['X_clone_Concat_D0D3'], the default);
+    * Concatenate barcodes on day 0 and day 13, as in the original 
+      analysis (adata.obsm['X_clone_Concat_D0D3'], the default);
 
     * Concatenate barcodes on day 0, day 3, and day 13 (adata.obsm['X_clone_Concat_D0D3D13']);
 
     * No concatenation; each cell has up to 3 barcodes (adata.obsm['X_clone_NonConcat_D0D3D13']).
 
-    The last choice keeps the nested clonal structure in the data. You choose any one of the clonal arrangement, e.g, adata.obsm['X_clone']=adata_orig.obsm['X_clone_Concat_D0D3']. The three clonal arrangement gives very similar fate prediction.
+    The last choice keeps the nested clonal structure in the data. 
+    You can choose any one of the clonal arrangement for downstream analysis, 
+    by setting `adata_orig.obsm['X_clone']=adata_orig.obsm['X_clone_Concat_D0D3']`. 
+    The three clonal arrangements give very similar fate prediction.
 
     Parameters
     ----------
@@ -221,9 +225,7 @@ def hematopoiesis_Gata1_states(data_des='LARRY_Gata1_lineage'):
 
     * Weinreb, C., Rodriguez-Fraticelli, A., Camargo, F. D. & Klein, A. M. Science 367, (2020)
 
-    This dataset has 3 time points for both the clonal and state measurements. This dataset 
-    has ~50000 cells. Running the whole pipeline for the first time could take several hours in 
-    a standard personal computer. 
+    This dataset includes non-clonally-labeled states that express Gata1. In total, it has ~38K cells.
     
     Parameters
     ----------
