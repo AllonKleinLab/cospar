@@ -416,10 +416,10 @@ def single_cell_transition(adata,selected_state_id_list,used_Tmap='transition_ma
 
                     #ax0.set_title(f"t1 state (blue star) ({cell_id_t1[target_cell_ID]})")
                     if map_backward:
-                        ax0.set_title(f"ID ($t_2$): {target_cell_ID}")
+                        ax0.set_title(f"ID (t2): {target_cell_ID}")
                     else:
-                        ax0.set_title(f"ID ($t_1$): {target_cell_ID}")
-                    plt.rc('text', usetex=True)
+                        ax0.set_title(f"ID (t1): {target_cell_ID}")
+                    #plt.rc('text', usetex=True)
 
             # if color_bar:
             #     Clb=fig.colorbar(plt.cm.ScalarMappable(cmap=plt.cm.Reds), ax=ax0,label='Probability')
@@ -427,7 +427,7 @@ def single_cell_transition(adata,selected_state_id_list,used_Tmap='transition_ma
             plt.tight_layout()
             if savefig:
                 fig.savefig(f"{figure_path}/plotting_transition_map_probability_{map_backward}.{settings.file_format_figs}")
-            plt.rc('text', usetex=False)
+            #plt.rc('text', usetex=False)
 
 
 def fate_map(adata,selected_fates=None,used_Tmap='transition_map',
@@ -1888,7 +1888,7 @@ def clones_on_manifold(adata,selected_clone_list=[0],clone_point_size=12,
 
 
 # this is based on Fisher-Exact test, much faster. The Pvalue is corrected. No ranked profile for randomized clones.
-def clonal_fate_bias(adata,selected_fate='',clone_size_thresh=3,compute_new=True,show_histogram=True,FDR=0.05,alternative='two-sided'):
+def clonal_fate_bias(adata,selected_fate='',show_histogram=True,FDR=0.05,alternative='two-sided'):
     """
     Plot clonal fate bias towards a cluster.
 
@@ -1896,7 +1896,7 @@ def clonal_fate_bias(adata,selected_fate='',clone_size_thresh=3,compute_new=True
     that a clone is enriched (or depleted) in a fate, using Fisher-Exact 
     test (accounting for clone size). The P-value is then corrected to 
     give a Q-value by Benjamini-Hochberg procedure. The alternative 
-    hypothesis options are: {'two-sided','greater','less'}. 
+    hypothesis options are: {'two-sided', 'greater', 'less'}. 
     The default is 'two-sided'.
 
     Parameters
@@ -1904,14 +1904,9 @@ def clonal_fate_bias(adata,selected_fate='',clone_size_thresh=3,compute_new=True
     adata: :class:`~anndata.AnnData` object
     selected_fate: `str`
         The targeted fate cluster, from adata.obs['state_info'].
-    clone_size_thresh: `int`, optional (default: 3)
-        Clones with size >= this threshold will be highlighted in 
-        the plot in red.
-    compute_new: `bool`, optional (default: True)
-        Compute from scratch, regardless of existing saved files. 
     show_histogram: `bool`, optional (default: True)
         If true, show the distribution of inferred fate probability.
-    FDR: `float`, optional (default: 0l.05)
+    FDR: `float`, optional (default: 0.05)
         False-discovery rate after the Benjamini-Hochberg correction.
     alternative: `str`, optional (default: 'two-sided')
         Defines the alternative hypothesis. The following options are 
@@ -1989,28 +1984,29 @@ def clonal_fate_bias(adata,selected_fate='',clone_size_thresh=3,compute_new=True
         sort_idx=np.argsort(P_value)
         P_value=P_value[sort_idx]+resol
         fate_bias=-np.log10(P_value)
-        idx=clone_size_array[sort_idx]>=clone_size_thresh
+        #idx=clone_size_array[sort_idx]>=clone_size_thresh
         FDR_threshold=-np.log10(FDR)
 
 
         fig=plt.figure(figsize=(fig_width,fig_height));ax=plt.subplot(1,1,1)
-        ax.plot(np.arange(len(fate_bias))[~idx],fate_bias[~idx],'.',color='blue',markersize=5,label=f'Size $<$ {int(clone_size_thresh)}')#,markeredgecolor='black',markeredgewidth=0.2)
-        ax.plot(np.arange(len(fate_bias))[idx],fate_bias[idx],'.',color='red',markersize=5,label=f'Size $\ge$ {int(clone_size_thresh)}')#,markeredgecolor='black',markeredgewidth=0.2)
-        ax.plot(np.arange(len(fate_bias)),np.zeros(len(fate_bias))+FDR_threshold,'-.',color='grey',markersize=5,label=f'FDT={FDR}')#,markeredgecolor='black',markeredgewidth=0.2)
+        ax.plot(np.arange(len(fate_bias)),fate_bias,'.',color='blue',markersize=5)#,markeredgecolor='black',markeredgewidth=0.2)
+        #ax.plot(np.arange(len(fate_bias))[~idx],fate_bias[~idx],'.',color='blue',markersize=5,label=f'Size $<$ {int(clone_size_thresh)}')#,markeredgecolor='black',markeredgewidth=0.2)
+        #ax.plot(np.arange(len(fate_bias))[idx],fate_bias[idx],'.',color='red',markersize=5,label=f'Size $\ge$ {int(clone_size_thresh)}')#,markeredgecolor='black',markeredgewidth=0.2)
+        ax.plot(np.arange(len(fate_bias)),np.zeros(len(fate_bias))+FDR_threshold,'-.',color='grey',markersize=5,label=f'FDR={FDR}')#,markeredgecolor='black',markeredgewidth=0.2)
                 
         #ax.plot(np.arange(len(fate_bias_rsp)),fate_bias_rsp,'.',color='grey',markersize=5,label='Randomized')#,markeredgecolor='black',markeredgewidth=0.2)
 
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.set_xlabel('Clone rank')
-        plt.rc('text', usetex=True)
+        #ax.set_xlabel('Clone rank')
+        #plt.rc('text', usetex=True)
         #ax.set_ylabel('Fate bias ($-\\log_{10}P_{value}$)')
         ax.set_ylabel('Clonal fate bias')
         ax.legend()
         #ax.set_xlim([0,0.8])
         fig.tight_layout()
         fig.savefig(f'{figure_path}/{data_des}_clonal_fate_bias.{settings.file_format_figs}')
-        plt.rc('text', usetex=False)
+        #plt.rc('text', usetex=False)
         #plt.show()
 
         result=pd.DataFrame({'Clone ID':sort_idx,'Clone size':clone_size_array[sort_idx],'Q_value':P_value,'Fate bias':fate_bias})
