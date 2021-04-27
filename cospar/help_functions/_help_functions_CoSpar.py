@@ -1504,6 +1504,13 @@ def compute_gene_exp_distance(adata,p0_indices,p1_indices,pc_n=30):
 
 
 
+def update_data_description(adata,data_des='cospar'):
+    """
+    Update data_des, a string to distinguish different datasets
+    """
+
+    adata.uns['data_des']=[data_des]
+
 
 
 

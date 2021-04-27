@@ -153,6 +153,7 @@ Help functions
    hf.check_adata_structure
    hf.check_available_choices
    hf.update_time_ordering
+   hf.update_data_description
    hf.get_normalized_covariance
    hf.get_X_clone_with_reference_ordering
 

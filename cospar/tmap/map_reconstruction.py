@@ -997,6 +997,16 @@ def infer_Tmap_from_multitime_clones_private(adata,smooth_array=[15,10,5],neighb
             similarity_matrix_full=generate_similarity_matrix(adata,similarity_file_name,round_of_smooth=round_of_smooth,
                         neighbor_N=neighbor_N,truncation_threshold=trunca_threshold[0],save_subset=save_subset,compute_new_Smatrix=re_compute)
 
+
+            ## add dimensionality check
+            if (similarity_matrix_full.shape[0]!=len(sp_idx)) or  (similarity_matrix_full.shape[1]!=len(sp_idx)):
+                logg.error("The pre-computed similarity matrix does not have the right dimension.\n"
+                     "Possible reason: this is computed from a different dataset, but with the same data label in adata.uns['data_des']\n"
+                     "You can fix this issue by running the Tmap inference with compute_new=True, which compute everything from scratch.\n"
+                     "To avoid this from happening again, please use a different data_des for each new data, which can be set with adata.uns['data_des']=['Your_data_des'].")
+                return None
+
+
             if use_full_Smatrix:
                 #pdb.set_trace()
                 similarity_matrix_full_sp=similarity_matrix_full[sp_idx][:,sp_idx]
@@ -1454,6 +1464,13 @@ def infer_Tmap_from_optimal_transport(adata,OT_epsilon=0.02,OT_dis_KNN=5,
         logg.info("Load pre-computed custom OT matrix")
         OT_transition_map=ssp.load_npz(CustomOT_file_name)
 
+        ## add dimensionality check
+        if (OT_transition_map.shape[0]!=len(cell_id_array_t1)) or  (OT_transition_map.shape[1]!=len(cell_id_array_t2)):
+            logg.error("The pre-computed OT transition map does not have the right dimension.\n"
+                 "Possible reason: this is computed from a different dataset, but with the same data label in adata.uns['data_des']\n"
+                 "You can fix this issue by running the Tmap inference with compute_new=True, which compute everything from scratch.\n"
+                 "To avoid this from happening again, please use a different data_des for each new data, which can be set with adata.uns['data_des']=['Your_data_des'].")
+            return None
     else:
 
         ############ Compute shorted-path distance
@@ -1465,6 +1482,14 @@ def infer_Tmap_from_optimal_transport(adata,OT_epsilon=0.02,OT_dis_KNN=5,
 
                 logg.info("Load pre-computed shortest path distance matrix")
                 OT_cost_matrix=np.load(SPD_file_name)
+
+                ## add dimensionality check
+                if (OT_cost_matrix.shape[0]!=len(cell_id_array_t1)) or  (OT_cost_matrix.shape[1]!=len(cell_id_array_t2)):
+                    logg.error("The pre-computed OT cost matrix does not have the right dimension.\n"
+                         "Possible reason: this is computed from a different dataset, but with the same data label in adata.uns['data_des']\n"
+                         "You can fix this issue by running the Tmap inference with compute_new=True, which compute everything from scratch.\n"
+                         "To avoid this from happening again, please use a different data_des for each new data, which can be set with adata.uns['data_des']=['Your_data_des'].")
+                    return None
 
             else:
 
