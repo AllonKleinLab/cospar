@@ -92,9 +92,12 @@ def initialize_adata_object(adata=None,X_state=None,cell_names=None,gene_names=N
             logg.error('If adata is not provided, X_state and gene_names must be provided. Abort initialization.')
             return None
 
+    
     if cell_names is not None:
         adata.obs_names=list(cell_names)
 
+    adata.var_names_make_unique() # this is needed for get_X_pca()
+    adata.obs_names_make_unique()
     if (time_info is None): 
         if 'time_info' not in adata.obs.keys():
             logg.warn("time_info not provided. Initialize the time info to be ['0','0','0',...]")

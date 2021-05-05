@@ -388,11 +388,11 @@ def single_cell_transition(adata,selected_state_id_list,used_Tmap='transition_ma
         full_id_list=np.arange(len(cell_id_t1))
         valid_idx=np.in1d(full_id_list,selected_state_id_list)
         if np.sum(valid_idx)<len(selected_state_id_list):
-            logg.error(f"Valid id range is (0,{len(cell_id_t1)-1}). Please use a smaller ID!")
+            logg.error(f"Valid id is a integer, ranged in (0,{len(cell_id_t1)-1}).")
             selected_state_id_list=full_id_list[valid_idx]
 
         if len(selected_state_id_list)==0:
-            logg.error("No valid states selected.")
+            logg.error(f"Valid id is a integer, ranged in (0,{len(cell_id_t1)-1}).")
         else:
             if ssp.issparse(Tmap): Tmap=Tmap.A
                     
