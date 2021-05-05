@@ -32,7 +32,7 @@ CoSpar's key applications
 
 Reference
 ^^^^^^^^^
-Shou-Wen Wang, Michael J Herriges, Kilian Hurley, Darrell N. Kotton, and Allon M. Klein (2021), Learning clonal dynamics by coherent sparse optimization,
+Shou-Wen Wang and Allon M. Klein (2021), Learning clonal dynamics by coherent sparse optimization,
 `ToBeSubmitted <https://doi.org/xxx>`_.
 
 
