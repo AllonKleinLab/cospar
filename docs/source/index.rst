@@ -9,7 +9,7 @@ CoSpar - dynamic inference by integrating state and lineage information
 
 **CoSpar** is a toolkit for dynamic inference from lineage-traced single cells. |br|
 The methods are based on
-`Wang et al. (2021) <https://doi.org/xxx>`_.
+`Wang et al. (2021) <https://www.biorxiv.org/content/10.1101/2021.05.06.443026v1>`_.
 
 Dynamic inference based on single-cell state measurement alone requires serious simplifications. On the other hand, direct dynamic measurement via lineage tracing only captures partial information and its interpretation is challenging. CoSpar integrates both state and lineage information to infer a finite-time transition map of a development/differentiation system. It gains superior robustness and accuracy by exploiting both the local coherence and sparsity of differentiation transitions, i.e., neighboring initial states share similar yet sparse fate outcomes.  Building around the :class:`~anndata.AnnData` object, CoSpar provides an integrated analysis framework for datasets with both state and lineage information. When only state information is available, CoSpar also improves upon existing dynamic inference methods by imposing sparsity and coherence. It offers essential toolkits for analyzing lineage data, state information, or their integration. 
 
@@ -32,8 +32,8 @@ CoSpar's key applications
 
 Reference
 ^^^^^^^^^
-Shou-Wen Wang and Allon M. Klein (2021), Learning clonal dynamics by coherent sparse optimization,
-`ToBeSubmitted <https://doi.org/xxx>`_.
+Shou-Wen Wang and Allon M. Klein (2021), Learning dynamics by computational integration of single cell genomic and lineage information,
+`bioRxiv <https://www.biorxiv.org/content/10.1101/2021.05.06.443026v1>`_.
 
 
 
