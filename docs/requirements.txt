@@ -24,5 +24,5 @@ sphinx_autodoc_typehints<=1.6
 
 # converting notebooks to html
 ipykernel
-sphinx>=1.7
+sphinx==3.5.4
 nbsphinx>=0.7
