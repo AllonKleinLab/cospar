@@ -1,5 +1,3 @@
-
-
 from pathlib import Path, PurePath
 import scanpy as sc
 from . import settings
