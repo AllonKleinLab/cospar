@@ -72,7 +72,7 @@ Testing CoSpar in a new environment
 In case you want to test cospar without affecting existing python packages, you can create a new conda environment and install CoSpar there::
 
 	conda create -n test_cospar python=3.6
-	source activate test_cospar
+	conda activate test_cospar
 	pip install cospar
 
 Now, install jupyter notebook in this environment::
