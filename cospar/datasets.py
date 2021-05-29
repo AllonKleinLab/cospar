@@ -1,5 +1,5 @@
 from pathlib import Path, PurePath
-import scanpy as sc
+from scanpy import read
 from . import settings
 from . import logging as logg
 
@@ -276,7 +276,7 @@ def load_data_core(data_path,figure_path,data_name,data_des):
     #print(url)
     status=_check_datafile_present_and_download(path,backup_url=url)
     if status:
-        adata=sc.read(path)
+        adata=read(path)
         #adata.uns['data_path']=[str(data_path)]
         #adata.uns['figure_path']=[str(figure_path)]
         adata.uns['data_des']=[str(data_des)]

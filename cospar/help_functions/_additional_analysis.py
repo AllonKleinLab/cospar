@@ -1,6 +1,4 @@
 import numpy as np
-import scipy
-import scipy.stats
 from scipy import stats
 import scipy.sparse as ssp
 import pandas as pd

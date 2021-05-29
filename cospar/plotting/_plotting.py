@@ -1,18 +1,16 @@
 import numpy as np
 import time
-from plotnine import *  
-from sklearn import manifold
+#from plotnine import * 
+from sklearn.manifold import SpectralEmbedding
 import pandas as pd
-import scanpy as sc
 import os
 import scipy.sparse as ssp
+import scipy.stats as stats
 from .. import help_functions as hf
 from matplotlib import pyplot as plt
 from .. import settings
 from .. import logging as logg
 import statsmodels.sandbox.stats.multicomp
-import scipy.stats as stats
-import matplotlib as mpl
 from ete3 import Tree
 
 ####################
@@ -137,6 +135,7 @@ def embedding(adata,basis='X_emb',color=None):
         e.g., 'state_info', 'time_info',['Gata1','Gata2']
     """
 
+    from scanpy.pl import embedding as sc_embedding
     fig_height=settings.fig_height
     fig_width=settings.fig_width
     data_des=adata.uns['data_des'][-1]
@@ -148,7 +147,7 @@ def embedding(adata,basis='X_emb',color=None):
     if color in adata.var_names: flag=True
 
     if flag:
-        sc.pl.embedding(adata,basis=basis,color=color,ax=ax)
+        sc_embedding(adata,basis=basis,color=color,ax=ax)
         plt.tight_layout()
         fig.savefig(f'{settings.figure_path}/{data_des}_embedding.png', dpi=300)
     else:
@@ -199,6 +198,7 @@ def customized_embedding(x, y, vector, normalize=False, title=None, ax=None,
         If False, remove figure ticks.   
     """
 
+    from matplotlib.colors import Normalize as mpl_Normalize
     if color_map is None:
         color_map = darken_cmap(plt.cm.Reds, .9)
     if ax is None:
@@ -251,7 +251,7 @@ def customized_embedding(x, y, vector, normalize=False, title=None, ax=None,
     if color_bar:
         #plt.colorbar(plt.cm.ScalarMappable(cmap=plt.cm.Reds), ax=ax)
         
-        norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+        norm = mpl_Normalize(vmin=vmin, vmax=vmax)
         plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=color_map), ax=ax,label=color_bar_label)
 
 
@@ -1760,7 +1760,7 @@ def gene_expression_dynamics(adata,selected_fate,gene_name_list,traj_threshold=0
                     
                     from sklearn import manifold
                     data_matrix=adata.obsm['X_pca'][sel_cell_idx]
-                    method=manifold.SpectralEmbedding(n_components=1,n_neighbors=n_neighbors)
+                    method=SpectralEmbedding(n_components=1,n_neighbors=n_neighbors)
                     PseudoTime = method.fit_transform(data_matrix)
                     np.save(file_name,PseudoTime)
                     #logg.info("Run time:",time.time()-t)
@@ -1799,6 +1799,7 @@ def gene_expression_dynamics(adata,selected_fate,gene_name_list,traj_threshold=0
                     temp_dict[gene_name]=rescaled_yy
                 
                 
+                from plotnine import ggplot,aes,geom_point,stat_smooth,theme_classic,labs
                 data2=pd.DataFrame(temp_dict)
                 data2_melt=pd.melt(data2,id_vars=['PseudoTime'],value_vars=gene_name_list)
                 gplot=ggplot(data=data2_melt,mapping=aes(x="PseudoTime", y='value',color='variable')) + \
@@ -2271,6 +2272,7 @@ def ordered_heatmap(figure_path, data_matrix, variable_names,int_seed=10,col_ran
         visualizing gene expression. 
     """
 
+    from matplotlib.colors import Normalize as mpl_Normalize
     o = hf.get_hierch_order(data_matrix)
     if log_transform:
         new_data=np.log(data_matrix[o,:]+1)/np.log(10)
@@ -2304,7 +2306,7 @@ def ordered_heatmap(figure_path, data_matrix, variable_names,int_seed=10,col_ran
     
     plt.yticks([])
     if color_bar:
-        norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+        norm = mpl_Normalize(vmin=vmin, vmax=vmax)
         cbar=plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=color_map))
         
         if log_transform:

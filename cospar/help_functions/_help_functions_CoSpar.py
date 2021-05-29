@@ -1,18 +1,16 @@
 import numpy as np
-import scipy
 import os
-import scipy.stats
 from sklearn.decomposition import PCA,TruncatedSVD
 from sklearn.neighbors import NearestNeighbors
-from scipy.sparse.csgraph import dijkstra
 from sklearn.neighbors import kneighbors_graph
 from sklearn.metrics import pairwise
+import scipy.stats
 import scipy.sparse as ssp
-import scanpy as sc
-import pandas as pd
-from scanpy import read
-import statsmodels.sandbox.stats.multicomp
 from scipy.spatial.distance import pdist
+from scipy.optimize import fmin
+from scanpy import read # So that we can call this function in cospar directly
+import pandas as pd
+import statsmodels.sandbox.stats.multicomp
 from fastcluster import linkage
 from .. import settings
 from .. import pl
@@ -20,6 +18,7 @@ from .. import tmap
 from .. import logging as logg
 import time
 from matplotlib import pyplot as plt
+from .. import settings
 
 #import scipy.stats
 
@@ -380,7 +379,7 @@ def get_vscores(E, min_mean=0, nBins=50, fit_percentile=0.1, error_wt=1):
     c = np.max((np.exp(b[max_ix]), 1))
     errFun = lambda b2: np.sum(abs(gLog([x,c,b2])-y) ** error_wt)
     b0 = 0.1
-    b = scipy.optimize.fmin(func = errFun, x0=[b0], disp=False)
+    b = fmin(func = errFun, x0=[b0], disp=False)
     a = c / (1+b) - 1
 
 
@@ -997,7 +996,8 @@ def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances'
     -------
     The normalized distance matrix is returned.
     """
-    
+
+    from scanpy.pp import neighbors
     if (not use_existing_KNN_graph) or ('connectivities' not in adata.obsp.keys()):
 
         if mode!='connectivities':
@@ -1005,11 +1005,11 @@ def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances'
 
         logg.hint(f"Chosen mode is {mode}")
         if method=='umap':
-            sc.pp.neighbors(adata, n_neighbors=num_neighbors_target,method='umap')
+            neighbors(adata, n_neighbors=num_neighbors_target,method='umap')
             adj_matrix=adata.obsp[mode]
 
         elif method=='gauss':
-            sc.pp.neighbors(adata, n_neighbors=num_neighbors_target,method='gauss')
+            neighbors(adata, n_neighbors=num_neighbors_target,method='gauss')
             adj_matrix=adata.obsp[mode]           
 
         else:
@@ -1024,7 +1024,7 @@ def compute_shortest_path_distance(adata,num_neighbors_target=5,mode='distances'
         logg.info("Use existing KNN graph at adata.obsp['connectivities'] for generating the smooth matrix")
         adj_matrix=adata.obsp['connectivities'];
 
-    ShortPath_dis = dijkstra(csgraph = ssp.csr_matrix(adj_matrix), directed = False,return_predecessors = False)
+    ShortPath_dis = ssp.csgraph.dijkstra(csgraph = ssp.csr_matrix(adj_matrix), directed = False,return_predecessors = False)
     ShortPath_dis_max = np.nanmax(ShortPath_dis[ShortPath_dis != np.inf])
     ShortPath_dis[ShortPath_dis > ShortPath_dis_max] = ShortPath_dis_max #set threshold for shortest paths
 
@@ -1063,7 +1063,8 @@ def add_neighboring_cells_to_a_map(initial_idx,adata,neighbor_N=5):
 #         output_idx=adata.uns['neighbors']['connectivities'][initial_idx].sum(0).A.flatten()>0
 #         initial_idx=initial_idx | output_idx
 
-    sc.pp.neighbors(adata, n_neighbors=neighbor_N) #,method='gauss')
+    from scanpy.pp import neighbors
+    neighbors(adata, n_neighbors=neighbor_N) #,method='gauss')
     output_idx=adata.obsp['connectivities'][initial_idx].sum(0).A.flatten()>0
     post_idx=initial_idx | output_idx
     #print(f"Final: {np.sum(post_idx)}")
@@ -1359,7 +1360,7 @@ def load_saved_adata_with_key(data_des):
     #print(f"Load data: data_des='{data_des}'")
     file_name=f'{data_path}/{data_des}_adata_with_transition_map.h5ad'
     if os.path.exists(file_name):
-        adata=sc.read(file_name)
+        adata=read(file_name)
         return adata
     else:
         logg.error(f"The file does not existed yet")
@@ -1460,8 +1461,8 @@ def check_available_choices(adata):
 
 def compute_pca(m1, m2, n_components):
     matrices = list()
-    matrices.append(m1 if not scipy.sparse.isspmatrix(m1) else m1.toarray())
-    matrices.append(m2 if not scipy.sparse.isspmatrix(m2) else m2.toarray())
+    matrices.append(m1 if not ssp.isspmatrix(m1) else m1.toarray())
+    matrices.append(m2 if not ssp.isspmatrix(m2) else m2.toarray())
     x = np.vstack(matrices)
     mean_shift = x.mean(axis=0)
     x = x - mean_shift
@@ -1481,8 +1482,8 @@ def compute_default_cost_matrix(a, b, eigenvals=None):
         a = a.dot(eigenvals)
         b = b.dot(eigenvals)
 
-    cost_matrix = pairwise.pairwise_distances(a.toarray() if scipy.sparse.isspmatrix(a) else a,
-                                                              b.toarray() if scipy.sparse.isspmatrix(b) else b,
+    cost_matrix = pairwise.pairwise_distances(a.toarray() if ssp.isspmatrix(a) else a,
+                                                              b.toarray() if ssp.isspmatrix(b) else b,
                                                               metric='sqeuclidean', n_jobs=-1)
     cost_matrix = cost_matrix / np.median(cost_matrix)
     return cost_matrix
@@ -1512,6 +1513,22 @@ def update_data_description(adata,data_des='cospar'):
     adata.uns['data_des']=[data_des]
 
 
+
+def set_up_folders(data_path_new=None, figure_path_new=None):
+    from pathlib import Path, PurePath
+
+    if data_path_new is not None:
+        settings.data_path = data_path_new
+    if figure_path_new is not None:
+        settings.figure_path = figure_path_new
+
+    if not Path(settings.data_path).is_dir():
+        logg.info(f"creating directory {settings.data_path}/ for saving data")
+        Path(settings.data_path).mkdir(parents=True)
+
+    if not Path(settings.figure_path).is_dir():
+        logg.info(f"creating directory {settings.figure_path}/ for saving figures")
+        Path(settings.figure_path).mkdir(parents=True)
 
 
 def get_X_clone_with_reference_ordering(clone_data_cell_id,clone_data_barcode_id,reference_cell_id,reference_clone_id=None):
