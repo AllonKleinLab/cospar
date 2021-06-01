@@ -3,7 +3,7 @@ from scanpy import read
 from . import settings
 from . import logging as logg
 
-url_prefix='https://kleintools.hms.harvard.edu/tools/downloads/cospar'
+url_prefix_0='https://kleintools.hms.harvard.edu/tools/downloads/cospar'
 
 def synthetic_bifurcation(data_des='bifur'):
     """
@@ -26,6 +26,37 @@ def synthetic_bifurcation(data_des='bifur'):
     #data_name='bifurcation_static_BC_adata_preprocessed.h5ad'
     data_name='bifur_adata_preprocessed.h5ad'
     return load_data_core(data_path,figure_path,data_name,data_des)
+
+def raw_data_for_import_exercise():
+    """
+    Synthetic clonal dataset with static barcoding.
+
+    We simulated a differentiation process over a bifurcation fork. 
+    Cells are barcoded in the beginning, and the barcodes remain unchanged.  
+    In the simulation, we resample clones over time, 
+    like the experimental design to obtain the hematopoietic dataset 
+    or the reprogramming dataset. The dataset has two time points.  
+
+    Parameters
+    ----------
+    data_des: `str`
+        A key to label this dataset. 
+    """
+
+    data_path=settings.data_path
+    figure_path=settings.figure_path
+    data_des=''
+    #data_name='bifurcation_static_BC_adata_preprocessed.h5ad'
+    url_prefix='https://github.com/AllonKleinLab/cospar/blob/master/tests/data'
+    data_name='cell_by_clone_matrx.mtx'
+
+    files=['cell_by_clone_matrx.mtx','cell_id.txt','clonal_data_in_table_format.txt',
+      'embedding.txt','gene_expression_count_matrx.mtx','gene_names.txt',
+       'state_info.txt','time_info.txt']
+
+    for xx in files:
+        load_data_core(data_path,figure_path,xx,data_des,url_prefix=url_prefix)
+
 
 # def synthetic_bifurcation_dynamic_BC(data_des='bifur_conBC'):
 #     """
@@ -259,7 +290,7 @@ def hematopoiesis_subsampled(data_des='LARRY_sp500_ranking1'):
     data_name='LARRY_sp500_ranking1_adata_preprocessed.h5ad'
     return load_data_core(data_path,figure_path,data_name,data_des)
 
-def load_data_core(data_path,figure_path,data_name,data_des):
+def load_data_core(data_path,figure_path,data_name,data_des,url_prefix=url_prefix_0):
     url=f'{url_prefix}/{data_name}'
     path=f'{data_path}/{data_name}'
     path=Path(path)

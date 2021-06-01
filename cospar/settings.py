@@ -39,7 +39,7 @@ from matplotlib import rcParams, cm, colors, cbook
 from cycler import cycler
 import warnings
 #from cospar import help_functions as hf
-from . import help_functions as hf
+#from . import help_functions as hf
 
 warnings.filterwarnings("ignore", category=cbook.mplDeprecation)
 
@@ -218,7 +218,7 @@ def set_figure_params(
     global fig_point_size
     fig_point_size=pointsize
 
-    hf.set_up_folders()
+    # hf.set_up_folders()
 
 def set_rcParams_defaults():
     """Reset `matplotlib.rcParams` to defaults."""
