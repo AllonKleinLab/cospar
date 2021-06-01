@@ -29,33 +29,18 @@ def synthetic_bifurcation(data_des='bifur'):
 
 def raw_data_for_import_exercise():
     """
-    Synthetic clonal dataset with static barcoding.
+    The test dataset for demonstrating how to import your own data 
 
-    We simulated a differentiation process over a bifurcation fork. 
-    Cells are barcoded in the beginning, and the barcodes remain unchanged.  
-    In the simulation, we resample clones over time, 
-    like the experimental design to obtain the hematopoietic dataset 
-    or the reprogramming dataset. The dataset has two time points.  
-
-    Parameters
-    ----------
-    data_des: `str`
-        A key to label this dataset. 
     """
 
-    data_path=settings.data_path
-    figure_path=settings.figure_path
-    data_des=''
-    #data_name='bifurcation_static_BC_adata_preprocessed.h5ad'
-    url_prefix='https://github.com/AllonKleinLab/cospar/blob/master/tests/data'
-    data_name='cell_by_clone_matrx.mtx'
+    url='https://github.com/AllonKleinLab/cospar/files/6573057/test_data.zip'
+    path='test_data.zip'
+    path=Path(path)
+    _check_datafile_present_and_download(path,backup_url=url)
 
-    files=['cell_by_clone_matrx.mtx','cell_id.txt','clonal_data_in_table_format.txt',
-      'embedding.txt','gene_expression_count_matrx.mtx','gene_names.txt',
-       'state_info.txt','time_info.txt']
-
-    for xx in files:
-        load_data_core(data_path,figure_path,xx,data_des,url_prefix=url_prefix)
+    import zipfile
+    with zipfile.ZipFile(f'test_data.zip', 'r') as zip_ref:
+        zip_ref.extractall()
 
 
 # def synthetic_bifurcation_dynamic_BC(data_des='bifur_conBC'):

@@ -1565,8 +1565,8 @@ def get_X_clone_with_reference_ordering(clone_data_cell_id,clone_data_barcode_id
     X_clone=np.zeros((len(reference_cell_id),len(reference_clone_id)))
     logg.info(f"Total number of barcode entries: {len(clone_data_cell_id)}")
     for j in range(len(clone_data_cell_id)):
-        if j%100000==0:
-            logg.info(f"Current barcode entry: {j}")
+        if j%100000==99999:
+            logg.hint(f"Current barcode entry: {j}")
         cell_id_1=np.nonzero(reference_cell_id==clone_data_cell_id[j])[0]
         clone_id_1=np.nonzero(reference_clone_id==clone_data_barcode_id[j])[0]
         #X_clone[cell_id_1,clone_id_1] += 1
