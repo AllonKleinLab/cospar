@@ -1,4 +1,4 @@
-|PyPI| |Docs|
+|PyPI| |PyPIDownloads| |Docs|
 
 CoSpar - dynamic inference by integrating state and lineage information
 =======================================================================
@@ -84,6 +84,8 @@ Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthed
 .. |PyPI| image:: https://img.shields.io/pypi/v/cospar.svg
    :target: https://pypi.org/project/cospar
 
+.. |PyPIDownloads| image:: https://pepy.tech/badge/cospar
+   :target: https://pepy.tech/project/cospar
 
 .. |Docs| image:: https://readthedocs.org/projects/cospar/badge/?version=latest
    :target: https://cospar.readthedocs.io
