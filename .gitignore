@@ -1,0 +1,12 @@
+build/
+dist/
+cospar.egg-info/
+docs/build/
+docs/source/cospar.*
+#cospar/help_functions/_additional_analysis.py
+.DS_Store
+*.pyc
+__pycache__
+.eggs/
+tests/data_derivative/
+tests/figure/

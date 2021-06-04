@@ -1454,8 +1454,15 @@ def check_available_choices(adata):
     clonal_time_points=adata.uns['clonal_time_points']
 
     print("Available transition maps:",available_map)
-    print("Available clusters:", list(set(adata.obs['state_info'])))
-    print("Available time points:", adata.uns['time_ordering'])
+
+    if 'state_info' in adata.obs.keys():
+        print("Available clusters:", list(set(adata.obs['state_info'])))
+    else:
+        print("No state_info yet")
+    if 'time_ordering' in adata.obs.keys():
+        print("Available time points:", adata.uns['time_ordering'])
+    else:
+        print("No time_ordering yet")
     print("Clonal time points:",clonal_time_points)
 
 

@@ -19,9 +19,9 @@ Initialization
 ''''''''''''''
 Given the gene expression matrix, clonal matrix, and other information, initialize the anndata object using::
     
-    adata = cs.pp.initialize_adata_object(adata=None,**params)
+    adata_orig = cs.pp.initialize_adata_object(adata=None,**params)
 
-The :class:`~anndata.AnnData` object adata stores the count matrix (``adata.X``), gene names (``adata.var_names``), and temporal annotation of cells (``adata.obs['time_info']``).  Optionally, you can also provide the clonal matrix ``X_clone``, selected PCA matrix ``X_pca``,  the embedding matrix ``X_emb``, and the state annotation ``state_info``, which will be stored at ``adata.obsm['X_clone']``,  ``adata.obsm['X_pca']``, ``adata.obsm['X_emb']``, and ``adata.obs['state_info']``, respectively.  
+The :class:`~anndata.AnnData` object ``adata_orig`` stores the count matrix (``adata_orig.X``), gene names (``adata_orig.var_names``), and temporal annotation of cells (``adata_orig.obs['time_info']``).  Optionally, you can also provide the clonal matrix ``X_clone``, selected PCA matrix ``X_pca``,  the embedding matrix ``X_emb``, and the state annotation ``state_info``, which will be stored at ``adata_orig.obsm['X_clone']``,  ``adata_orig.obsm['X_pca']``, ``adata_orig.obsm['X_emb']``, and ``adata_orig.obs['state_info']``, respectively.  
 
 If an adata object is provided as an input, the initialization function will try to automatically generate the correct data structure, and all annotations associated with the provided adata will remain intact. You can add new annotations to supplement or override existing annotations in the adata object. 
 
@@ -32,7 +32,7 @@ If an adata object is provided as an input, the initialization function will try
 
 If you do not have a dataset yet, you can still play around using one of the built-in datasets, e.g.::
     
-    adata = cs.datasets.hematopoiesis_subsampled()
+    adata_orig = cs.datasets.hematopoiesis_subsampled()
 
 
 
@@ -40,12 +40,12 @@ Preprocessing & dimension reduction
 '''''''''''''''''''''''''''''''''''
 Assuming basic quality control (excluding cells with low read count etc.) have been done, we provide basic preprocessing (gene selection and normalization) and dimension reduction related analysis (PCA, UMAP embedding etc.)  at ``cs.pp.*``::
     
-    cs.pp.get_highly_variable_genes(adata,**params)
-    cs.pp.remove_cell_cycle_correlated_genes(adata,**params)
-    cs.pp.get_X_pca(adata,**params)
-    cs.pp.get_X_emb(adata,**params)
-    cs.pp.get_state_info(adata,**params)
-    cs.pp.get_X_clone(adata,**params)
+    cs.pp.get_highly_variable_genes(adata_orig,**params)
+    cs.pp.remove_cell_cycle_correlated_genes(adata_orig,**params)
+    cs.pp.get_X_pca(adata_orig,**params)
+    cs.pp.get_X_emb(adata_orig,**params)
+    cs.pp.get_state_info(adata_orig,**params)
+    cs.pp.get_X_clone(adata_orig,**params)
 
 The first step ``get_highly_variable_genes`` also includes count matrix normalization. The second step, which is optional but recommended, removes cell cycle correlated genes among the selected highly variable genes. In ``get_X_pca``, we apply z-score transformation for each gene expression before computing the PCA. In ``get_X_emb``, we simply use the umap function from :mod:`~scanpy`. With ``get_state_info``, we extract state information using leiden clustering implemented in :mod:`~scanpy`. 
 In `get_X_clone`, we faciliate the conversion of the raw clonal data into a cell-by-clone matrix. As mentioned before, this preprocessing assumes that the count matrix is not log-transformed.
@@ -57,23 +57,23 @@ Basic clonal analysis
 ''''''''''''''''''''''
 We provide a few plotting functions to help visually exploring the clonal data before any downstream analysis. You can visualize clones on state manifold directly:: 
     
-    cs.pl.clones_on_manifold(adata,**params)
+    cs.pl.clones_on_manifold(adata_orig,**params)
 
 You can generate the barcode heatmap across given clusters to inspect clonal behavior::
     
-    cs.pl.barcode_heatmap(adata,**params)
+    cs.pl.barcode_heatmap(adata_orig,**params)
 
 You can quantify the clonal coupling across different fate clusters::
     
-    cs.pl.fate_coupling_from_clones(adata,**params)
+    cs.pl.fate_coupling_from_clones(adata_orig,**params)
 
 Strong coupling implies the existence of bi-potent or multi-potent cell states at the time of barcoding. You can visualize the fate hierarchy by a simple neighbor-joining method::
     
-    cs.pl.fate_hierarchy_from_clones(adata,**params)  
+    cs.pl.fate_hierarchy_from_clones(adata_orig,**params)  
 
 Finally, you can infer the fate bias :math:`-log_{10}(P_{value})` of each clone towards a designated fate cluster::
     
-    cs.pl.clonal_fate_bias(adata,**params)
+    cs.pl.clonal_fate_bias(adata_orig,**params)
 
 A biased clone towards this cluster has a statistically significant cell fraction within or outside this cluster.
 
@@ -93,25 +93,31 @@ It subsamples the input data at selected time points and computes the transition
 2) If ``later_time_point`` is specified, it generates a transition map between this time point and each of the earlier time points. In the previous example, if ``later_time_point=='day3'``, we infer transitions for pairs ('day1', 'day3') and ('day2', 'day3'). This applies to the following map inference functions. 
 
 
-
+-------------------------------------
 
 If the dataset has only one clonal time point, you can run::
 
-    cs.tmap.infer_Tmap_from_one_time_clones(adata_orig,initial_time_points=None, later_time_point=None,initialize_method='OT',**params)
+    adata=cs.tmap.infer_Tmap_from_one_time_clones(adata_orig,initial_time_points=None, later_time_point=None,initialize_method='OT',**params)
 
 which jointly optimizes the transition map and the initial clonal structure. It requires initializing the transition map using state information alone. We provide two methods for such initialization: 1) ``OT`` for using the standard optimal transport approach; 2) ``HighVar`` for a customized approach, assuming that cells similar in gene expression across time points share clonal origin. Depending on the choice,  the initialized map is stored at ``adata.uns['OT_transition_map']`` or  ``adata.uns['HighVar_transition_map']``. The final product is stored at ``adata.uns['transition_map']``.
 
 ``HighVar`` converts highly variable genes into pseudo multi-time clones and infers a putative map with coherent sparse optimization. We find the `HighVar` method performs better than the `OT` method, especially when there are large differentiation effects over the observed time window, or batch effects.  
 
+If ``initial_time_points`` and ``later_time_point`` are not specified, a map with transitions from all time points to the last time point is generated. 
+
+-------------------------------------
+
 If you do not have any clonal information, you can still run::
     
-    cs.tmap.infer_Tmap_from_state_info_alone(adata_orig,initial_time_points=None,later_time_point=None,initialize_method='OT',**params)
+    adata=cs.tmap.infer_Tmap_from_state_info_alone(adata_orig,initial_time_points=None,later_time_point=None,initialize_method='OT',**params)
 
 It is the same as ``cs.tmap.infer_Tmap_from_one_time_clones`` except that we assume a pseudo clonal data where each cell at the later time point occupies a unique clone. 
 
+-------------------------------------
+
 We also provide simple methods that infer transition map from clonal information alone::
 
-    cs.tmap.infer_Tmap_from_clonal_info_alone(adata,clonal_time_points=None,later_time_point=None,**params)
+    adata=cs.tmap.infer_Tmap_from_clonal_info_alone(adata_orig,clonal_time_points=None,later_time_point=None,**params)
 
 The result is stored at ``adata.uns['clonal_transition_map']``.
 
