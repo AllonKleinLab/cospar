@@ -2044,6 +2044,10 @@ def infer_Tmap_from_one_time_clones(adata_orig,initial_time_points=None,later_ti
         logg.error('No clonal time points available for this dataset. Please run cs.tmap.infer_Tmap_from_state_info_alone.')
         return None
 
+    if len(time_ordering)==1:
+        logg.error('There is only one time point. Tmap inference requires at least 2 time points. Inference aborted.')
+        return None
+
     # use the last clonal later time point
     if later_time_point is None:  
         sel_idx_temp=np.in1d(time_ordering,clonal_time_points_0)

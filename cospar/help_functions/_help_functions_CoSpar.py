@@ -1459,7 +1459,8 @@ def check_available_choices(adata):
         print("Available clusters:", list(set(adata.obs['state_info'])))
     else:
         print("No state_info yet")
-    if 'time_ordering' in adata.obs.keys():
+        
+    if 'time_ordering' in adata.uns.keys():
         print("Available time points:", adata.uns['time_ordering'])
     else:
         print("No time_ordering yet")
