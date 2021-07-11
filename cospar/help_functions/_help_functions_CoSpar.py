@@ -1111,7 +1111,7 @@ def compute_shortest_path_distance(
     The normalized distance matrix is returned.
     """
 
-    from scanpy.pp import neighbors
+    from scanpy.neighbors import neighbors
 
     if (not use_existing_KNN_graph) or ("connectivities" not in adata.obsp.keys()):
 
@@ -1186,7 +1186,7 @@ def add_neighboring_cells_to_a_map(initial_idx, adata, neighbor_N=5):
     #         output_idx=adata.uns['neighbors']['connectivities'][initial_idx].sum(0).A.flatten()>0
     #         initial_idx=initial_idx | output_idx
 
-    from scanpy.pp import neighbors
+    from scanpy.neighbors import neighbors
 
     neighbors(adata, n_neighbors=neighbor_N)  # ,method='gauss')
     output_idx = adata.obsp["connectivities"][initial_idx].sum(0).A.flatten() > 0

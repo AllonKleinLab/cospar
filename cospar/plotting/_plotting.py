@@ -589,9 +589,7 @@ def fate_map(
 
     Returns
     -------
-    adata.uns['fate_map']: `pd.DataFrame`
-        The fate map output is attached to the adata object as a dictionary
-        {cell_id, fate_probability}.
+    Fate map for each targeted fate cluster is updated at adata.obs[f'fate_map_{fate_name}']
     """
 
     hf.check_available_map(adata)
@@ -747,10 +745,10 @@ def fate_map(
                 )
 
             ## save data to adata
-            fate_map_dictionary = {"cell_id": cell_id_t1[sp_idx]}
             for j, fate in enumerate(mega_cluster_list):
-                fate_map_dictionary[fate] = fate_map[sp_idx, j]
-            adata.uns["fate_map"] = pd.DataFrame(fate_map_dictionary)
+                temp_map=np.zeros(adata.shape[0])+np.nan
+                temp_map[cell_id_t1]=fate_map[:, j]
+                adata.obs[f'fate_map_{fate}']=temp_map
 
 
 def fate_potency(
@@ -817,9 +815,7 @@ def fate_potency(
 
     Returns
     -------
-    adata.uns['fate_potency']: `pd.DataFrame`
-        The fate potency is attached to the adata object as a dictionary
-        {cell_id, fate_potency}.
+    Results stored at adata.obs['fate_potency']
     """
 
     hf.check_available_map(adata)
@@ -926,9 +922,9 @@ def fate_potency(
             )
 
             ## save data to adata
-            adata.uns["fate_potency"] = pd.DataFrame(
-                {"cell_id": cell_id_t1[sp_idx], "fate_potency": fate_entropy[sp_idx]}
-            )
+            temp_map=np.zeros(adata.shape[0])+np.nan
+            temp_map[cell_id_t1]=fate_entropy
+            adata.obs[f'fate_potency']=temp_map
 
 
 def fate_bias(
@@ -1003,9 +999,7 @@ def fate_bias(
 
     Returns
     -------
-    adata.uns['fate_bias']: `pd.DataFrame`
-        The fate bias is attached to the adata object as a dictionary
-        {cell_id, fate_bias}.
+    Results updated at adata.uns[f'fate_bias_{fate_1}_{fate_2}']
     """
 
     hf.check_available_map(adata)
@@ -1083,23 +1077,17 @@ def fate_bias(
                 fig = plt.figure(figsize=(fig_width, fig_height))
                 ax = plt.subplot(1, 1, 1)
 
-                potential_vector_temp = fate_map[sp_idx, :] + pseudo_count * np.max(
-                    fate_map[sp_idx, :]
+                potential_vector_temp = fate_map + pseudo_count * np.max(
+                    fate_map
                 )
-                valid_idx = (
-                    fate_map[sp_idx, :].sum(1) > sum_fate_prob_thresh
-                )  # default 0.5
+                valid_idx = sp_idx & (fate_map.sum(1) > sum_fate_prob_thresh)  # default 0.5
 
                 diff = potential_vector_temp[:, 0]  # -potential_vector_temp[:,1]
                 tot = potential_vector_temp.sum(1)
 
-                # valid_idx=tot>sum_fate_prob_thresh # default 0.5
                 vector_array = np.zeros(np.sum(valid_idx))
                 vector_array = diff[valid_idx] / (tot[valid_idx])
-                # vector_array=2*potential_vector_temp[valid_idx,8]/tot[valid_idx]-1
-                # vector_array=potential_vector_temp[:,8]/potential_vector_temp[:,9]
 
-                # customized_embedding(x_emb[cell_id_t1][sp_idx],y_emb[cell_id_t1][sp_idx],np.zeros(len(y_emb[cell_id_t1][sp_idx])),point_size=point_size,ax=ax)
                 if plot_target_state:
                     customized_embedding(
                         x_emb, y_emb, np.zeros(len(y_emb)), point_size=point_size, ax=ax
@@ -1134,12 +1122,11 @@ def fate_bias(
                         point_size=point_size,
                         ax=ax,
                     )
-                # customized_embedding(x_emb[cell_id_t2],y_emb[cell_id_t2],np.zeros(len(y_emb[cell_id_t2])),point_size=point_size,ax=ax)
 
                 new_idx = np.argsort(abs(vector_array - 0.5))
                 customized_embedding(
-                    x_emb[cell_id_t1_sp][valid_idx][new_idx],
-                    y_emb[cell_id_t1_sp][valid_idx][new_idx],
+                    x_emb[cell_id_t1][valid_idx][new_idx],
+                    y_emb[cell_id_t1][valid_idx][new_idx],
                     vector_array[new_idx],
                     vmax=1,
                     vmin=0,
@@ -1150,10 +1137,6 @@ def fate_bias(
                     order_points=False,
                 )
 
-                #         # remove un-wanted time points
-                #         if len(cell_id_t1[~sp_idx])>0:
-                #             customized_embedding(x_emb[cell_id_t1[~sp_idx]],y_emb[cell_id_t1[~sp_idx]],np.zeros(len(y_emb[cell_id_t1[~sp_idx]])),
-                #                         point_size=point_size,set_lim=False,ax=ax,color_map=plt.cm.bwr,order_points=False)
 
                 if color_bar:
                     Clb = fig.colorbar(
@@ -1168,18 +1151,11 @@ def fate_bias(
                     f"{figure_path}/{data_des}_fate_bias_BW{map_backward}{figure_index}.{settings.file_format_figs}"
                 )
 
-                # #adata.uns['fate_bias']=vector_array
-                # vector_array_fullSpace=np.zeros(len(x_emb))+0.5
-                # vector_array_fullSpace[cell_id_t1_sp[valid_idx]]=vector_array
-                # adata.uns['fate_bias']=[vector_array,vector_array_fullSpace]
 
                 ## save data to adata
-                adata.uns["fate_bias"] = pd.DataFrame(
-                    {
-                        "cell_id": cell_id_t1_sp[valid_idx][new_idx],
-                        "fate_bias": vector_array[new_idx],
-                    }
-                )
+                temp_map=np.zeros(adata.shape[0])+np.nan
+                temp_map[cell_id_t1[valid_idx]]=vector_array
+                adata.obs[f'fate_bias_{mega_cluster_list[0]}_{mega_cluster_list[1]}']=temp_map
 
                 if show_histogram:
                     xxx = vector_array
