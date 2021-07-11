@@ -29,8 +29,6 @@ import cospar
 logger = logging.getLogger(__name__)
 
 
-
-
 # -- General configuration ------------------------------------------------
 
 needs_sphinx = "1.7"

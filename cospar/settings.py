@@ -23,9 +23,9 @@ For example 'png', 'pdf' or 'svg'. Many other formats work as well (see
 `matplotlib.pyplot.savefig`).
 """
 
-fig_width=4
-fig_height=3.5
-fig_point_size=2
+fig_width = 4
+fig_height = 3.5
+fig_point_size = 2
 
 
 logfile = ""
@@ -38,8 +38,9 @@ logfile = ""
 from matplotlib import rcParams, cm, colors, cbook
 from cycler import cycler
 import warnings
-#from cospar import help_functions as hf
-#from . import help_functions as hf
+
+# from cospar import help_functions as hf
+# from . import help_functions as hf
 
 warnings.filterwarnings("ignore", category=cbook.mplDeprecation)
 
@@ -89,7 +90,7 @@ def set_rcParams_cospar(fontsize=12, color_map=None, frameon=None):
     rcParams["pdf.fonttype"] = 42
 
     # color cycle
-    #rcParams["axes.prop_cycle"] = cycler(color=vega_10)
+    # rcParams["axes.prop_cycle"] = cycler(color=vega_10)
 
     # axes
     rcParams["axes.linewidth"] = 0.8
@@ -113,6 +114,7 @@ def set_rcParams_cospar(fontsize=12, color_map=None, frameon=None):
     frameon = False if frameon is None else frameon
     global _frameon
     _frameon = frameon
+
 
 # def set_up_plotting(fontsize):
 #     """
@@ -208,26 +210,24 @@ def set_figure_params(
         rcParams["figure.figsize"] = figsize
         global fig_width
         global fig_height
-        fig_width=figsize[0]
-        fig_height=figsize[1]
+        fig_width = figsize[0]
+        fig_height = figsize[1]
     if dpi is not None:
         rcParams["figure.dpi"] = dpi
     if dpi_save is not None:
         rcParams["savefig.dpi"] = dpi_save
 
     global fig_point_size
-    fig_point_size=pointsize
+    fig_point_size = pointsize
 
     # hf.set_up_folders()
+
 
 def set_rcParams_defaults():
     """Reset `matplotlib.rcParams` to defaults."""
     from matplotlib import rcParamsDefault
 
     rcParams.update(rcParamsDefault)
-
-
-
 
 
 def _set_start_time():

@@ -65,7 +65,7 @@ Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthed
    installation
    getting_started
    20210121_cospar_tutorial_v2
-   20210601_Loading_data
+   20210601_loading_data
 
 .. toctree::
    :caption: Examples
@@ -75,7 +75,7 @@ Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthed
    20210121_all_hematopoietic_data_v3
    20210121_reprogramming_static_barcoding_v2
    20210121_lung_data_v2
-   20210120-Bifurcation_model_static_barcoding
+   20210120_bifurcation_model_static_barcoding
 
 
 

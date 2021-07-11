@@ -4,12 +4,12 @@ This module is borrowed from Waddington-OT
 https://github.com/broadinstitute/wot/blob/master/wot/ot/optimal_transport.py
 """
 
-#import logging # this is a buildin package from Python
+# import logging # this is a buildin package from Python
 
 import numpy as np
 from .. import logging as logg
 
-#logger = logging.getLogger('wot')
+# logger = logging.getLogger('wot')
 
 
 # def compute_transport_matrix(solver, **params):
@@ -52,10 +52,13 @@ def primal(C, K, R, dx, dy, p, q, a, b, epsilon, lambda1, lambda2):
     J = len(q)
     F1 = lambda x, y: fdiv(lambda1, x, p, y)
     F2 = lambda x, y: fdiv(lambda2, x, q, y)
-    with np.errstate(divide='ignore'):
-        return F1(np.dot(R, dy), dx) + F2(np.dot(R.T, dx), dy) \
-               + (epsilon * np.sum(R * np.nan_to_num(np.log(R)) - R + K) \
-                  + np.sum(R * C)) / (I * J)
+    with np.errstate(divide="ignore"):
+        return (
+            F1(np.dot(R, dy), dx)
+            + F2(np.dot(R.T, dx), dy)
+            + (epsilon * np.sum(R * np.nan_to_num(np.log(R)) - R + K) + np.sum(R * C))
+            / (I * J)
+        )
 
 
 def dual(C, K, R, dx, dy, p, q, a, b, epsilon, lambda1, lambda2):
@@ -63,14 +66,29 @@ def dual(C, K, R, dx, dy, p, q, a, b, epsilon, lambda1, lambda2):
     J = len(q)
     F1c = lambda u, v: fdivstar(lambda1, u, p, v)
     F2c = lambda u, v: fdivstar(lambda2, u, q, v)
-    return - F1c(- epsilon * np.log(a), dx) - F2c(- epsilon * np.log(b), dy) \
-           - epsilon * np.sum(R - K) / (I * J)
+    return (
+        -F1c(-epsilon * np.log(a), dx)
+        - F2c(-epsilon * np.log(b), dy)
+        - epsilon * np.sum(R - K) / (I * J)
+    )
 
 
 # end @ Lénaïc Chizat
 
-def optimal_transport_duality_gap(C, G, lambda1, lambda2, epsilon, batch_size, tolerance, tau,
-                                  epsilon0, max_iter, **ignored):
+
+def optimal_transport_duality_gap(
+    C,
+    G,
+    lambda1,
+    lambda2,
+    epsilon,
+    batch_size,
+    tolerance,
+    tau,
+    epsilon0,
+    max_iter,
+    **ignored
+):
     """
     Compute the optimal transport with stabilized numerics.
 
@@ -107,7 +125,7 @@ def optimal_transport_duality_gap(C, G, lambda1, lambda2, epsilon, batch_size, t
     """
     C = np.asarray(C, dtype=np.float64)
     epsilon_scalings = 5
-    scale_factor = np.exp(- np.log(epsilon) / epsilon_scalings)
+    scale_factor = np.exp(-np.log(epsilon) / epsilon_scalings)
 
     I, J = C.shape
     dx, dy = np.ones(I) / I, np.ones(J) / J
@@ -138,18 +156,24 @@ def optimal_transport_duality_gap(C, G, lambda1, lambda2, epsilon, batch_size, t
             for i in range(batch_size if e == epsilon_scalings else 5):
                 current_iter += 1
                 old_a, old_b = a, b
-                a = (p / (K.dot(np.multiply(b, dy)))) ** alpha1 * np.exp(-u / (lambda1 + epsilon_i))
-                b = (q / (K.T.dot(np.multiply(a, dx)))) ** alpha2 * np.exp(-v / (lambda2 + epsilon_i))
+                a = (p / (K.dot(np.multiply(b, dy)))) ** alpha1 * np.exp(
+                    -u / (lambda1 + epsilon_i)
+                )
+                b = (q / (K.T.dot(np.multiply(a, dx)))) ** alpha2 * np.exp(
+                    -v / (lambda2 + epsilon_i)
+                )
 
                 # stabilization
-                if (max(max(abs(a)), max(abs(b))) > tau):
+                if max(max(abs(a)), max(abs(b))) > tau:
                     u = u + epsilon_i * np.log(a)
                     v = v + epsilon_i * np.log(b)  # absorb
                     K = np.exp((np.array([u]).T - C + np.array([v])) / epsilon_i)
                     a, b = np.ones(I), np.ones(J)
 
                 if current_iter >= max_iter:
-                    logg.warn("Reached max_iter with duality gap still above threshold. Returning")
+                    logg.warn(
+                        "Reached max_iter with duality gap still above threshold. Returning"
+                    )
                     return (K.T * a).T * b
 
             # The real dual variables. a and b are only the stabilized variables
@@ -159,22 +183,40 @@ def optimal_transport_duality_gap(C, G, lambda1, lambda2, epsilon, batch_size, t
             # Skip duality gap computation for the first epsilon scalings, use dual variables evolution instead
             if e == epsilon_scalings:
                 R = (K.T * a).T * b
-                pri = primal(C, _K, R, dx, dy, p, q, _a, _b, epsilon_i, lambda1, lambda2)
+                pri = primal(
+                    C, _K, R, dx, dy, p, q, _a, _b, epsilon_i, lambda1, lambda2
+                )
                 dua = dual(C, _K, R, dx, dy, p, q, _a, _b, epsilon_i, lambda1, lambda2)
                 duality_gap = (pri - dua) / abs(pri)
             else:
                 duality_gap = max(
-                    np.linalg.norm(_a - old_a * np.exp(u / epsilon_i)) / (1 + np.linalg.norm(_a)),
-                    np.linalg.norm(_b - old_b * np.exp(v / epsilon_i)) / (1 + np.linalg.norm(_b)))
+                    np.linalg.norm(_a - old_a * np.exp(u / epsilon_i))
+                    / (1 + np.linalg.norm(_a)),
+                    np.linalg.norm(_b - old_b * np.exp(v / epsilon_i))
+                    / (1 + np.linalg.norm(_b)),
+                )
 
     if np.isnan(duality_gap):
-        #raise RuntimeError("Overflow encountered in duality gap computation, please report this incident")
-        logg.error("Overflow encountered in duality gap computation, please report this incident")
+        # raise RuntimeError("Overflow encountered in duality gap computation, please report this incident")
+        logg.error(
+            "Overflow encountered in duality gap computation, please report this incident"
+        )
     return R / C.shape[1]
 
 
-def transport_stablev2(C, lambda1, lambda2, epsilon, scaling_iter, G, tau, epsilon0, extra_iter, inner_iter_max,
-                       **ignored):
+def transport_stablev2(
+    C,
+    lambda1,
+    lambda2,
+    epsilon,
+    scaling_iter,
+    G,
+    tau,
+    epsilon0,
+    extra_iter,
+    inner_iter_max,
+    **ignored
+):
     """
     Compute the optimal transport with stabilized numerics.
     Args:
@@ -211,19 +253,23 @@ def transport_stablev2(C, lambda1, lambda2, epsilon, scaling_iter, G, tau, epsil
 
     for i in range(scaling_iter):
         # scaling iteration
-        a = (p / (K.dot(np.multiply(b, dy)))) ** alpha1 * np.exp(-u / (lambda1 + epsilon_i))
-        b = (q / (K.T.dot(np.multiply(a, dx)))) ** alpha2 * np.exp(-v / (lambda2 + epsilon_i))
+        a = (p / (K.dot(np.multiply(b, dy)))) ** alpha1 * np.exp(
+            -u / (lambda1 + epsilon_i)
+        )
+        b = (q / (K.T.dot(np.multiply(a, dx)))) ** alpha2 * np.exp(
+            -v / (lambda2 + epsilon_i)
+        )
 
         # stabilization
         iterations_since_epsilon_adjusted += 1
-        if (max(max(abs(a)), max(abs(b))) > tau):
+        if max(max(abs(a)), max(abs(b))) > tau:
             u = u + epsilon_i * np.log(a)
             v = v + epsilon_i * np.log(b)  # absorb
             K = np.exp((np.array([u]).T - C + np.array([v])) / epsilon_i)
             a = np.ones(len(p))
             b = np.ones(len(q))
 
-        if (warm_start and iterations_since_epsilon_adjusted == inner_iter_max):
+        if warm_start and iterations_since_epsilon_adjusted == inner_iter_max:
             epsilon_index += 1
             iterations_since_epsilon_adjusted = 0
             u = u + epsilon_i * np.log(a)
@@ -236,8 +282,12 @@ def transport_stablev2(C, lambda1, lambda2, epsilon, scaling_iter, G, tau, epsil
             b = np.ones(len(q))
 
     for i in range(extra_iter):
-        a = (p / (K.dot(np.multiply(b, dy)))) ** alpha1 * np.exp(-u / (lambda1 + epsilon_i))
-        b = (q / (K.T.dot(np.multiply(a, dx)))) ** alpha2 * np.exp(-v / (lambda2 + epsilon_i))
+        a = (p / (K.dot(np.multiply(b, dy)))) ** alpha1 * np.exp(
+            -u / (lambda1 + epsilon_i)
+        )
+        b = (q / (K.T.dot(np.multiply(a, dx)))) ** alpha2 * np.exp(
+            -v / (lambda2 + epsilon_i)
+        )
 
     R = (K.T * a).T * b
 
