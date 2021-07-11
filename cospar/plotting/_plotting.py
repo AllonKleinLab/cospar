@@ -1198,6 +1198,110 @@ def fate_bias(
                     )
 
 
+def plot_precomputed_fate_bias(
+    adata,
+    observable_name,
+    selected_time_points=None,
+    figure_index="",
+    mask=None,
+    vmax=1,
+    vmin=0,
+    background=False,
+    color_bar=True,
+):
+    """
+    Plot pre-computed fate bias stored as `obs` object with names `observable_name`
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+    observable_name: `str`
+        Names that match adata.obs.
+    selected_time_points: `list` (default: all time points)
+        A list of selected time points for making the comparison.
+    figure_index: `string` optional (default: '')
+        String index for annotate filename for saved figures. Used to distinuigh plots from different conditions.
+    show_groups: `bool`, optional (default: True)
+        Plot each group.
+    mask: `np.array`, optional (default: None)
+        A boolean array to define which cells are used for computing correlation.
+    vmax: `float`, optional (default: 1)
+        Maximum value to plot.
+    vmin: `float`, optional (default: 0)
+        Minimum value to plot.
+    back_ground: `bool`
+        True: also plot cells with neutral fate bias in grey color
+        False: only show cells with non-biased fates.
+    color_bar: `bool`
+        To show color bar or not
+    """
+
+    fig_width = settings.fig_width
+    fig_height = settings.fig_height
+    point_size = settings.fig_point_size
+    if color_bar:
+        fig_width = fig_width + 0.8
+
+    if observable_name not in adata.obs.keys():
+        logg.error("observable_name must be among adata.obs.keys()")
+        return None
+
+    time_info = np.array(adata.obs["time_info"])
+    data_des = adata.uns["data_des"][-1]
+
+    # select time points, and exclude cells with a neutral bias (0.5), as this value is white and cannot be seen any way
+    sp_idx_time = hf.selecting_cells_by_time_points(time_info, selected_time_points)
+    vector_temp_0 = np.array(adata.obs[observable_name])
+    sel_index = sp_idx_time & (vector_temp_0 != 0.5)
+    vector_temp = vector_temp_0[sel_index]
+
+    # rank the values (show values most different from 0.5 first)
+    new_idx = np.argsort(abs(vector_temp - 0.5))
+
+    X_emb = adata.obsm["X_emb"]
+    x_emb = X_emb[:, 0]
+    y_emb = X_emb[:, 1]
+
+    fig = plt.figure(figsize=(fig_width, fig_height))
+    ax = plt.subplot(1, 1, 1)
+
+    if background:  # also plot cells with neutral bias
+        if mask is not None:
+            sel_index_1 = mask & sp_idx_time
+        else:
+            sel_index_1 = sp_idx_time
+
+        customized_embedding(
+            x_emb[sel_index_1],
+            y_emb[sel_index_1],
+            np.ones(np.sum(sel_index_1)),
+            point_size=point_size,
+            set_lim=False,
+            ax=ax,
+            order_points=False,
+        )
+
+    # only plot cells without a neutral bias
+    customized_embedding(
+        x_emb[sel_index][new_idx],
+        y_emb[sel_index][new_idx],
+        vector_temp[new_idx],
+        point_size=point_size,
+        set_lim=False,
+        color_map=plt.cm.bwr,
+        ax=ax,
+        color_bar=color_bar,
+        color_bar_label="Fate bias",
+        title=observable_name,
+        order_points=False,
+        vmax=vmax,
+        vmin=vmin,
+    )
+    fig.savefig(
+        f"{settings.figure_path}/{data_des}_fate_bias_{observable_name}_{figure_index}.{settings.file_format_figs}"
+    )
+
+
 def fate_coupling_from_Tmap(
     adata,
     selected_fates=None,
