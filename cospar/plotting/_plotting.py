@@ -1153,7 +1153,8 @@ def fate_bias(
 
 
                 ## save data to adata
-                temp_map=np.zeros(adata.shape[0])+np.nan
+                #temp_map=np.zeros(adata.shape[0])+np.nan
+                temp_map=np.zeros(adata.shape[0])+0.5 # initialize to be neutral
                 temp_map[cell_id_t1[valid_idx]]=vector_array
                 adata.obs[f'fate_bias_{mega_cluster_list[0]}_{mega_cluster_list[1]}']=temp_map
 

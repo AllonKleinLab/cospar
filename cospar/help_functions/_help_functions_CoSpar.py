@@ -1406,7 +1406,7 @@ def smooth_a_vector(
     return smooth_vector
 
 
-def update_time_ordering(adata, updated_ordering=None):
+def update_time_ordering(adata, updated_ordering=None, mode='force'):
     """
     Update the ordering of time points at adata.uns['time_ordering']
 
@@ -1417,10 +1417,14 @@ def update_time_ordering(adata, updated_ordering=None):
         If not provided, sort the time variable directly.
         However, these time variables are string. Their sorting
         may not be correct.
+    mode: `str`
+        Options: {'force','auto'}. In the 'auto' mode, the algorithm only
+        update the ordering if 'time_ordering' has not been computed before.
+        The default method 'force' will always update the ordering. 
     """
 
+    time_info = list(set(adata.obs["time_info"]))
     if updated_ordering is not None:
-        time_info = list(set(adata.obs["time_info"]))
         N_match = np.sum(np.in1d(time_info, updated_ordering))
         if (len(updated_ordering) != N_match) or (
             len(updated_ordering) != len(time_info)
@@ -1431,12 +1435,37 @@ def update_time_ordering(adata, updated_ordering=None):
             logg.info(
                 f"Please provide an ordering of all time points in ascending order. Available time points are: {time_info}"
             )
+            return None
+
+    else:
+        updated_ordering = np.sort(time_info)
+        
+
+
+    if (mode=='auto'):
+        if ("time_ordering" in adata.uns.keys()):
+            time_ordering_0=adata.uns['time_ordering']
+            N_match = np.sum(np.in1d(time_info, time_ordering_0))
+            if (len(time_ordering_0) != N_match) or (
+                len(time_ordering_0) != len(time_info)
+            ):
+                logg.warn(
+                    "Pre-computed time_ordering does not include the right time points. Re-compute it!")
+                adata.uns["time_ordering"] = np.array(updated_ordering)
+                if updated_ordering is None:
+                    logg.info(f"Current time ordering from simple sorting: {updated_ordering}")
+            else:
+                # do not update
+                return None
         else:
             adata.uns["time_ordering"] = np.array(updated_ordering)
+            if updated_ordering is None:
+                logg.info(f"Current time ordering from simple sorting: {updated_ordering}")
     else:
-        time_ordering = np.sort(list(set(adata.obs["time_info"])))
-        logg.info(f"Current time ordering from simple sorting: {time_ordering}")
-        adata.uns["time_ordering"] = np.array(time_ordering)
+        # always update
+        adata.uns["time_ordering"] = np.array(updated_ordering)
+        if updated_ordering is None:
+            logg.info(f"Current time ordering from simple sorting: {updated_ordering}")
 
 
 def check_adata_structure(adata):
@@ -1593,8 +1622,7 @@ def check_available_clonal_info(adata):
     X_clone = adata.obsm["X_clone"]
     time_info = adata.obs["time_info"]
 
-    if "time_ordering" not in adata.uns.keys():
-        update_time_ordering(adata)
+    update_time_ordering(adata,mode='auto')
 
     # record time points with clonal information
     if ssp.issparse(X_clone):

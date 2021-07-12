@@ -2681,8 +2681,7 @@ def infer_Tmap_from_state_info_alone(
     if type(later_time_point) == list:
         later_time_point = later_time_point[0]
 
-    if "time_ordering" not in adata_orig.uns.keys():
-        hf.update_time_ordering(adata_orig)
+    hf.update_time_ordering(adata_orig,mode='auto')
     time_ordering = adata_orig.uns["time_ordering"]
 
     # use the last time point

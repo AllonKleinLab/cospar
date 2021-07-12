@@ -454,7 +454,7 @@ def assess_fate_prediction_by_correlation(
     correlation between expect_vector and predict_vector at selected time points.
     """
 
-    # Copy the vector to avoid change the original vector.
+    # Copy the vector to avoid changing the original vector.
     reference = expect_vector.copy()
     prediction = predict_vecotr.copy()
     data_des = adata.uns["data_des"][-1]
@@ -477,7 +477,7 @@ def assess_fate_prediction_by_correlation(
             logg.info(
                 "Remove neutral states in the reference before computing correlation."
             )
-            sel_index = (abs(reference - 0.5) > 0) & sp_idx_time
+            sel_index = (abs(reference - 0.5) > 0) & sp_idx_time & ~np.isnan(reference) & ~np.isnan(prediction)  
         else:
             sel_index = sp_idx_time
 
@@ -489,9 +489,10 @@ def assess_fate_prediction_by_correlation(
             reference_sp = reference[sel_index]
             prediction_sp = prediction[sel_index]
             corr = np.corrcoef(reference_sp, prediction_sp)[0, 1]
+            error=np.mean(abs(prediction_sp-reference_sp))
+            error=round(100*error)/100
             if np.isnan(corr):
                 logg.error("Correlation is NaN.")
-                return None
             else:
                 corr = round(100 * corr) / 100
 
@@ -593,7 +594,7 @@ def assess_fate_prediction_by_correlation(
                     ax.set_xlabel("Reference fate bias")
                     ax.set_ylabel("Predicted fate bias")
                     plt.tight_layout()
-                    ax.set_title(f"Corr={corr}, {figure_index}")
+                    ax.set_title(f"R={corr}, Error={error}  {figure_index}")
                     fig.savefig(
                         f"{settings.figure_path}/{data_des}_{figure_index}_reference_prediction_box.{settings.file_format_figs}"
                     )
@@ -605,12 +606,12 @@ def assess_fate_prediction_by_correlation(
                     ax.set_xlabel("Reference fate bias")
                     ax.set_ylabel("Predicted fate bias")
                     plt.tight_layout()
-                    ax.set_title(f"Corr={corr}, {figure_index}")
+                    ax.set_title(f"R={corr}, Error={error}  {figure_index}")
                     fig.savefig(
                         f"{settings.figure_path}/{data_des}_{figure_index}_reference_prediction_scatter.{settings.file_format_figs}"
                     )
 
-                return corr
+                return corr, error
 
 
 ####### plot heat maps for genes
