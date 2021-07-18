@@ -492,126 +492,127 @@ def assess_fate_prediction_by_correlation(
             error=np.mean(abs(prediction_sp-reference_sp))
             error=round(100*error)/100
             if np.isnan(corr):
-                logg.error("Correlation is NaN.")
+                #logg.error("Correlation is NaN.")
+                corr='NaN'
             else:
                 corr = round(100 * corr) / 100
 
-                if show_groups:
-                    X_emb = adata.obsm["X_emb"]
-                    x_emb = X_emb[:, 0]
-                    y_emb = X_emb[:, 1]
+            if show_groups:
+                X_emb = adata.obsm["X_emb"]
+                x_emb = X_emb[:, 0]
+                y_emb = X_emb[:, 1]
 
-                    fig = plt.figure(figsize=(fig_width, fig_height))
-                    ax = plt.subplot(1, 1, 1)
-                    vector_temp = reference_sp
-                    new_idx = np.argsort(abs(vector_temp - 0.5))
-                    if background:
+                fig = plt.figure(figsize=(fig_width, fig_height))
+                ax = plt.subplot(1, 1, 1)
+                vector_temp = reference_sp
+                new_idx = np.argsort(abs(vector_temp - 0.5))
+                if background:
 
-                        if mask is not None:
-                            sel_index_1 = mask & sp_idx_time
-                        else:
-                            sel_index_1 = sp_idx_time
-
-                        pl.customized_embedding(
-                            x_emb[sel_index_1],
-                            y_emb[sel_index_1],
-                            np.ones(np.sum(sel_index_1)),
-                            point_size=point_size,
-                            set_lim=False,
-                            ax=ax,
-                            order_points=False,
-                        )
+                    if mask is not None:
+                        sel_index_1 = mask & sp_idx_time
+                    else:
+                        sel_index_1 = sp_idx_time
 
                     pl.customized_embedding(
-                        x_emb[sel_index][new_idx],
-                        y_emb[sel_index][new_idx],
-                        vector_temp[new_idx],
+                        x_emb[sel_index_1],
+                        y_emb[sel_index_1],
+                        np.ones(np.sum(sel_index_1)),
                         point_size=point_size,
                         set_lim=False,
-                        color_map=plt.cm.bwr,
                         ax=ax,
-                        title="Reference",
                         order_points=False,
-                        vmax=vmax,
-                        vmin=vmin,
-                    )
-                    fig.savefig(
-                        f"{settings.figure_path}/{data_des}_{figure_index}_reference.{settings.file_format_figs}"
                     )
 
-                    fig = plt.figure(figsize=(fig_width, fig_height))
-                    ax = plt.subplot(1, 1, 1)
-                    vector_temp = prediction_sp
-                    new_idx = np.argsort(abs(vector_temp - 0.5))
-                    if background:
+                pl.customized_embedding(
+                    x_emb[sel_index][new_idx],
+                    y_emb[sel_index][new_idx],
+                    vector_temp[new_idx],
+                    point_size=point_size,
+                    set_lim=False,
+                    color_map=plt.cm.bwr,
+                    ax=ax,
+                    title="Reference",
+                    order_points=False,
+                    vmax=vmax,
+                    vmin=vmin,
+                )
+                fig.savefig(
+                    f"{settings.figure_path}/{data_des}_{figure_index}_reference.{settings.file_format_figs}"
+                )
 
-                        if mask is not None:
-                            sel_index_1 = mask & sp_idx_time
-                        else:
-                            sel_index_1 = sp_idx_time
+                fig = plt.figure(figsize=(fig_width, fig_height))
+                ax = plt.subplot(1, 1, 1)
+                vector_temp = prediction_sp
+                new_idx = np.argsort(abs(vector_temp - 0.5))
+                if background:
 
-                        pl.customized_embedding(
-                            x_emb[sel_index_1],
-                            y_emb[sel_index_1],
-                            np.ones(np.sum(sel_index_1)),
-                            point_size=point_size,
-                            set_lim=False,
-                            ax=ax,
-                            order_points=False,
-                        )
+                    if mask is not None:
+                        sel_index_1 = mask & sp_idx_time
+                    else:
+                        sel_index_1 = sp_idx_time
 
                     pl.customized_embedding(
-                        x_emb[sel_index][new_idx],
-                        y_emb[sel_index][new_idx],
-                        vector_temp[new_idx],
+                        x_emb[sel_index_1],
+                        y_emb[sel_index_1],
+                        np.ones(np.sum(sel_index_1)),
                         point_size=point_size,
                         set_lim=False,
-                        color_map=plt.cm.bwr,
                         ax=ax,
-                        title="Prediction",
                         order_points=False,
-                        vmax=vmax,
-                        vmin=vmin,
-                    )
-                    fig.savefig(
-                        f"{settings.figure_path}/{data_des}_{figure_index}_prediction.{settings.file_format_figs}"
                     )
 
-                if plot_style == "boxplot":
-                    reference_sp[reference_sp < 0.01] = 0
-                    reference_sp[reference_sp > 0.99] = 1
+                pl.customized_embedding(
+                    x_emb[sel_index][new_idx],
+                    y_emb[sel_index][new_idx],
+                    vector_temp[new_idx],
+                    point_size=point_size,
+                    set_lim=False,
+                    color_map=plt.cm.bwr,
+                    ax=ax,
+                    title="Prediction",
+                    order_points=False,
+                    vmax=vmax,
+                    vmin=vmin,
+                )
+                fig.savefig(
+                    f"{settings.figure_path}/{data_des}_{figure_index}_prediction.{settings.file_format_figs}"
+                )
 
-                    data_frame = pd.DataFrame(
-                        {"Ref": reference_sp, "Prediction": prediction_sp}
-                    )
-                    fig = plt.figure(figsize=(fig_width, fig_height))
-                    ax = plt.subplot(1, 1, 1)
-                    sns.violinplot(
-                        x="Ref", y="Prediction", data=data_frame, ax=ax, color="red"
-                    )
-                    sns.set(style="white")
-                    # ax.set_ylim([-0.5,20])
-                    ax.set_xlabel("Reference fate bias")
-                    ax.set_ylabel("Predicted fate bias")
-                    plt.tight_layout()
-                    ax.set_title(f"R={corr}, Error={error}  {figure_index}")
-                    fig.savefig(
-                        f"{settings.figure_path}/{data_des}_{figure_index}_reference_prediction_box.{settings.file_format_figs}"
-                    )
+            if plot_style == "boxplot":
+                reference_sp[reference_sp < 0.01] = 0
+                reference_sp[reference_sp > 0.99] = 1
 
-                if plot_style == "scatter":
-                    fig = plt.figure(figsize=(fig_width, fig_height))
-                    ax = plt.subplot(1, 1, 1)
-                    ax.plot(reference_sp, prediction_sp, "*r")
-                    ax.set_xlabel("Reference fate bias")
-                    ax.set_ylabel("Predicted fate bias")
-                    plt.tight_layout()
-                    ax.set_title(f"R={corr}, Error={error}  {figure_index}")
-                    fig.savefig(
-                        f"{settings.figure_path}/{data_des}_{figure_index}_reference_prediction_scatter.{settings.file_format_figs}"
-                    )
+                data_frame = pd.DataFrame(
+                    {"Ref": reference_sp, "Prediction": prediction_sp}
+                )
+                fig = plt.figure(figsize=(fig_width, fig_height))
+                ax = plt.subplot(1, 1, 1)
+                sns.violinplot(
+                    x="Ref", y="Prediction", data=data_frame, ax=ax, color="red"
+                )
+                sns.set(style="white")
+                # ax.set_ylim([-0.5,20])
+                ax.set_xlabel("Reference fate bias")
+                ax.set_ylabel("Predicted fate bias")
+                plt.tight_layout()
+                ax.set_title(f"R={corr}, Error={error}  {figure_index}")
+                fig.savefig(
+                    f"{settings.figure_path}/{data_des}_{figure_index}_reference_prediction_box.{settings.file_format_figs}"
+                )
 
-                return corr, error
+            if plot_style == "scatter":
+                fig = plt.figure(figsize=(fig_width, fig_height))
+                ax = plt.subplot(1, 1, 1)
+                ax.plot(reference_sp, prediction_sp, "*r")
+                ax.set_xlabel("Reference fate bias")
+                ax.set_ylabel("Predicted fate bias")
+                plt.tight_layout()
+                ax.set_title(f"R={corr}, Error={error}  {figure_index}")
+                fig.savefig(
+                    f"{settings.figure_path}/{data_des}_{figure_index}_reference_prediction_scatter.{settings.file_format_figs}"
+                )
+
+            return corr, error
 
 
 ####### plot heat maps for genes
