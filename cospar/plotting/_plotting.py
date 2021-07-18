@@ -942,6 +942,7 @@ def fate_bias(
     pseudo_count=0,
     target_transparency=0.2,
     figure_index="",
+    figure_title=None,
 ):
     """
     Plot fate bias to given two fate clusters (A, B).
@@ -996,6 +997,7 @@ def fate_bias(
         String index for annotate filename for saved figures. Used to distinuigh plots from different conditions.
     pseudo_count: `float`, optional (default: 0)
         Pseudo count to compute the fate bias. See above.
+    figure_title: `str`, optional (default: No title)
 
     Returns
     -------
@@ -1132,6 +1134,7 @@ def fate_bias(
                     vmin=0,
                     point_size=point_size,
                     set_lim=False,
+                    title=figure_title,
                     ax=ax,
                     color_map=plt.cm.bwr,
                     order_points=False,
@@ -1183,8 +1186,11 @@ def plot_precomputed_fate_bias(
     mask=None,
     vmax=1,
     vmin=0,
+    ax=None,
     background=False,
     color_bar=True,
+    color_bar_title=None,
+    figure_title=None,
 ):
     """
     Plot pre-computed fate bias stored as `obs` object with names `observable_name`
@@ -1211,6 +1217,15 @@ def plot_precomputed_fate_bias(
         False: only show cells with non-biased fates.
     color_bar: `bool`
         To show color bar or not
+    color_bar_title: `str`
+        Indicating what bias=1 means
+    figure_title: `str`
+        Figure title
+
+    Returns
+    -------
+    ax1:
+        The axis for the plot 
     """
 
     fig_width = settings.fig_width
@@ -1239,8 +1254,11 @@ def plot_precomputed_fate_bias(
     x_emb = X_emb[:, 0]
     y_emb = X_emb[:, 1]
 
-    fig = plt.figure(figsize=(fig_width, fig_height))
-    ax = plt.subplot(1, 1, 1)
+    if ax is None:
+        fig = plt.figure(figsize=(fig_width, fig_height))
+        ax1 = plt.subplot(1, 1, 1)
+    else:
+        ax1=ax
 
     if background:  # also plot cells with neutral bias
         if mask is not None:
@@ -1254,7 +1272,7 @@ def plot_precomputed_fate_bias(
             np.ones(np.sum(sel_index_1)),
             point_size=point_size,
             set_lim=False,
-            ax=ax,
+            ax=ax1,
             order_points=False,
         )
 
@@ -1266,18 +1284,28 @@ def plot_precomputed_fate_bias(
         point_size=point_size,
         set_lim=False,
         color_map=plt.cm.bwr,
-        ax=ax,
-        color_bar=color_bar,
-        color_bar_label="Fate bias",
-        title=observable_name,
+        ax=ax1,
+        title=figure_title,
         order_points=False,
         vmax=vmax,
         vmin=vmin,
     )
-    fig.savefig(
-        f"{settings.figure_path}/{data_des}_fate_bias_{observable_name}_{figure_index}.{settings.file_format_figs}"
-    )
 
+
+    if ax is None:
+        if color_bar:
+            Clb = fig.colorbar(
+                plt.cm.ScalarMappable(cmap=plt.cm.bwr),
+                ax=ax1,
+                label='Fate bias',
+            )
+            if color_bar_title is not None:
+                Clb.ax.set_title(f"{color_bar_title}")
+
+        fig.savefig(
+            f"{settings.figure_path}/{data_des}_fate_bias_{observable_name}_{figure_index}.{settings.file_format_figs}"
+        )
+    return ax1
 
 def fate_coupling_from_Tmap(
     adata,
