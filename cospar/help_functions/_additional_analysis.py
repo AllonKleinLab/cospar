@@ -488,6 +488,7 @@ def assess_fate_prediction_by_correlation(
 
             reference_sp = reference[sel_index]
             prediction_sp = prediction[sel_index]
+            df=pd.DataFrame({'Reference':reference,'Prediction':prediction,'sel_index':sel_index})
             corr = np.corrcoef(reference_sp, prediction_sp)[0, 1]
             error=np.mean(abs(prediction_sp-reference_sp))
             error=round(100*error)/100
