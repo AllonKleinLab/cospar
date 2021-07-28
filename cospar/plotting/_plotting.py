@@ -1004,6 +1004,7 @@ def fate_bias(
     Results updated at adata.uns[f'fate_bias_{fate_1}_{fate_2}']
     """
 
+    if figure_index=="" and figure_title is not None: figure_index=figure_title
     hf.check_available_map(adata)
     fig_width = settings.fig_width
     fig_height = settings.fig_height
@@ -1228,6 +1229,7 @@ def plot_precomputed_fate_bias(
         The axis for the plot 
     """
 
+    if figure_index=="" and figure_title is not None: figure_index=figure_title
     fig_width = settings.fig_width
     fig_height = settings.fig_height
     point_size = settings.fig_point_size
@@ -1244,7 +1246,11 @@ def plot_precomputed_fate_bias(
     # select time points, and exclude cells with a neutral bias (0.5), as this value is white and cannot be seen any way
     sp_idx_time = hf.selecting_cells_by_time_points(time_info, selected_time_points)
     vector_temp_0 = np.array(adata.obs[observable_name])
-    sel_index = sp_idx_time & (vector_temp_0 != 0.5)
+    if mask is not None:
+        mask=np.array(mask)
+        sel_index = mask & sp_idx_time & (vector_temp_0 != 0.5)
+    else:
+        sel_index = sp_idx_time & (vector_temp_0 != 0.5)
     vector_temp = vector_temp_0[sel_index]
 
     # rank the values (show values most different from 0.5 first)
