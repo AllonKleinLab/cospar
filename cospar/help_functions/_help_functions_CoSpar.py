@@ -1775,6 +1775,9 @@ def get_X_clone_with_reference_ordering(
     reference_clone_id: `list`
     """
 
+    clone_data_cell_id=list(clone_data_cell_id)
+    clone_data_barcode_id=list(clone_data_barcode_id)
+    reference_cell_id=np.array(reference_cell_id)       
     if reference_clone_id is None:
         reference_clone_id = list(set(clone_data_barcode_id))
 
