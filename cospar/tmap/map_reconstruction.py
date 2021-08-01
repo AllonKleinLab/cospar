@@ -1947,7 +1947,7 @@ def refine_Tmap_through_joint_optimization(
     adata,
     initialized_map,
     smooth_array=[15, 10, 5],
-    max_iter_N=[3, 5],
+    max_iter_N=[1,5],
     epsilon_converge=[0.05, 0.05],
     CoSpar_KNN=20,
     normalization_mode=1,
@@ -1991,7 +1991,7 @@ def refine_Tmap_through_joint_optimization(
         and a small final depth should be used. We recommend to use a number at
         the multiple of 5 for computational efficiency i.e.,
         smooth_array=[20, 15, 10, 5], or [20,15,10]
-    max_iter_N: `list`, optional (default: [3,5])
+    max_iter_N: `list`, optional (default: [1,5])
         A list for maximum iterations for the Joint optimization and CoSpar core function, respectively.
     epsilon_converge: `list`, optional (default: [0.05,0.05])
         A list of convergence threshold for the Joint optimization and CoSpar core function, respectively.
@@ -2305,7 +2305,7 @@ def infer_Tmap_from_one_time_clones(
     smooth_array=[15, 10, 5],
     trunca_threshold=[0.001, 0.01],
     compute_new=False,
-    max_iter_N=[3, 5],
+    max_iter_N=[1,5],
     epsilon_converge=[0.05, 0.05],
     use_fixed_clonesize_t1=False,
     sort_clone=1,
@@ -2388,7 +2388,7 @@ def infer_Tmap_from_one_time_clones(
         and a small final depth should be used. We recommend to use a number at
         the multiple of 5 for computational efficiency i.e.,
         smooth_array=[20, 15, 10, 5], or [20,15,10]
-    max_iter_N: `list`, optional (default: [3,5])
+    max_iter_N: `list`, optional (default: [1,5])
         A list for maximum iterations for the Joint optimization and CoSpar core function, respectively.
     epsilon_converge: `list`, optional (default: [0.05,0.05])
         A list of convergence threshold for the Joint optimization and CoSpar core function, respectively.
@@ -2647,7 +2647,7 @@ def infer_Tmap_from_state_info_alone(
     smooth_array=[15, 10, 5],
     trunca_threshold=[0.001, 0.01],
     compute_new=False,
-    max_iter_N=[3, 5],
+    max_iter_N=[1,5],
     epsilon_converge=[0.05, 0.05],
     use_fixed_clonesize_t1=False,
     sort_clone=1,
@@ -2767,7 +2767,7 @@ def infer_Tmap_from_one_time_clones_twoTime(
     CoSpar_KNN=20,
     use_full_Smatrix=True,
     smooth_array=[15, 10, 5],
-    max_iter_N=[3, 5],
+    max_iter_N=[1,5],
     epsilon_converge=[0.05, 0.05],
     trunca_threshold=[0.001, 0.01],
     compute_new=True,
