@@ -105,6 +105,12 @@ def generate_similarity_matrix(
         similarity_matrix = ssp.lil_matrix((nrow, nrow))
         similarity_matrix.setdiag(np.ones(nrow))
         transpose_A = adjacency_matrix.T
+
+        if round_of_smooth == 0:
+            SM = 0
+            similarity_matrix = ssp.csr_matrix(similarity_matrix)
+            ssp.save_npz(file_name + f"_SM{SM}.npz", similarity_matrix)
+
         for iRound in range(round_of_smooth):
             SM = iRound + 1
 
@@ -240,7 +246,7 @@ def select_time_points(
     time_point: `list` optional (default: ['day_1','day_2'])
         Require at least two time points, arranged in ascending order.
     extend_Tmap_space: `bool` optional (default: `False`)
-        If true, the initial states for Tmap will include all states at initial time points, 
+        If true, the initial states for Tmap will include all states at initial time points,
         and the later states for Tmap will include all states at later time points.
         Otherwise, the initial and later state
         space of the Tmap will be restricted to cells with multi-time clonal information
@@ -389,13 +395,6 @@ def select_time_points(
         clone_annot = clone_annot_orig[sp_idx][:, barcode_id]
 
         adata = adata_orig[sp_idx]
-        # adata=sc.AnnData(adata_orig.X[sp_idx]);
-        # adata.var_names=adata_orig.var_names
-        # adata.obsm['X_pca']=adata_orig.obsm['X_pca'][sp_idx]
-        # adata.obsm['X_emb']=adata_orig.obsm['X_emb'][sp_idx]
-        # adata.obs['state_info']=pd.Categorical(adata_orig.obs['state_info'][sp_idx])
-        # adata.obs['time_info']=pd.Categorical(adata_orig.obs['time_info'][sp_idx])
-
         adata.obsm["X_clone"] = clone_annot
         adata.uns["clonal_cell_id_t1"] = clonal_cell_id_t1
         adata.uns["clonal_cell_id_t2"] = clonal_cell_id_t2
@@ -425,6 +424,8 @@ def select_time_points(
             y_emb = adata.obsm["X_emb"][:, 1]
             pl.customized_embedding(x_emb, y_emb, -x_emb)
 
+        logg.hint(f"clonal_cell_id_t1: {len(clonal_cell_id_t1)}")
+        logg.hint(f"Tmap_cell_id_t1: {len(Tmap_cell_id_t1)}")
         return adata
 
 
@@ -796,9 +797,9 @@ def infer_Tmap_from_multitime_clones(
         normalization suppresses the contribution of large
         clones, and is much more robust.
     extend_Tmap_space: `bool` optional (default: `False`)
-        If true, the initial states for Tmap will include all states at initial time points, 
+        If true, the initial states for Tmap will include all states at initial time points,
         and the later states for Tmap will include all states at later time points.
-        Otherwise, the initial and later state space of the Tmap will be 
+        Otherwise, the initial and later state space of the Tmap will be
         restricted to cells with multi-time clonal information
         alone. The latter case speeds up the computation, which is recommended.
         This option is ignored when `later_time_points` is not None.
@@ -1947,7 +1948,7 @@ def refine_Tmap_through_joint_optimization(
     adata,
     initialized_map,
     smooth_array=[15, 10, 5],
-    max_iter_N=[1,5],
+    max_iter_N=[1, 5],
     epsilon_converge=[0.05, 0.05],
     CoSpar_KNN=20,
     normalization_mode=1,
@@ -2305,7 +2306,7 @@ def infer_Tmap_from_one_time_clones(
     smooth_array=[15, 10, 5],
     trunca_threshold=[0.001, 0.01],
     compute_new=False,
-    max_iter_N=[1,5],
+    max_iter_N=[1, 5],
     epsilon_converge=[0.05, 0.05],
     use_fixed_clonesize_t1=False,
     sort_clone=1,
@@ -2647,7 +2648,7 @@ def infer_Tmap_from_state_info_alone(
     smooth_array=[15, 10, 5],
     trunca_threshold=[0.001, 0.01],
     compute_new=False,
-    max_iter_N=[1,5],
+    max_iter_N=[1, 5],
     epsilon_converge=[0.05, 0.05],
     use_fixed_clonesize_t1=False,
     sort_clone=1,
@@ -2663,7 +2664,7 @@ def infer_Tmap_from_state_info_alone(
     Returns
     -------
     adata will include both the inferred transition map, and also the updated X_clone matrix.
-    The input, adata_orig, will maintain the original X_clone matrix. 
+    The input, adata_orig, will maintain the original X_clone matrix.
     """
 
     ##--------------- check input parameters
@@ -2676,7 +2677,7 @@ def infer_Tmap_from_state_info_alone(
     if type(later_time_point) == list:
         later_time_point = later_time_point[0]
 
-    hf.update_time_ordering(adata_orig,mode='auto')
+    hf.update_time_ordering(adata_orig, mode="auto")
     time_ordering = adata_orig.uns["time_ordering"]
 
     # use the last time point
@@ -2704,7 +2705,6 @@ def infer_Tmap_from_state_info_alone(
     X_clone = np.diag(np.ones(adata_orig.shape[0]))
     adata_orig.obsm["X_clone"] = ssp.csr_matrix(X_clone)
 
-
     logg.info("Step II: Perform joint optimization-----")
     adata = infer_Tmap_from_one_time_clones(
         adata_orig,
@@ -2730,8 +2730,7 @@ def infer_Tmap_from_state_info_alone(
         use_existing_KNN_graph=use_existing_KNN_graph,
     )
 
-
-    # only restore the original X_clone information to adata_orig. 
+    # only restore the original X_clone information to adata_orig.
     # adata will carry the new structure
     adata_orig.obsm["X_clone"] = X_clone_0
 
@@ -2767,7 +2766,7 @@ def infer_Tmap_from_one_time_clones_twoTime(
     CoSpar_KNN=20,
     use_full_Smatrix=True,
     smooth_array=[15, 10, 5],
-    max_iter_N=[1,5],
+    max_iter_N=[1, 5],
     epsilon_converge=[0.05, 0.05],
     trunca_threshold=[0.001, 0.01],
     compute_new=True,

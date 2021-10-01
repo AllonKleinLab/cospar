@@ -746,9 +746,9 @@ def fate_map(
 
             ## save data to adata
             for j, fate in enumerate(mega_cluster_list):
-                temp_map=np.zeros(adata.shape[0])+np.nan
-                temp_map[cell_id_t1]=fate_map[:, j]
-                adata.obs[f'fate_map_{fate}']=temp_map
+                temp_map = np.zeros(adata.shape[0]) + np.nan
+                temp_map[cell_id_t1] = fate_map[:, j]
+                adata.obs[f"fate_map_{fate}"] = temp_map
 
 
 def fate_potency(
@@ -922,9 +922,9 @@ def fate_potency(
             )
 
             ## save data to adata
-            temp_map=np.zeros(adata.shape[0])+np.nan
-            temp_map[cell_id_t1]=fate_entropy
-            adata.obs[f'fate_potency']=temp_map
+            temp_map = np.zeros(adata.shape[0]) + np.nan
+            temp_map[cell_id_t1] = fate_entropy
+            adata.obs[f"fate_potency"] = temp_map
 
 
 def fate_bias(
@@ -1004,7 +1004,8 @@ def fate_bias(
     Results updated at adata.uns[f'fate_bias_{fate_1}_{fate_2}']
     """
 
-    if figure_index=="" and figure_title is not None: figure_index=figure_title
+    if figure_index == "" and figure_title is not None:
+        figure_index = figure_title
     hf.check_available_map(adata)
     fig_width = settings.fig_width
     fig_height = settings.fig_height
@@ -1080,10 +1081,10 @@ def fate_bias(
                 fig = plt.figure(figsize=(fig_width, fig_height))
                 ax = plt.subplot(1, 1, 1)
 
-                potential_vector_temp = fate_map + pseudo_count * np.max(
-                    fate_map
-                )
-                valid_idx = sp_idx & (fate_map.sum(1) > sum_fate_prob_thresh)  # default 0.5
+                potential_vector_temp = fate_map + pseudo_count * np.max(fate_map)
+                valid_idx = sp_idx & (
+                    fate_map.sum(1) > sum_fate_prob_thresh
+                )  # default 0.5
 
                 diff = potential_vector_temp[:, 0]  # -potential_vector_temp[:,1]
                 tot = potential_vector_temp.sum(1)
@@ -1141,7 +1142,6 @@ def fate_bias(
                     order_points=False,
                 )
 
-
                 if color_bar:
                     Clb = fig.colorbar(
                         plt.cm.ScalarMappable(cmap=plt.cm.bwr),
@@ -1155,12 +1155,13 @@ def fate_bias(
                     f"{figure_path}/{data_des}_fate_bias_BW{map_backward}{figure_index}.{settings.file_format_figs}"
                 )
 
-
                 ## save data to adata
-                #temp_map=np.zeros(adata.shape[0])+np.nan
-                temp_map=np.zeros(adata.shape[0])+0.5 # initialize to be neutral
-                temp_map[cell_id_t1[valid_idx]]=vector_array
-                adata.obs[f'fate_bias_{mega_cluster_list[0]}_{mega_cluster_list[1]}']=temp_map
+                # temp_map=np.zeros(adata.shape[0])+np.nan
+                temp_map = np.zeros(adata.shape[0]) + 0.5  # initialize to be neutral
+                temp_map[cell_id_t1[valid_idx]] = vector_array
+                adata.obs[
+                    f"fate_bias_{mega_cluster_list[0]}_{mega_cluster_list[1]}"
+                ] = temp_map
 
                 if show_histogram:
                     xxx = vector_array
@@ -1226,10 +1227,11 @@ def plot_precomputed_fate_bias(
     Returns
     -------
     ax1:
-        The axis for the plot 
+        The axis for the plot
     """
 
-    if figure_index=="" and figure_title is not None: figure_index=figure_title
+    if figure_index == "" and figure_title is not None:
+        figure_index = figure_title
     fig_width = settings.fig_width
     fig_height = settings.fig_height
     point_size = settings.fig_point_size
@@ -1247,7 +1249,7 @@ def plot_precomputed_fate_bias(
     sp_idx_time = hf.selecting_cells_by_time_points(time_info, selected_time_points)
     vector_temp_0 = np.array(adata.obs[observable_name])
     if mask is not None:
-        mask=np.array(mask)
+        mask = np.array(mask)
         sel_index = mask & sp_idx_time & (vector_temp_0 != 0.5)
     else:
         sel_index = sp_idx_time & (vector_temp_0 != 0.5)
@@ -1264,7 +1266,7 @@ def plot_precomputed_fate_bias(
         fig = plt.figure(figsize=(fig_width, fig_height))
         ax1 = plt.subplot(1, 1, 1)
     else:
-        ax1=ax
+        ax1 = ax
 
     if background:  # also plot cells with neutral bias
         if mask is not None:
@@ -1297,13 +1299,12 @@ def plot_precomputed_fate_bias(
         vmin=vmin,
     )
 
-
     if ax is None:
         if color_bar:
             Clb = fig.colorbar(
                 plt.cm.ScalarMappable(cmap=plt.cm.bwr),
                 ax=ax1,
-                label='Fate bias',
+                label="Fate bias",
             )
             if color_bar_title is not None:
                 Clb.ax.set_title(f"{color_bar_title}")
@@ -1312,6 +1313,7 @@ def plot_precomputed_fate_bias(
             f"{settings.figure_path}/{data_des}_fate_bias_{observable_name}_{figure_index}.{settings.file_format_figs}"
         )
     return ax1
+
 
 def fate_coupling_from_Tmap(
     adata,

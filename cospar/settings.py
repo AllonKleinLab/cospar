@@ -47,6 +47,7 @@ warnings.filterwarnings("ignore", category=cbook.mplDeprecation)
 
 def set_rcParams_cospar(fontsize=12, color_map=None, frameon=None):
     """Set matplotlib.rcParams to scvelo defaults."""
+    # check here if you want to customize it: https://matplotlib.org/stable/tutorials/introductory/customizing.html
 
     # dpi options (mpl default: 100, 100)
     rcParams["figure.dpi"] = 100
@@ -109,6 +110,10 @@ def set_rcParams_cospar(fontsize=12, color_map=None, frameon=None):
 
     # color map
     rcParams["image.cmap"] = "Reds" if color_map is None else color_map
+
+    # spines
+    rcParams["axes.spines.right"] = False
+    rcParams["axes.spines.top"] = False
 
     # frame (mpl default: True)
     frameon = False if frameon is None else frameon

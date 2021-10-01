@@ -477,7 +477,12 @@ def assess_fate_prediction_by_correlation(
             logg.info(
                 "Remove neutral states in the reference before computing correlation."
             )
-            sel_index = (abs(reference - 0.5) > 0) & sp_idx_time & ~np.isnan(reference) & ~np.isnan(prediction)  
+            sel_index = (
+                (abs(reference - 0.5) > 0)
+                & sp_idx_time
+                & ~np.isnan(reference)
+                & ~np.isnan(prediction)
+            )
         else:
             sel_index = sp_idx_time
 
@@ -488,13 +493,13 @@ def assess_fate_prediction_by_correlation(
 
             reference_sp = reference[sel_index]
             prediction_sp = prediction[sel_index]
-            df=pd.DataFrame({'Reference':reference,'Prediction':prediction,'sel_index':sel_index})
+            # df=pd.DataFrame({'Reference':reference,'Prediction':prediction,'sel_index':sel_index})
             corr = np.corrcoef(reference_sp, prediction_sp)[0, 1]
-            error=np.mean(abs(prediction_sp-reference_sp))
-            error=round(100*error)/100
+            error = np.mean(abs(prediction_sp - reference_sp))
+            error = round(100 * error) / 100
             if np.isnan(corr):
-                #logg.error("Correlation is NaN.")
-                corr='NaN'
+                # logg.error("Correlation is NaN.")
+                corr = "NaN"
             else:
                 corr = round(100 * corr) / 100
 
@@ -908,3 +913,35 @@ def gene_expression_heat_map(
 #         color_bar=color_bar,vmin=vmin,vmax=vmax)
 
 #     return gene_expression_matrix
+
+
+def ML_learn_fate_bias(
+    adata_train,
+    adata_test,
+    train_obs_name,
+    thresh_low=0.4,
+    thresh_high=0.6,
+    test_obs_name="ML_predicted_bias",
+):
+    from sklearn.neural_network import MLPClassifier
+
+    train_fate_bias = adata_train.obs[train_obs_name]
+    final_fate_train = np.zeros(len(train_fate_bias), dtype=int)
+
+    ## convert it to discrete label
+    final_fate_train[train_fate_bias < thresh_low] = 0
+    final_fate_train[
+        (train_fate_bias >= thresh_low) & (train_fate_bias <= thresh_high)
+    ] = 1
+    final_fate_train[train_fate_bias > thresh_high] = 2
+
+    final_coord_train = adata_train.obsm["X_pca"]
+    t = time.time()
+    clf = MLPClassifier(random_state=1, max_iter=300, alpha=0.1).fit(
+        final_coord_train, final_fate_train
+    )
+
+    final_coord_test = adata_test.obsm["X_pca"]
+    pred_test = clf.predict(final_coord_test)
+    adata_test.obs[test_obs_name] = pred_test / 2
+    pl.plot_precomputed_fate_bias(adata_test, test_obs_name)

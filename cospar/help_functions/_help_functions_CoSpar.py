@@ -1406,7 +1406,7 @@ def smooth_a_vector(
     return smooth_vector
 
 
-def update_time_ordering(adata, updated_ordering=None, mode='force'):
+def update_time_ordering(adata, updated_ordering=None, mode="force"):
     """
     Update the ordering of time points at adata.uns['time_ordering']
 
@@ -1420,7 +1420,7 @@ def update_time_ordering(adata, updated_ordering=None, mode='force'):
     mode: `str`
         Options: {'force','auto'}. In the 'auto' mode, the algorithm only
         update the ordering if 'time_ordering' has not been computed before.
-        The default method 'force' will always update the ordering. 
+        The default method 'force' will always update the ordering.
     """
 
     time_info = list(set(adata.obs["time_info"]))
@@ -1439,28 +1439,31 @@ def update_time_ordering(adata, updated_ordering=None, mode='force'):
 
     else:
         updated_ordering = np.sort(time_info)
-        
 
-
-    if (mode=='auto'):
-        if ("time_ordering" in adata.uns.keys()):
-            time_ordering_0=adata.uns['time_ordering']
+    if mode == "auto":
+        if "time_ordering" in adata.uns.keys():
+            time_ordering_0 = adata.uns["time_ordering"]
             N_match = np.sum(np.in1d(time_info, time_ordering_0))
             if (len(time_ordering_0) != N_match) or (
                 len(time_ordering_0) != len(time_info)
             ):
                 logg.warn(
-                    "Pre-computed time_ordering does not include the right time points. Re-compute it!")
+                    "Pre-computed time_ordering does not include the right time points. Re-compute it!"
+                )
                 adata.uns["time_ordering"] = np.array(updated_ordering)
                 if updated_ordering is None:
-                    logg.info(f"Current time ordering from simple sorting: {updated_ordering}")
+                    logg.info(
+                        f"Current time ordering from simple sorting: {updated_ordering}"
+                    )
             else:
                 # do not update
                 return None
         else:
             adata.uns["time_ordering"] = np.array(updated_ordering)
             if updated_ordering is None:
-                logg.info(f"Current time ordering from simple sorting: {updated_ordering}")
+                logg.info(
+                    f"Current time ordering from simple sorting: {updated_ordering}"
+                )
     else:
         # always update
         adata.uns["time_ordering"] = np.array(updated_ordering)
@@ -1622,7 +1625,7 @@ def check_available_clonal_info(adata):
     X_clone = adata.obsm["X_clone"]
     time_info = adata.obs["time_info"]
 
-    update_time_ordering(adata,mode='auto')
+    update_time_ordering(adata, mode="auto")
 
     # record time points with clonal information
     if ssp.issparse(X_clone):
@@ -1719,12 +1722,25 @@ def compute_gene_exp_distance(adata, p0_indices, p1_indices, pc_n=30):
     return gene_exp_dis_t0t1
 
 
-def update_data_description(adata, data_des="cospar"):
+def update_data_description(adata, append_info=None, data_des=None):
     """
     Update data_des, a string to distinguish different datasets
     """
 
-    adata.uns["data_des"] = [data_des]
+    if "data_des" not in adata.uns.keys():
+        if data_des is None:
+            logg.warn("data_des not set. Set to be [cospar]")
+            adata.uns["data_des"] = ["cospar"]
+        else:
+            adata.uns["data_des"] = [data_des]
+    else:
+        if data_des is not None:
+            adata.uns["data_des"][-1] = data_des
+
+    if append_info is not None:
+        data_des_0 = adata.uns["data_des"][-1]
+        data_des_1 = f"{data_des_0}_{append_info}"
+        adata.uns["data_des"][-1] = data_des_1
 
 
 def set_up_folders(data_path_new=None, figure_path_new=None):
@@ -1775,9 +1791,9 @@ def get_X_clone_with_reference_ordering(
     reference_clone_id: `list`
     """
 
-    clone_data_cell_id=list(clone_data_cell_id)
-    clone_data_barcode_id=list(clone_data_barcode_id)
-    reference_cell_id=np.array(reference_cell_id)       
+    clone_data_cell_id = list(clone_data_cell_id)
+    clone_data_barcode_id = list(clone_data_barcode_id)
+    reference_cell_id = np.array(reference_cell_id)
     if reference_clone_id is None:
         reference_clone_id = list(set(clone_data_barcode_id))
 
