@@ -1829,12 +1829,21 @@ def infer_Tmap_from_optimal_transport(
 
         ##################
         logg.info("Compute new custom OT matrix")
-
         t = time.time()
-        mu1 = np.ones(len(cell_id_array_t1))
-        nu1 = np.ones(len(cell_id_array_t2))
-        input_mu = mu1  # initial distribution
-        input_nu = nu1  # final distribution
+
+        if 'cell_growth_rate' not in adata.obs.keys():
+            logg.info('Use uniform growth rate')
+            adata.obs["cell_growth_rate"] = np.ones(len(time_info))
+        else:
+            logg.info('Use pre-supplied cell_grwoth_rate')
+            x0=np.mean(adata.obs["cell_growth_rate"])
+            y0=np.std(adata.obs["cell_growth_rate"])
+            print(f"Use pre-supplied cell_grwoth_rate (mean: {x0:.2f}; std {y0:.2f})")
+
+        # mu1 = np.ones(len(cell_id_array_t1))
+        # nu1 = np.ones(len(cell_id_array_t2))
+        # input_mu = mu1  # initial distribution
+        # input_nu = nu1  # final distribution
 
         ######### We have tested that it is at least 3 times slower than WOT's built-in method,
         #### although the results are the same
@@ -1850,7 +1859,7 @@ def infer_Tmap_from_optimal_transport(
         ):  # This takes 50s for the subsampled hematopoietic data. The result is the same.
             ot_config = {
                 "C": OT_cost_matrix,
-                "G": mu1,
+                "G": np.array(adata.obs["cell_growth_rate"])[cell_id_array_t1],
                 "epsilon": OT_epsilon,
                 "lambda1": 1,
                 "lambda2": 50,
@@ -1868,7 +1877,7 @@ def infer_Tmap_from_optimal_transport(
         ):  # This takes 30s for the subsampled hematopoietic data. The result is the same.
             ot_config = {
                 "C": OT_cost_matrix,
-                "G": mu1,
+                "G": np.array(adata.obs["cell_growth_rate"])[cell_id_array_t1],
                 "epsilon": OT_epsilon,
                 "lambda1": 1,
                 "lambda2": 50,
@@ -1889,7 +1898,7 @@ def infer_Tmap_from_optimal_transport(
         )
         if not ssp.issparse(OT_transition_map):
             OT_transition_map = ssp.csr_matrix(OT_transition_map)
-        ssp.save_npz(CustomOT_file_name, OT_transition_map)
+        #ssp.save_npz(CustomOT_file_name, OT_transition_map)
 
         logg.info(
             f"Finishing computing optial transport map, used time {time.time()-t}"
@@ -1906,14 +1915,21 @@ def infer_Tmap_from_optimal_transport(
 def infer_Tmap_from_optimal_transport_v0(
     adata,
     OT_epsilon=0.02,
-    OT_dis_KNN=5,
-    OT_solver="duality_gap",
-    OT_cost="SPD",
-    compute_new=True,
-    use_existing_KNN_graph=False,
+    OT_dis_KNN=None,
+    OT_solver=None,
+    OT_cost=None,
+    compute_new=None,
+    use_existing_KNN_graph=None,
 ):
     """
     Test WOT
+
+    In order to use non-uniform cell_grwoth_rate, 
+    we implicitly assume that you should pass a variable
+    to adata at .obs['cell_growth_rate']
+
+    Also note that only the variable `adata`, `OT_epsilon`, and .obs['cell_growth_rate']
+    affects the result.
 
     Returns
     -------
@@ -1933,7 +1949,15 @@ def infer_Tmap_from_optimal_transport_v0(
     time_info[cell_id_array_t1] = 1
     time_info[cell_id_array_t2] = 2
     adata.obs["day"] = time_info
-    adata.obs["cell_growth_rate"] = np.ones(len(time_info))
+
+    if 'cell_growth_rate' not in adata.obs.keys():
+        print('Use uniform growth rate')
+        adata.obs["cell_growth_rate"] = np.ones(len(time_info))
+    else:
+        x0=np.mean(adata.obs["cell_growth_rate"])
+        y0=np.std(adata.obs["cell_growth_rate"])
+        print(f"Use pre-supplied cell_grwoth_rate (mean: {x0:.2f}; std {y0:.2f})")
+
     ot_model = wot.ot.OTModel(adata, epsilon=OT_epsilon, lambda1=1, lambda2=50)
     OT_transition_map = ot_model.compute_transport_map(1, 2).X
 

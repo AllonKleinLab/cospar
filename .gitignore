@@ -5,7 +5,7 @@ docs/build/
 docs/source/cospar.*
 #cospar/help_functions/_additional_analysis.py
 .DS_Store
-*.pyc
+*.py[cod]
 __pycache__
 .eggs/
 tests/data_derivative/
