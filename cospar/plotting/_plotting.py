@@ -13,6 +13,7 @@ from .. import settings
 from .. import logging as logg
 import statsmodels.sandbox.stats.multicomp
 from ete3 import Tree
+from scipy.cluster import hierarchy
 
 ####################
 
@@ -1403,8 +1404,6 @@ def fate_coupling_from_Tmap(
             time_info[cell_id_t1], selected_times
         )
 
-        x_emb = adata.obsm["X_emb"][:, 0]
-        y_emb = adata.obsm["X_emb"][:, 1]
         data_des = adata.uns["data_des"][-1]
         data_des = f"{data_des}_Tmap_fate_coupling"
         figure_path = settings.figure_path
@@ -3024,9 +3023,10 @@ def heatmap(
         If true, plot the color bar.
     """
 
-    fig_width = settings.fig_width
-    fig_height = settings.fig_height
-    point_size = settings.fig_point_size
+    Z = hierarchy.ward(X)
+    order = hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, X))
+    X = X[order][:, order]
+    variable_names = variable_names[order]
     vmax = (
         np.percentile(X - np.diag(np.diag(X)), 95)
         + np.percentile(X - np.diag(np.diag(X)), 98)
@@ -3191,15 +3191,13 @@ def barcode_heatmap(
     else:
         (
             mega_cluster_list,
-            valid_fate_list,
-            fate_array_flat,
+            __,
+            __,
             sel_index_list,
         ) = hf.analyze_selected_fates(selected_fates, state_annote)
         if len(mega_cluster_list) == 0:
             logg.error("No cells selected. Computation aborted!")
         else:
-            x_emb = adata.obsm["X_emb"][:, 0]
-            y_emb = adata.obsm["X_emb"][:, 1]
             data_des = adata.uns["data_des"][-1]
             data_des = f"{data_des}_clonal"
             figure_path = settings.figure_path
@@ -3285,16 +3283,14 @@ def fate_coupling_from_clones(
     else:
         (
             mega_cluster_list,
-            valid_fate_list,
-            fate_array_flat,
+            __,
+            __,
             sel_index_list,
         ) = hf.analyze_selected_fates(selected_fates, state_annote)
         if len(mega_cluster_list) == 0:
             logg.error("No cells selected. Computation aborted!")
             return None
         else:
-            x_emb = adata.obsm["X_emb"][:, 0]
-            y_emb = adata.obsm["X_emb"][:, 1]
             data_des = adata.uns["data_des"][-1]
             data_des = f"{data_des}_clonal_fate_coupling"
             figure_path = settings.figure_path
