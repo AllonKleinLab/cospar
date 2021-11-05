@@ -3023,8 +3023,9 @@ def heatmap(
         If true, plot the color bar.
     """
 
-    Z = hierarchy.ward(X)
-    order = hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, X))
+    # reordering the x_label
+    Z = hierarchy.ward(X + 0.01)
+    order = hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, X + 0.01))
     X = X[order][:, order]
     variable_names = variable_names[order]
     vmax = (
@@ -3038,9 +3039,9 @@ def heatmap(
     if color_bar:
         cbar = plt.colorbar()
         cbar.set_label(color_bar_label, rotation=270, labelpad=20)
-        plt.gcf().set_size_inches((6, 4))
+        plt.gcf().set_size_inches((1.5 * settings.fig_height, settings.fig_width))
     else:
-        plt.gcf().set_size_inches((4, 4))
+        plt.gcf().set_size_inches((settings.fig_height, settings.fig_width))
     plt.tight_layout()
     plt.savefig(figure_path + f"/{data_des}_heat_map.{settings.file_format_figs}")
 
@@ -3091,11 +3092,18 @@ def ordered_heatmap(
 
     from matplotlib.colors import Normalize as mpl_Normalize
 
+    # reordering the x_label
+    # This method is fragile. Would fail if the amount of data is insufficient
+    # We add a pseudocount (0.01) to stablize the method
+    X = hf.get_normalized_covariance(data_matrix, method="SW") + 0.01
+    Z = hierarchy.ward(X)
+    order_y = hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, X))
+
     o = hf.get_hierch_order(data_matrix)
     if log_transform:
-        new_data = np.log(data_matrix[o, :] + 1) / np.log(10)
+        new_data = np.log(data_matrix[o][:, order_y] + 1) / np.log(10)
     else:
-        new_data = data_matrix[o, :]
+        new_data = data_matrix[o][:, order_y]
 
     # mask_0=np.ones(new_data.shape)
     # col_data=new_data[np.triu(mask_0,k=1)>0].flatten()
@@ -3121,7 +3129,7 @@ def ordered_heatmap(
     else:
         plt.xticks(
             np.arange(data_matrix.shape[1]) + 0.4,
-            variable_names,
+            variable_names[order_y],
             rotation=70,
             ha="right",
         )
@@ -3235,7 +3243,7 @@ def fate_coupling_from_clones(
     color_bar=True,
     rename_fates=None,
     plot_heatmap=True,
-    method="Weinreb",
+    method="SW",
 ):
     """
     Plot fate coupling based on clonal information.
