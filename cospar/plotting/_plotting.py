@@ -102,9 +102,6 @@ def plot_one_gene(
     if ax is None:
         fig, ax = plt.subplots()
 
-    if normalize:
-        E = tot_counts_norm(E, target_mean=1e6)[0]
-
     k = list(gene_list).index(gene_to_plot)
     coldat = E[:, k].A
 
@@ -1373,7 +1370,9 @@ def fate_coupling_from_Tmap(
     Returns
     -------
     X_coupling: `np.array`
-        A inferred coupling matrix between selected fate clusters.
+        A inferred coupling matrix between selected fate clusters (not re-ordered).
+    rename_fates: `list`
+        A list of fate names corresponding to the X_coupling matrix.
     """
 
     hf.check_available_map(adata)
@@ -1449,7 +1448,7 @@ def fate_coupling_from_Tmap(
                     data_des=data_des,
                 )
 
-            return X_coupling
+            return X_coupling, rename_fates
 
 
 ####################
@@ -3272,7 +3271,9 @@ def fate_coupling_from_clones(
     Returns
     -------
     X_coupling: `np.array`
-        A inferred coupling matrix between selected fate clusters.
+        A inferred coupling matrix between selected fate clusters. The matrix is not re-ordered.
+    rename_fates: `list`
+        A list of fate names corresponding to the ordering of X_coupling
     """
 
     time_info = np.array(adata.obs["time_info"])
@@ -3332,7 +3333,7 @@ def fate_coupling_from_clones(
                     data_des=data_des,
                 )
 
-            return X_coupling
+            return X_coupling, rename_fates
 
 
 #################
@@ -3382,6 +3383,11 @@ def fate_hierarchy_from_Tmap(
         in exact correspondence to those in the old list.
     plot_history: `bool`, optional (default: True)
         Plot the history of constructing the hierarchy.
+
+    Returns
+    -------
+    Parent_map:
+    Node_mapping:
     """
 
     hf.check_available_map(adata)
@@ -3419,6 +3425,11 @@ def fate_hierarchy_from_Tmap(
             history[1],
             history[2],
         )
+
+    node_mapping = {}
+    for key, value in node_groups.items():
+        node_mapping[key] = [rename_fates[xx] for xx in value]
+    return parent_map, node_mapping
 
 
 def fate_hierarchy_from_clones(
@@ -3488,12 +3499,27 @@ def fate_hierarchy_from_clones(
             history[2],
         )
 
+    node_mapping = {}
+    for key, value in node_groups.items():
+        node_mapping[key] = [rename_fates[xx] for xx in value]
+    return parent_map, node_mapping
+
 
 def build_hierarchy_from_clones(
     adata, selected_fates=None, selected_times=None, method="SW"
 ):
-    # selected_fates=fate_array
-    # used_Tmap='transition_map'
+    """
+    Returns
+    -------
+    parent_map:
+        A dictionary that returns the parent node for each child node.
+        As an example:  {1: 4, 3: 4, 0: 5, 4: 5, 5: 6, 2: 6}
+        In this simple map, node 1 and 3 are child of both 4, and node 0 and 4 are child of both 5 etc. In neighbor joining algorithm, typically you get a binary branching tree, so each parent only has two child node. Note that the last node '6' is the founder node, and this founder node by default includes all leaf node, and are not included in the node_groups
+    node_groups:
+        For each node (internal or leaf node), give its composition of all leaf nodes. As an example: {0: [0], 1: [1], 2: [2], 3: [3], 4: [1, 3], 5: [0, 1, 3]}.  5 is an internal node, and it composes [0,1,3], which are all leaf nodes.
+    history:
+        The history of the iterative reconstruction
+    """
 
     fate_N = len(selected_fates)
     X_history = []
@@ -3513,7 +3539,7 @@ def build_hierarchy_from_clones(
     while len(node_names) > 2:
         fate_N_tmp = len(selected_fates_tmp)
         node_names_history.append(node_names)
-        X = fate_coupling_from_clones(
+        X, __ = fate_coupling_from_clones(
             adata,
             selected_fates=selected_fates_tmp,
             plot_heatmap=False,
@@ -3572,6 +3598,18 @@ def build_hierarchy_from_Tmap(
     selected_times=None,
     method="SW",
 ):
+    """
+    Returns
+    -------
+    parent_map:
+        A dictionary that returns the parent node for each child node.
+        As an example:  {1: 4, 3: 4, 0: 5, 4: 5, 5: 6, 2: 6}
+        In this simple map, node 1 and 3 are child of both 4, and node 0 and 4 are child of both 5 etc. In neighbor joining algorithm, typically you get a binary branching tree, so each parent only has two child node. Note that the last node '6' is the founder node, and this founder node by default includes all leaf node, and are not included in the node_groups
+    node_groups:
+        For each node (internal or leaf node), give its composition of all leaf nodes. As an example: {0: [0], 1: [1], 2: [2], 3: [3], 4: [1, 3], 5: [0, 1, 3]}.  5 is an internal node, and it composes [0,1,3], which are all leaf nodes.
+    history:
+        The history of the iterative reconstruction
+    """
 
     fate_N = len(selected_fates)
     X_history = []
@@ -3591,7 +3629,7 @@ def build_hierarchy_from_Tmap(
     while len(node_names) > 2:
         fate_N_tmp = len(selected_fates_tmp)
         node_names_history.append(node_names)
-        X = fate_coupling_from_Tmap(
+        X, __ = fate_coupling_from_Tmap(
             adata,
             selected_fates=selected_fates_tmp,
             used_Tmap=used_Tmap,
