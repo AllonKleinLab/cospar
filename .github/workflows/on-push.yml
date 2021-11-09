@@ -28,17 +28,8 @@ jobs:
           key: ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
       - uses: conda-incubator/setup-miniconda@v2
         with:
+          miniconda-version: "latest"
           channels: conda-forge,bioconda,defaults
-          miniconda-version: "latest"
-          auto-update-conda: false
-          activate-environment: test_cospar
-          environment-file: environment.yml
-          use-only-tar-bz2: true
-          mamba-version: "*"
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniconda-version: "latest"
-          channels: conda-forge
           auto-update-conda: false
           activate-environment: cospar
           environment-file: environment.yml
