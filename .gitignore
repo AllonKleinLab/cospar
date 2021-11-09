@@ -4,9 +4,9 @@ cospar.egg-info/
 docs/build/
 docs/source/cospar.*
 #cospar/help_functions/_additional_analysis.py
-.DS_Store
-*.py[cod]
-__pycache__
+/**/.DS_Store
+/**/*.py[cod]
+/**/__pycache__
 .eggs/
-tests/data_derivative/
-tests/figure/
+tests/output/
+.coverage*
