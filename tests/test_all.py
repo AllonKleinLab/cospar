@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from matplotlib import pyplot as plt
 from pathlib import Path
-import cospar as cs
+from tests.context import cospar as cs
 
 # be careful not to change this global parameter
 selected_fates = [
@@ -400,8 +400,8 @@ def test_clean_up():
         os.system("rm -r output")
 
 
-# test_load_dataset()
-# test_preprocessing()
-# test_clonal_analysis()
-# test_Tmap_inference()
-# test_Tmap_plotting()
+# test_load_dataset("data")
+# test_preprocessing('data')
+# test_clonal_analysis('data')
+# test_Tmap_inference('data')
+# test_Tmap_plotting('data')
