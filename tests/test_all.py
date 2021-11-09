@@ -22,12 +22,9 @@ selected_fates = [
 ]
 
 
-def config():
-    print("data_path:", cs.settings.data_path)
-    test_path = os.path.dirname(__file__)
-    os.chdir(test_path)
-    cs.settings.data_path = os.path.join(test_path, "output")
-    cs.settings.figure_path = os.path.join(test_path, "output")
+def config(shared_datadir):
+    cs.settings.data_path = os.path.join(shared_datadir, "output")
+    cs.settings.figure_path = os.path.join(shared_datadir, "output")
     cs.settings.verbosity = 0  # range: 0 (error),1 (warning),2 (info),3 (hint).
     cs.settings.set_figure_params(
         format="png", figsize=[4, 3.5], dpi=25, fontsize=14, pointsize=3, dpi_save=25
@@ -35,8 +32,8 @@ def config():
     cs.hf.set_up_folders()  # setup the data_path and figure_path
 
 
-def test_load_dataset():
-    config()
+def test_load_dataset(shared_datadir):
+    config(shared_datadir)
     print("-------------------------load dataset")
     # cs.datasets.hematopoiesis_subsampled()
     # cs.datasets.hematopoiesis()
@@ -48,11 +45,9 @@ def test_load_dataset():
     # cs.datasets.reprogramming_Day0_3_28()
 
 
-def test_preprocessing():
-    config()
-    file_name = os.path.join(
-        os.path.dirname(__file__), "data", "test_adata_preprocessed.h5ad"
-    )
+def test_preprocessing(shared_datadir):
+    config(shared_datadir)
+    file_name = os.path.join(shared_datadir, "test_adata_preprocessed.h5ad")
     adata_orig_0 = cs.hf.read(file_name)
     print("------------------------Test preprocessing")
     data_des = "test"
@@ -107,12 +102,10 @@ def test_preprocessing():
     plt.close("all")
 
 
-def test_clonal_analysis():
-    config()
+def test_clonal_analysis(shared_datadir):
+    config(shared_datadir)
 
-    file_name = os.path.join(
-        os.path.dirname(__file__), "data", "test_adata_preprocessed.h5ad"
-    )
+    file_name = os.path.join(shared_datadir, "test_adata_preprocessed.h5ad")
     adata_orig = cs.hf.read(file_name)
     print("------------------------------Basic clonal analysis")
     print("----------barcode_heatmap")
@@ -164,11 +157,9 @@ def test_clonal_analysis():
     plt.close("all")
 
 
-def test_Tmap_inference():
-    config()
-    file_name = os.path.join(
-        os.path.dirname(__file__), "data", "test_adata_preprocessed.h5ad"
-    )
+def test_Tmap_inference(shared_datadir):
+    config(shared_datadir)
+    file_name = os.path.join(shared_datadir, "test_adata_preprocessed.h5ad")
     adata_orig = cs.hf.read(file_name)
     print("------------------------------T map inference")
 
@@ -220,11 +211,9 @@ def test_Tmap_inference():
     cs.hf.save_map(adata)
 
 
-def test_Tmap_plotting():
-    config()
-    file_name = os.path.join(
-        os.path.dirname(__file__), "data", "test_adata_preprocessed.h5ad"
-    )
+def test_Tmap_plotting(shared_datadir):
+    config(shared_datadir)
+    file_name = os.path.join(shared_datadir, "test_adata_preprocessed.h5ad")
     adata_orig = cs.hf.read(file_name)
     adata = cs.tmap.infer_Tmap_from_multitime_clones(
         adata_orig,
