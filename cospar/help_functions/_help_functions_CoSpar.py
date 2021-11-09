@@ -16,7 +16,8 @@ from sklearn.metrics import pairwise
 from sklearn.neighbors import NearestNeighbors, kneighbors_graph
 
 from .. import logging as logg
-from .. import pl, settings, tmap
+from .. import plotting as pl
+from .. import settings, tmap
 
 # import scipy.stats
 
