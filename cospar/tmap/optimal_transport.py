@@ -7,6 +7,7 @@ https://github.com/broadinstitute/wot/blob/master/wot/ot/optimal_transport.py
 # import logging # this is a buildin package from Python
 
 import numpy as np
+
 from .. import logging as logg
 
 # logger = logging.getLogger('wot')

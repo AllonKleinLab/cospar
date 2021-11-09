@@ -31,9 +31,10 @@ logfile = ""
 # Functions
 # --------------------------------------------------------------------------------
 
-from matplotlib import rcParams, cm, colors, cbook
-from cycler import cycler
 import warnings
+
+from cycler import cycler
+from matplotlib import cbook, cm, colors, rcParams
 
 # from cospar import help_functions as hf
 # from . import help_functions as hf

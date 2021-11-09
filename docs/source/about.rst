@@ -5,10 +5,10 @@ The following information is adapted from `Wang et al. (2021) <https://www.biorx
 High-throughput single-cell measurements have enabled unbiased studies of development and differentiation, leading to numerous methods for dynamic inference. However, single-cell RNA sequencing (scRNA-seq) data alone does not fully constrain the differentiation dynamics, and existing methods inevitably operate under simplified assumptions. In parallel, the lineage information of individual cells can be profiled simultaneously along with their transcriptome by using a heritable and expressible DNA barcode as a lineage tracer. The barcode may remain static or evolve over time.
 
 
-However, the lineage data could be challenging to analyze.  These challenges include stochastic differentiation and variable expansion of clones; cells loss during analysis; barcode homoplasy wherein cells acquire the same barcode despite not having a lineage relationship; access to clones only at a single time point; and clonal dispersion due to a lag time between labeling cells and the first sampling (the lag time is necessary to allow the clone to grow large for resampling).  
+However, the lineage data could be challenging to analyze.  These challenges include stochastic differentiation and variable expansion of clones; cells loss during analysis; barcode homoplasy wherein cells acquire the same barcode despite not having a lineage relationship; access to clones only at a single time point; and clonal dispersion due to a lag time between labeling cells and the first sampling (the lag time is necessary to allow the clone to grow large for resampling).
 
 
-CoSpar, developed by `Wang et al. (2021) <https://www.biorxiv.org/content/10.1101/2021.05.06.443026v1>`_, is the first tool ever to perform dynamic inference by integrating state and lineage information. It solves for the transition probability map from cell states at an earlier time point to states at a later time point. It achieves accuracy and robustness by learning a sparse and coherent transition map, where neighboring initial states share similar yet sparse fate outcomes. Built upon the finite-time transition map, CoSpar can 1) infer fate potential of early states; 2) detect early fate bias (thus, fate boundary) among a heterogeneous progenitor population; 3) identify putative driver genes for fate bifurcation; 4) infer fate coupling or hierarchy; 5) visualize gene expression dynamics along an inferred differential trajectory. CoSpar also provides several methods to analyze clonal data by itself, including the clonal coupling between fate clusters and the bias of a clone towards a given fate, etc.  We envision CoSpar to be a platform to integrate key methods needed to analyze data with both state and lineage information. 
+CoSpar, developed by `Wang et al. (2021) <https://www.biorxiv.org/content/10.1101/2021.05.06.443026v1>`_, is the first tool ever to perform dynamic inference by integrating state and lineage information. It solves for the transition probability map from cell states at an earlier time point to states at a later time point. It achieves accuracy and robustness by learning a sparse and coherent transition map, where neighboring initial states share similar yet sparse fate outcomes. Built upon the finite-time transition map, CoSpar can 1) infer fate potential of early states; 2) detect early fate bias (thus, fate boundary) among a heterogeneous progenitor population; 3) identify putative driver genes for fate bifurcation; 4) infer fate coupling or hierarchy; 5) visualize gene expression dynamics along an inferred differential trajectory. CoSpar also provides several methods to analyze clonal data by itself, including the clonal coupling between fate clusters and the bias of a clone towards a given fate, etc.  We envision CoSpar to be a platform to integrate key methods needed to analyze data with both state and lineage information.
 
 .. image:: https://user-images.githubusercontent.com/4595786/113746452-56e4cb00-96d4-11eb-8278-0aac0469ba9d.png
    :width: 1000px
@@ -30,17 +30,17 @@ CoSpar is formulated assuming that we have initial clonal information by re-samp
 
 Below, we formalize the coherent sparse optimization by which CoSpar infers the transition map.
 
-In a model of stochastic differentiation, cells in a clone are distributed across states with a time-dependent  density profile :math:`P(t)`. A transition map :math:`T` directly links clonal density profiles :math:`P(t_{1,2})`  between time points: 
+In a model of stochastic differentiation, cells in a clone are distributed across states with a time-dependent  density profile :math:`P(t)`. A transition map :math:`T` directly links clonal density profiles :math:`P(t_{1,2})`  between time points:
 
 .. math::
 	\begin{equation}
 	P_i(t_2 )= \sum_j P_j(t_1 )T_{ji}(t_1,t_2),
 	\end{equation}
 
-From multiple clonal observations, our goal is to learn :math:`T`. To do so, we denote :math:`I(t)` as a clone-by-cell matrix and introduce :math:`S` as a matrix of cell-cell similarity over all observed cell states, including those lacking clonal information. The density profiles of all observed clones are estimated as :math:`P(t)\approx I(t)S(t)`. 
+From multiple clonal observations, our goal is to learn :math:`T`. To do so, we denote :math:`I(t)` as a clone-by-cell matrix and introduce :math:`S` as a matrix of cell-cell similarity over all observed cell states, including those lacking clonal information. The density profiles of all observed clones are estimated as :math:`P(t)\approx I(t)S(t)`.
 
 
-Since the matrices :math:`P(t_{1,2})` are determined directly from data, with enough information :math:`T(t_1,t_2)` could be learnt by matrix inversion. However, in most cases, the number of clones is far less than the number of states. To constrain the map, we require that: 1)  :math:`T` is a sparse matrix; 2)  :math:`T` is locally coherent; and 3) :math:`T` is a non-negative matrix. With these requirements, the inference becomes an optimization problem: 
+Since the matrices :math:`P(t_{1,2})` are determined directly from data, with enough information :math:`T(t_1,t_2)` could be learnt by matrix inversion. However, in most cases, the number of clones is far less than the number of states. To constrain the map, we require that: 1)  :math:`T` is a sparse matrix; 2)  :math:`T` is locally coherent; and 3) :math:`T` is a non-negative matrix. With these requirements, the inference becomes an optimization problem:
 
 .. math::
 	\begin{equation}

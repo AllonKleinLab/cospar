@@ -15,12 +15,12 @@ Install CoSpar from PyPI_ using::
 If you get a ``Permission denied`` error, use ``pip install --upgrade cospar --user`` instead.
 
 If you get errors related to 'gcc', try to specify the following gcc path for installation::
-	
+
 	env CXX=/usr/local/Cellar/gcc/8.2.0/bin/g++-8 CC=/usr/local/Cellar/gcc/8.2.0/bin/gcc-8 pip install  cospar
 
 If you get errors for version conflicts with existing packages, try::
-	
-	    pip install --ignore-installed --upgrade cospar 
+
+	    pip install --ignore-installed --upgrade cospar
 
 Development Version
 ^^^^^^^^^^^^^^^^^^^
@@ -42,7 +42,7 @@ Dependencies
 
 - `anndata <https://anndata.readthedocs.io/>`_ - annotated data object.
 - `scanpy <https://scanpy.readthedocs.io/>`_ - toolkit for single-cell analysis.
-- `numpy <https://docs.scipy.org/>`_, `scipy <https://docs.scipy.org/>`_, `pandas <https://pandas.pydata.org/>`_, `scikit-learn <https://scikit-learn.org/>`_, `matplotlib <https://matplotlib.org/>`_, `plotnine <https://plotnine.readthedocs.io/>`_, 
+- `numpy <https://docs.scipy.org/>`_, `scipy <https://docs.scipy.org/>`_, `pandas <https://pandas.pydata.org/>`_, `scikit-learn <https://scikit-learn.org/>`_, `matplotlib <https://matplotlib.org/>`_, `plotnine <https://plotnine.readthedocs.io/>`_,
 
 
 

@@ -3,8 +3,10 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from matplotlib import pyplot as plt
 from pathlib import Path
+
+from matplotlib import pyplot as plt
+
 from tests.context import cospar as cs
 
 # be careful not to change this global parameter

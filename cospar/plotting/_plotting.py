@@ -1,19 +1,21 @@
-import numpy as np
+import os
 import time
+
+import numpy as np
+import pandas as pd
+import scipy.sparse as ssp
+import scipy.stats as stats
+import statsmodels.sandbox.stats.multicomp
+from ete3 import Tree
+from matplotlib import pyplot as plt
+from scipy.cluster import hierarchy
 
 # from plotnine import *
 from sklearn.manifold import SpectralEmbedding
-import pandas as pd
-import os
-import scipy.sparse as ssp
-import scipy.stats as stats
+
 from .. import help_functions as hf
-from matplotlib import pyplot as plt
-from .. import settings
 from .. import logging as logg
-import statsmodels.sandbox.stats.multicomp
-from ete3 import Tree
-from scipy.cluster import hierarchy
+from .. import settings
 
 ####################
 
@@ -2456,12 +2458,12 @@ def gene_expression_dynamics(
                     temp_dict[gene_name] = rescaled_yy
 
                 from plotnine import (
-                    ggplot,
                     aes,
                     geom_point,
+                    ggplot,
+                    labs,
                     stat_smooth,
                     theme_classic,
-                    labs,
                 )
 
                 data2 = pd.DataFrame(temp_dict)

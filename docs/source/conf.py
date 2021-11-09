@@ -1,10 +1,10 @@
-import sys
-import os
 import inspect
 import logging
-from pathlib import Path
+import os
+import sys
 from datetime import datetime
-from typing import Optional, Union, Mapping
+from pathlib import Path
+from typing import Mapping, Optional, Union
 
 from sphinx.application import Sphinx
 from sphinx.ext import autosummary
@@ -275,9 +275,10 @@ sphinx_autodoc_typehints.format_annotation = format_annotation
 # -- Prettier Param docs --------------------------------------------
 
 from typing import Dict, List, Tuple
+
 from docutils import nodes
 from sphinx import addnodes
-from sphinx.domains.python import PyTypedField, PyObject
+from sphinx.domains.python import PyObject, PyTypedField
 from sphinx.environment import BuildEnvironment
 
 

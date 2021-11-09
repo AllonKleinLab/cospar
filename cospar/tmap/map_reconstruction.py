@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 
-import numpy as np
 import os
-import pandas as pd
 import time
+
+import numpy as np
+import pandas as pd
 import scanpy as sc
 import scipy.sparse as ssp
 
 from .. import help_functions as hf
-from .. import plotting as pl
-from .optimal_transport import optimal_transport_duality_gap, transport_stablev2
-from .. import settings
 from .. import logging as logg
-
+from .. import plotting as pl
+from .. import settings
+from .optimal_transport import optimal_transport_duality_gap, transport_stablev2
 
 ####################
 

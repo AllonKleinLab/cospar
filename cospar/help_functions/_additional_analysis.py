@@ -1,21 +1,22 @@
-import numpy as np
-from scipy import stats
-import scipy.sparse as ssp
-import pandas as pd
-from .. import settings
-from .. import logging as logg
 import time
-import ot.bregman as otb
-from ._help_functions_CoSpar import *
-from matplotlib import pyplot as plt
-import seaborn as sns
-from .. import plotting as pl
 
+import numpy as np
+import ot.bregman as otb
+import pandas as pd
+import scipy.sparse as ssp
+import seaborn as sns
+from matplotlib import pyplot as plt
+from scipy import stats
+
+from .. import logging as logg
+from .. import plotting as pl
+from .. import settings
+from ._help_functions_CoSpar import *
 
 """
-This is not a necessary component of CoSpar. It requires additional packages. 
-When publishing, you can change the __ini__ setting to remove this part. 
-Making it too fat increase the work for maintenance. 
+This is not a necessary component of CoSpar. It requires additional packages.
+When publishing, you can change the __ini__ setting to remove this part.
+Making it too fat increase the work for maintenance.
 """
 
 

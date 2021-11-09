@@ -1,24 +1,22 @@
-import numpy as np
 import os
-from sklearn.decomposition import PCA, TruncatedSVD
-from sklearn.neighbors import NearestNeighbors
-from sklearn.neighbors import kneighbors_graph
-from sklearn.metrics import pairwise
-import scipy.stats
-import scipy.sparse as ssp
-from scipy.spatial.distance import pdist
-from scipy.optimize import fmin
-from scanpy import read  # So that we can call this function in cospar directly
+import time
+
+import numpy as np
 import pandas as pd
+import scipy.sparse as ssp
+import scipy.stats
 import statsmodels.sandbox.stats.multicomp
 from fastcluster import linkage
-from .. import settings
-from .. import pl
-from .. import tmap
-from .. import logging as logg
-import time
 from matplotlib import pyplot as plt
-from .. import settings
+from scanpy import read  # So that we can call this function in cospar directly
+from scipy.optimize import fmin
+from scipy.spatial.distance import pdist
+from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.metrics import pairwise
+from sklearn.neighbors import NearestNeighbors, kneighbors_graph
+
+from .. import logging as logg
+from .. import pl, settings, tmap
 
 # import scipy.stats
 

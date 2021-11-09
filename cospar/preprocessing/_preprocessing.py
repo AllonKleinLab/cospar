@@ -1,18 +1,19 @@
 # -*- coding: utf-8 -*-
 
-import numpy as np
 import os
-import pandas as pd
 import time
+from pathlib import Path, PurePath
+
+import numpy as np
+import pandas as pd
 import scanpy as sc
 import scipy.sparse as ssp
-from pathlib import Path, PurePath
 from matplotlib import pyplot as plt
 
 from .. import help_functions as hf
+from .. import logging as logg
 from .. import plotting as pl
 from .. import settings
-from .. import logging as logg
 
 
 def initialize_adata_object(

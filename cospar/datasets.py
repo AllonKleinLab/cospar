@@ -1,7 +1,9 @@
 from pathlib import Path, PurePath
+
 from scanpy import read
-from . import settings
+
 from . import logging as logg
+from . import settings
 
 url_prefix_0 = "https://kleintools.hms.harvard.edu/tools/downloads/cospar"
 
@@ -338,7 +340,7 @@ def _download(url: str, path: Path):
     except ImportError:
         from tqdm import tqdm
 
-    from urllib.request import urlopen, Request
+    from urllib.request import Request, urlopen
 
     blocksize = 1024 * 8
     blocknum = 0

@@ -11,7 +11,7 @@ CoSpar - dynamic inference by integrating state and lineage information
 The methods are based on
 `Wang et al. (2021) <https://www.biorxiv.org/content/10.1101/2021.05.06.443026v1>`_.
 
-Dynamic inference based on single-cell state measurement alone requires serious simplifications. On the other hand, direct dynamic measurement via lineage tracing only captures partial information and its interpretation is challenging. CoSpar integrates both state and lineage information to infer a finite-time transition map of a development/differentiation system. It gains superior robustness and accuracy by exploiting both the local coherence and sparsity of differentiation transitions, i.e., neighboring initial states share similar yet sparse fate outcomes.  Building around the anndata_ object, CoSpar provides an integrated analysis framework for datasets with both state and lineage information. When only state information is available, CoSpar also improves upon existing dynamic inference methods by imposing sparsity and coherence. It offers essential toolkits for analyzing lineage data, state information, or their integration. 
+Dynamic inference based on single-cell state measurement alone requires serious simplifications. On the other hand, direct dynamic measurement via lineage tracing only captures partial information and its interpretation is challenging. CoSpar integrates both state and lineage information to infer a finite-time transition map of a development/differentiation system. It gains superior robustness and accuracy by exploiting both the local coherence and sparsity of differentiation transitions, i.e., neighboring initial states share similar yet sparse fate outcomes.  Building around the anndata_ object, CoSpar provides an integrated analysis framework for datasets with both state and lineage information. When only state information is available, CoSpar also improves upon existing dynamic inference methods by imposing sparsity and coherence. It offers essential toolkits for analyzing lineage data, state information, or their integration.
 
 See `<https://cospar.readthedocs.io>`_ for documentation and tutorials.
 
@@ -27,7 +27,7 @@ Feel free to submit an `issue <https://github.com/AllonKleinLab/cospar/issues/ne
 or send us an `email <mailto:wangsw09@gmail.com>`_.
 Your help to improve CoSpar is highly appreciated.
 
-  
+
 
 .. _anndata: https://anndata.readthedocs.io
 
@@ -36,6 +36,6 @@ Your help to improve CoSpar is highly appreciated.
 
 .. |PyPIDownloads| image:: https://pepy.tech/badge/cospar
    :target: https://pepy.tech/project/cospar
-   
+
 .. |Docs| image:: https://readthedocs.org/projects/cospar/badge/?version=latest
    :target: https://cospar.readthedocs.io
