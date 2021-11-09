@@ -5,15 +5,11 @@ verbosity = 3
 """Verbosity level (0=errors, 1=warnings, 2=info, 3=hints)
 """
 
-plot_prefix = "scvelo_"
-"""Global prefix that is appended to figure filenames.
-"""
-
-data_path = "data_cospar"
+data_path = "data"
 """Directory where adata is stored (default 'data_cospar').
 """
 
-figure_path = "figure_cospar"
+figure_path = "figure"
 """Directory where plots are saved (default 'figure_cospar').
 """
 
@@ -46,7 +42,7 @@ warnings.filterwarnings("ignore", category=cbook.mplDeprecation)
 
 
 def set_rcParams_cospar(fontsize=12, color_map=None, frameon=None):
-    """Set matplotlib.rcParams to scvelo defaults."""
+    """Set matplotlib.rcParams to cospar defaults."""
     # check here if you want to customize it: https://matplotlib.org/stable/tutorials/introductory/customizing.html
 
     # dpi options (mpl default: 100, 100)
@@ -158,7 +154,7 @@ def set_figure_params(
     Arguments
     ---------
     style : `str` (default: `None`)
-        Init default values for ``matplotlib.rcParams`` suited for `scvelo` or `scanpy`.
+        Init default values for ``matplotlib.rcParams`` suited for `cospar`.
         Use `None` for the default matplotlib values.
 
     dpi : `int` (default: `None`)

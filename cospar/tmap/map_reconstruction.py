@@ -9,7 +9,7 @@ import scipy.sparse as ssp
 
 from .. import help_functions as hf
 from .. import plotting as pl
-from .optimal_transport import *
+from .optimal_transport import optimal_transport_duality_gap, transport_stablev2
 from .. import settings
 from .. import logging as logg
 
@@ -1831,13 +1831,13 @@ def infer_Tmap_from_optimal_transport(
         logg.info("Compute new custom OT matrix")
         t = time.time()
 
-        if 'cell_growth_rate' not in adata.obs.keys():
-            logg.info('Use uniform growth rate')
-            adata.obs["cell_growth_rate"] = np.ones(len(time_info))
+        if "cell_growth_rate" not in adata.obs.keys():
+            logg.info("Use uniform growth rate")
+            adata.obs["cell_growth_rate"] = np.ones(adata.shape[0])
         else:
-            logg.info('Use pre-supplied cell_grwoth_rate')
-            x0=np.mean(adata.obs["cell_growth_rate"])
-            y0=np.std(adata.obs["cell_growth_rate"])
+            logg.info("Use pre-supplied cell_grwoth_rate")
+            x0 = np.mean(adata.obs["cell_growth_rate"])
+            y0 = np.std(adata.obs["cell_growth_rate"])
             print(f"Use pre-supplied cell_grwoth_rate (mean: {x0:.2f}; std {y0:.2f})")
 
         # mu1 = np.ones(len(cell_id_array_t1))
@@ -1898,7 +1898,7 @@ def infer_Tmap_from_optimal_transport(
         )
         if not ssp.issparse(OT_transition_map):
             OT_transition_map = ssp.csr_matrix(OT_transition_map)
-        #ssp.save_npz(CustomOT_file_name, OT_transition_map)
+        # ssp.save_npz(CustomOT_file_name, OT_transition_map)
 
         logg.info(
             f"Finishing computing optial transport map, used time {time.time()-t}"
@@ -1924,7 +1924,7 @@ def infer_Tmap_from_optimal_transport_v0(
     """
     Test WOT
 
-    In order to use non-uniform cell_grwoth_rate, 
+    In order to use non-uniform cell_grwoth_rate,
     we implicitly assume that you should pass a variable
     to adata at .obs['cell_growth_rate']
 
@@ -1950,12 +1950,12 @@ def infer_Tmap_from_optimal_transport_v0(
     time_info[cell_id_array_t2] = 2
     adata.obs["day"] = time_info
 
-    if 'cell_growth_rate' not in adata.obs.keys():
-        print('Use uniform growth rate')
+    if "cell_growth_rate" not in adata.obs.keys():
+        print("Use uniform growth rate")
         adata.obs["cell_growth_rate"] = np.ones(len(time_info))
     else:
-        x0=np.mean(adata.obs["cell_growth_rate"])
-        y0=np.std(adata.obs["cell_growth_rate"])
+        x0 = np.mean(adata.obs["cell_growth_rate"])
+        y0 = np.std(adata.obs["cell_growth_rate"])
         print(f"Use pre-supplied cell_grwoth_rate (mean: {x0:.2f}; std {y0:.2f})")
 
     ot_model = wot.ot.OTModel(adata, epsilon=OT_epsilon, lambda1=1, lambda2=50)
