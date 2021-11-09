@@ -1,0 +1,56 @@
+name: on-push
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  test-cospar:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"]
+    steps:
+      - uses: actions/checkout@v2
+      - name: cache conda
+        uses: actions/cache@v2
+        env:
+          CACHE_NUMBER: 0 # bump to reset cache
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          channels: conda-forge,bioconda,defaults
+          miniconda-version: "latest"
+          auto-update-conda: false
+          activate-environment: test_cospar
+          environment-file: environment.yml
+          use-only-tar-bz2: true
+          mamba-version: "*"
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniconda-version: "latest"
+          channels: conda-forge
+          auto-update-conda: false
+          activate-environment: cospar
+          environment-file: environment.yml
+          use-only-tar-bz2: true
+          mamba-version: "*"
+      - name: Install cospar
+        shell: bash -l {0}
+        run: |
+          python setup.py install
+      - name: Run pre-commit
+        uses: pre-commit/action@v2.0.0
+      - name: Test cospar
+        shell: bash -l {0}
+        run: |
+          pytest -v --cov=cospar --cov-report=term-missing
