@@ -11,3 +11,6 @@ tests/output/
 .coverage*
 .pytest_cache
 /**/.ipynb_checkpoints
+/**/__MACOSX/
+docs/source/*cospar*/
+docs/source/test_data*

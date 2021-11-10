@@ -64,8 +64,11 @@ Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthed
 
    installation
    getting_started
-   20210121_cospar_tutorial_v2
    20210601_loading_data
+   20211010_preprocessing
+   20211010_clonal_analysis
+   20211010_map_inference
+   20211010_map_analysis
 
 .. toctree::
    :caption: Examples

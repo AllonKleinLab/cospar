@@ -48,7 +48,7 @@ Assuming basic quality control (excluding cells with low read count etc.) have b
     cs.pp.get_X_clone(adata_orig,**params)
 
 The first step ``get_highly_variable_genes`` also includes count matrix normalization. The second step, which is optional but recommended, removes cell cycle correlated genes among the selected highly variable genes. In ``get_X_pca``, we apply z-score transformation for each gene expression before computing the PCA. In ``get_X_emb``, we simply use the umap function from :mod:`~scanpy`. With ``get_state_info``, we extract state information using leiden clustering implemented in :mod:`~scanpy`.
-In `get_X_clone`, we faciliate the conversion of the raw clonal data into a cell-by-clone matrix. As mentioned before, this preprocessing assumes that the count matrix is not log-transformed.
+In ``get_X_clone``, we faciliate the conversion of the raw clonal data into a cell-by-clone matrix. As mentioned before, this preprocessing assumes that the count matrix is not log-transformed.
 
 
 
@@ -99,9 +99,9 @@ If the dataset has only one clonal time point, you can run::
 
     adata=cs.tmap.infer_Tmap_from_one_time_clones(adata_orig,initial_time_points=None, later_time_point=None,initialize_method='OT',**params)
 
-which jointly optimizes the transition map and the initial clonal structure. It requires initializing the transition map using state information alone. We provide two methods for such initialization: 1) ``OT`` for using the standard optimal transport approach (if you wish to utilize the growth rate information as Waddington-OT, you can directly pass the growth rate estimate for each cell to the input AnnaData object `adata_orig.obs["cell_growth_rate"]`); 2) ``HighVar`` for a customized approach, assuming that cells similar in gene expression across time points share clonal origin. Depending on the choice,  the initialized map is stored at ``adata.uns['OT_transition_map']`` or  ``adata.uns['HighVar_transition_map']``. The final product is stored at ``adata.uns['transition_map']``.
+which jointly optimizes the transition map and the initial clonal structure. It requires initializing the transition map using state information alone. We provide two methods for such initialization: 1) ``OT`` for using the standard optimal transport approach; 2) ``HighVar`` for a customized approach, assuming that cells similar in gene expression across time points share clonal origin. For the ``OT`` method, if you wish to utilize the growth rate information as Waddington-OT, you can directly pass the growth rate estimate for each cell to the input AnnaData object at ``adata_orig.obs["cell_growth_rate"]``. Depending on the choice,  the initialized map is stored at ``adata.uns['OT_transition_map']`` or  ``adata.uns['HighVar_transition_map']``. The final product is stored at ``adata.uns['transition_map']``.
 
-``HighVar`` converts highly variable genes into pseudo multi-time clones and infers a putative map with coherent sparse optimization. We find the `HighVar` method performs better than the `OT` method, especially when there are large differentiation effects over the observed time window, or batch effects.
+``HighVar`` converts highly variable genes into pseudo multi-time clones and infers a putative map with coherent sparse optimization. We find the ``HighVar`` method performs better than the `OT` method, especially when there are large differentiation effects over the observed time window, or batch effects.
 
 If ``initial_time_points`` and ``later_time_point`` are not specified, a map with transitions from all time points to the last time point is generated.
 
