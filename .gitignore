@@ -10,3 +10,4 @@ docs/source/cospar.*
 tests/output/
 .coverage*
 .pytest_cache
+/**/.ipynb_checkpoints
