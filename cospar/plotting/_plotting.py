@@ -1001,7 +1001,7 @@ def fate_bias(
 
     Returns
     -------
-    Results updated at adata.uns[f'fate_bias_{fate_1}_{fate_2}']
+    Results updated at adata.obs[f'fate_bias_{fate_1}_{fate_2}']
     """
 
     if figure_index == "" and figure_title is not None:
@@ -3028,7 +3028,7 @@ def heatmap(
     Z = hierarchy.ward(X + 0.01)
     order = hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, X + 0.01))
     X = X[order][:, order]
-    variable_names = variable_names[order]
+    variable_names = np.array(variable_names)[order]
     vmax = (
         np.percentile(X - np.diag(np.diag(X)), 95)
         + np.percentile(X - np.diag(np.diag(X)), 98)
@@ -3130,7 +3130,7 @@ def ordered_heatmap(
     else:
         plt.xticks(
             np.arange(data_matrix.shape[1]) + 0.4,
-            variable_names[order_y],
+            np.array(variable_names)[order_y],
             rotation=70,
             ha="right",
         )
