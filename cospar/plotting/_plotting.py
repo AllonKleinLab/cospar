@@ -1736,7 +1736,7 @@ def differential_genes_for_given_fates(
             valid_fate_list,
             fate_array_flat,
             sel_index_list,
-        ) = hf.analyze_selected_fates(selected_fates, state_annot_0)
+        ) = hf.analyze_selected_fates(state_annot_0, selected_fates)
         if len(mega_cluster_list) == 0:
             logg.error("No cells selected. Computation aborted!")
         else:
@@ -2121,7 +2121,7 @@ def dynamic_trajectory_via_iterative_mapping(
             valid_fate_list,
             fate_array_flat,
             sel_index_list,
-        ) = hf.analyze_selected_fates(selected_fate, adata.obs["state_info"])
+        ) = hf.analyze_selected_fates(adata.obs["state_info"], selected_fate)
         if len(mega_cluster_list) == 0:
             logg.error("No cells selected. Computation aborted!")
         else:
@@ -2352,7 +2352,7 @@ def gene_expression_dynamics(
             valid_fate_list,
             fate_array_flat,
             sel_index_list,
-        ) = hf.analyze_selected_fates(selected_fate, adata.obs["state_info"])
+        ) = hf.analyze_selected_fates(adata.obs["state_info"], selected_fate)
         if len(mega_cluster_list) == 0:
             logg.error("No cells selected. Computation aborted!")
             return adata
@@ -2657,7 +2657,7 @@ def clonal_fate_bias(
         valid_fate_list,
         fate_array_flat,
         sel_index_list,
-    ) = hf.analyze_selected_fates(selected_fate, state_info)
+    ) = hf.analyze_selected_fates(state_info, selected_fate)
     if len(mega_cluster_list) == 0:
         logg.error("No cells selected. Computation aborted!")
         return None, None
@@ -2851,7 +2851,7 @@ def clonal_fate_bias_v0(
         valid_fate_list,
         fate_array_flat,
         sel_index_list,
-    ) = hf.analyze_selected_fates(selected_fate, state_annote_new)
+    ) = hf.analyze_selected_fates(state_annote_new, selected_fate)
     if len(mega_cluster_list) == 0:
         logg.error("No cells selected. Computation aborted!")
         return None, None
@@ -3203,7 +3203,7 @@ def barcode_heatmap(
             __,
             __,
             sel_index_list,
-        ) = hf.analyze_selected_fates(selected_fates, state_annote)
+        ) = hf.analyze_selected_fates(state_annote, selected_fates)
         if len(mega_cluster_list) == 0:
             logg.error("No cells selected. Computation aborted!")
         else:
@@ -3297,7 +3297,7 @@ def fate_coupling_from_clones(
             __,
             __,
             sel_index_list,
-        ) = hf.analyze_selected_fates(selected_fates, state_annote)
+        ) = hf.analyze_selected_fates(state_annote, selected_fates)
         if len(mega_cluster_list) == 0:
             logg.error("No cells selected. Computation aborted!")
             return None
@@ -3890,7 +3890,7 @@ def gene_expression_heat_map(
         valid_fate_list,
         fate_array_flat,
         sel_index_list,
-    ) = hf.analyze_selected_fates(selected_fates, state_info)
+    ) = hf.analyze_selected_fates(state_info, selected_fates)
     gene_full = np.array(adata.var_names)
     gene_list = np.array(gene_list)
     sel_idx = np.in1d(gene_full, gene_list)

@@ -748,7 +748,7 @@ def compute_state_potential(
     return fate_map, fate_entropy
 
 
-def analyze_selected_fates(selected_fates, state_info):
+def analyze_selected_fates(state_info, selected_fates):
     """
     Analyze selected fates.
 
@@ -778,6 +778,8 @@ def analyze_selected_fates(selected_fates, state_info):
 
     state_info = np.array(state_info)
     valid_state_annot = list(set(state_info))
+    if type(selected_fates) is str:
+        selected_fates = list(selected_fates)
     if selected_fates is None:
         selected_fates = valid_state_annot
 
@@ -911,7 +913,7 @@ def compute_fate_probability_map(
         valid_fate_list,
         fate_array_flat,
         sel_index_list,
-    ) = analyze_selected_fates(selected_fates, state_annote)
+    ) = analyze_selected_fates(state_annote, selected_fates)
 
     state_annote_0 = np.array(adata.obs["state_info"])
     if map_backward:
@@ -1601,14 +1603,21 @@ def selecting_cells_by_time_points(time_info, selected_time_points):
     """
     Check validity of selected time points, and return the selected index.
 
+    selected_time_points can be either a string or a list.
+
     If selected_time_points=[], we select all cell states.
     """
 
     time_info = np.array(time_info)
     valid_time_points = set(time_info)
     if selected_time_points is not None:
+        if type(selected_time_points) is str:
+            selected_times = [selected_time_points]
+        else:
+            selected_times = list(selected_time_points)
+
         sp_idx = np.zeros(len(time_info), dtype=bool)
-        for xx in selected_time_points:
+        for xx in selected_times:
             if xx not in valid_time_points:
                 logg.error(f"{xx} is not a valid time point.")
             sp_id_temp = np.nonzero(time_info == xx)[0]
