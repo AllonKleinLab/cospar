@@ -14,18 +14,11 @@ from scipy.cluster import hierarchy
 from sklearn.manifold import SpectralEmbedding
 
 from cospar import tool as tl
+from cospar.temp_plotting import _utils as pl_util
 
 from .. import help_functions as hf
 from .. import logging as logg
 from .. import settings
-from ._utils import (
-    customized_embedding,
-    fate_map_embedding,
-    heatmap,
-    plot_neighbor_joining,
-    print_hierarchy,
-    start_subplot_figure,
-)
 
 
 def fate_coupling(
@@ -77,7 +70,7 @@ def fate_coupling(
     fate_names = adata.uns[key_word]["fate_names"]
     rename_fates = hf.rename_list(fate_names, rename_fates)
 
-    ax = heatmap(
+    ax = pl_util.heatmap(
         X_coupling,
         x_ticks=rename_fates,
         y_ticks=rename_fates,
@@ -143,9 +136,9 @@ def fate_hierarchy(
 
     rename_fates = hf.rename_list(fate_names, rename_fates)
 
-    print_hierarchy(parent_map, rename_fates)
+    pl_util.print_hierarchy(parent_map, rename_fates)
     if plot_history:
-        plot_neighbor_joining(
+        pl_util.plot_neighbor_joining(
             settings.figure_path,
             node_mapping,
             history[0],
@@ -253,7 +246,7 @@ def fate_map(
             else:
                 target_list = None
 
-            fate_map_embedding(
+            pl_util.fate_map_embedding(
                 adata,
                 fate_vector,
                 cell_id_t1,
@@ -334,7 +327,7 @@ def fate_potency(
 
     fate_vector = np.array(adata.obs[key_word])
 
-    fate_map_embedding(
+    pl_util.fate_map_embedding(
         adata,
         fate_vector,
         cell_id_t1,
@@ -450,7 +443,7 @@ def fate_bias(
     else:
         color_bar_label = "Fate bias"
 
-    fate_map_embedding(
+    pl_util.fate_map_embedding(
         adata,
         fate_vector,
         cell_id_t1,
