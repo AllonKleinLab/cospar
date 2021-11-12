@@ -96,7 +96,7 @@ Plotting and Analysis
    pl.fate_map
    pl.fate_potency
    pl.fate_bias
-   pl.dynamic_trajectory_from_fate_bias
+   pl.differentiation_trajectory
    pl.dynamic_trajectory_via_iterative_mapping
    pl.gene_expression_dynamics
    pl.fate_coupling_from_Tmap
@@ -154,17 +154,17 @@ Help functions
    hf.check_available_choices
    hf.update_time_ordering
    hf.update_data_description
-   hf.get_normalized_covariance
+   tl.get_normalized_covariance
    hf.get_X_clone_with_reference_ordering
 
 
 ..
-   hf.get_normalized_covariance
+   tl.get_normalized_covariance
    hf.add_neighboring_cells_to_a_map
    hf.compute_shortest_path_distance
    hf.get_dge_SW
-   hf.compute_fate_probability_map
-   hf.compute_state_potential
+   tl.compute_fate_probability_map
+   tl.compute_state_potential
    hf.filter_genes
    hf.compute_fate_map_and_intrinsic_bias
-   hf.mapout_trajectories
+   tl.mapout_trajectories

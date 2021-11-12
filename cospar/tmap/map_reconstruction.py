@@ -3039,7 +3039,7 @@ def infer_Tmap_from_clonal_info_alone_private(
             state_annote = np.array(adata_1.obs["state_info"])
             if selected_fates == None:
                 selected_fates = list(set(state_annote))
-            potential_vector_clone, fate_entropy_clone = hf.compute_state_potential(
+            potential_vector_clone, fate_entropy_clone = tl.compute_state_potential(
                 clone_annot[cell_id_t2_temp].T,
                 state_annote[cell_id_t2_temp],
                 selected_fates,

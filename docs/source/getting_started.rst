@@ -141,14 +141,14 @@ To infer the fate bias of initial cell states between two fate clusters, run::
 
 To infer the dynamic trajectory towards given fate clusters, run::
 
-    cs.pl.dynamic_trajectory_from_fate_bias(adata,**params)
+    cs.pl.differentiation_trajectory(adata,**params)
     cs.pl.dynamic_trajectory_via_iterative_mapping(adata,**params)
 
 The first method assumes two input fate clusters and infers each trajectory by thresholding the corresponding fate bias. The second method infers the trajectory by iteratively tracing a selected fate cluster all the way back to its putative origin at the initial time point. For both methods,  the inferred trajectory for each fate will be saved at ``adata.obs[f'traj_{fate_name}']``, and we can explore the gene expression dynamics along this trajectory using::
 
     cs.pl.gene_expression_dynamics(adata,**params)
 
-Additionally, the first method (``cs.pl.dynamic_trajectory_from_fate_bias``) exports the selected ancestor states for the two fate clusters at ``adata.obs['cell_group_A']`` and ``adata.obs['cell_group_B']``, which can be used to infer the driver genes for fate bifurcation by running::
+Additionally, the first method (``cs.pl.differentiation_trajectory``) exports the selected ancestor states for the two fate clusters at ``adata.obs['cell_group_A']`` and ``adata.obs['cell_group_B']``, which can be used to infer the driver genes for fate bifurcation by running::
 
     cs.pl.differential_genes(adata,**params)
 

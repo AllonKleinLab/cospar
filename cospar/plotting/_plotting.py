@@ -636,7 +636,7 @@ def fate_map(
             valid_fate_list,
             sel_index_list,
             fate_entropy,
-        ) = hf.compute_fate_probability_map(
+        ) = tl.compute_fate_probability_map(
             adata,
             selected_fates=selected_fates,
             used_Tmap=used_Tmap,
@@ -862,7 +862,7 @@ def fate_potency(
             valid_fate_list,
             sel_index_list,
             fate_entropy,
-        ) = hf.compute_fate_probability_map(
+        ) = tl.compute_fate_probability_map(
             adata,
             selected_fates=selected_fates,
             used_Tmap=used_Tmap,
@@ -1062,7 +1062,7 @@ def fate_bias(
                 valid_fate_list,
                 sel_index_list,
                 fate_entropy,
-            ) = hf.compute_fate_probability_map(
+            ) = tl.compute_fate_probability_map(
                 adata,
                 selected_fates=selected_fates,
                 used_Tmap=used_Tmap,
@@ -1337,7 +1337,7 @@ def fate_coupling_from_Tmap(
       Then, we normalize the the coupling: :math:`Y_{ll'}\leftarrow Y_{ll'}/\sqrt{Y_{ll}Y_{l'l'}}`.
 
     * If method='Weinreb', we calculate the normalized
-      covariance as in :func:`~cospar.hf.get_normalized_covariance`
+      covariance as in :func:`~cospar.tl.get_normalized_covariance`
 
     Parameters
     ----------
@@ -1417,7 +1417,7 @@ def fate_coupling_from_Tmap(
             valid_fate_list,
             sel_index_list,
             fate_entropy,
-        ) = hf.compute_fate_probability_map(
+        ) = tl.compute_fate_probability_map(
             adata,
             selected_fates=selected_fates,
             used_Tmap=used_Tmap,
@@ -1439,7 +1439,7 @@ def fate_coupling_from_Tmap(
                 )
                 rename_fates = mega_cluster_list
 
-            X_coupling = hf.get_normalized_covariance(fate_map[sp_idx], method=method)
+            X_coupling = tl.get_normalized_covariance(fate_map[sp_idx], method=method)
             if plot_heatmap:
                 heatmap(
                     figure_path,
@@ -1773,7 +1773,7 @@ def differential_genes_for_given_fates(
 ######################
 
 
-def dynamic_trajectory_from_fate_bias(
+def differentiation_trajectory(
     adata,
     selected_fates=None,
     used_Tmap="transition_map",
@@ -1909,7 +1909,7 @@ def dynamic_trajectory_from_fate_bias(
                 valid_fate_list,
                 sel_index_list,
                 fate_entropy,
-            ) = hf.compute_fate_probability_map(
+            ) = tl.compute_fate_probability_map(
                 adata,
                 selected_fates=selected_fates,
                 used_Tmap=used_Tmap,
@@ -2142,7 +2142,7 @@ def dynamic_trajectory_via_iterative_mapping(
             for j, t_0 in enumerate(sort_time_info[1:]):
                 prob_1r_full = np.zeros(len(x_emb))
 
-                prob_1r_full[cell_id_t1] = hf.mapout_trajectories(
+                prob_1r_full[cell_id_t1] = tl.mapout_trajectories(
                     used_map,
                     prob_0r_temp,
                     threshold=map_threshold,
@@ -2273,7 +2273,7 @@ def gene_expression_dynamics(
     We assume that the dynamic trajecotry at given specification is already
     available at adata.obs[f'traj_{fate_name}'], which can be created via
     :func:`.dynamic_trajectory_via_iterative_mapping` or
-    :func:`.dynamic_trajectory_from_fate_bias`.
+    :func:`.differentiation_trajectory`.
 
     Using the states that belong to the trajectory, it computes the pseudo time
     for these states and shows expression dynamics of selected genes along
@@ -2373,7 +2373,7 @@ def gene_expression_dynamics(
             if traj_name not in adata.obs.keys():
                 logg.error(
                     f"The target fate trajectory for {fate_name} have not been inferred yet.\n"
-                    "Please infer the trajectory with first with cs.pl.dynamic_trajectory_from_fate_bias, \n"
+                    "Please infer the trajectory with first with cs.pl.differentiation_trajectory, \n"
                     "or cs.pl.dynamic_trajectory_via_iterative_mapping."
                 )
 
@@ -3096,7 +3096,7 @@ def ordered_heatmap(
     # reordering the x_label
     # This method is fragile. Would fail if the amount of data is insufficient
     # We add a pseudocount (0.01) to stablize the method
-    X = hf.get_normalized_covariance(data_matrix, method="SW") + 0.01
+    X = tl.get_normalized_covariance(data_matrix, method="SW") + 0.01
     Z = hierarchy.ward(X)
     order_y = hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, X))
 
@@ -3250,7 +3250,7 @@ def fate_coupling_from_clones(
     Plot fate coupling based on clonal information.
 
     We select one time point with clonal measurement and show the normalized
-    clonal covariance among these fates. See :func:`~cospar.hf.get_normalized_covariance`.
+    clonal covariance among these fates. See :func:`~cospar.tl.get_normalized_covariance`.
 
     Parameters
     ----------
@@ -3321,7 +3321,7 @@ def fate_coupling_from_clones(
                 )
                 rename_fates = mega_cluster_list
 
-            X_coupling = hf.get_normalized_covariance(
+            X_coupling = tl.get_normalized_covariance(
                 coarse_clone_annot.T, method=method
             )
 

@@ -13,6 +13,7 @@ from sklearn.manifold import SpectralEmbedding
 from .. import help_functions as hf
 from .. import logging as logg
 from .. import settings
+from .. import tool as tl
 
 
 def darken_cmap(cmap, scale_factor):

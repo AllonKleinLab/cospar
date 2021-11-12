@@ -34,6 +34,7 @@ def fate_coupling(
     color_bar=True,
     rename_fates=None,
     color_map=plt.cm.Reds,
+    figure_index="",
 ):
     """
     Plot fate coupling determined by the transition map.
@@ -70,42 +71,35 @@ def fate_coupling(
     if color_bar:
         fig_width = fig_width + 0.5
 
-    key_word = "fate_coupling"
-    available_choices = [
-        xx.split(f"{key_word}_")[1]
-        for xx in adata.uns.keys()
-        if xx.startswith(f"{key_word}_")
-    ]
-    if source not in available_choices:
-        logg.error(
-            f"{key_word}_{source} has not been computed. Please set source to be {available_choices}"
-        )
-    else:
-        X_coupling = adata.uns[f"{key_word}_{source}"]["X_coupling"]
-        fate_names = adata.uns[f"{key_word}_{source}"]["fate_names"]
-        rename_fates = hf.rename_list(fate_names, rename_fates)
+    key_word = f"fate_coupling_{source}"
+    available_choices = hf.parse_output_choices(adata, key_word, where="uns")
+    X_coupling = adata.uns[key_word]["X_coupling"]
+    fate_names = adata.uns[key_word]["fate_names"]
+    rename_fates = hf.rename_list(fate_names, rename_fates)
 
-        ax = heatmap(
-            X_coupling,
-            x_ticks=rename_fates,
-            y_ticks=rename_fates,
-            order_map=True,
-            color_bar_label=f"Fate coupling",
-            color_bar=color_bar,
-            fig_width=fig_width,
-            fig_height=fig_height,
-            color_map=color_map,
-        )
+    ax = heatmap(
+        X_coupling,
+        x_ticks=rename_fates,
+        y_ticks=rename_fates,
+        order_map=True,
+        color_bar_label=f"Fate coupling",
+        color_bar=color_bar,
+        fig_width=fig_width,
+        fig_height=fig_height,
+        color_map=color_map,
+    )
 
-        plt.tight_layout()
-        ax.set_title(f"source: {source}")
-        plt.savefig(
-            os.path.join(
-                figure_path,
-                f"{data_des}_fate_coupling_{source}.{settings.file_format_figs}",
-            )
+    plt.tight_layout()
+    ax.set_title(f"source: {source}")
+    if figure_index != "":
+        figure_index == f"_{figure_index}"
+    plt.savefig(
+        os.path.join(
+            figure_path,
+            f"{data_des}_{key_word}_{source}{figure_index}.{settings.file_format_figs}",
         )
-        return ax
+    )
+    return ax
 
 
 def fate_hierarchy(
@@ -138,33 +132,26 @@ def fate_hierarchy(
         The axis object of this plot.
     """
 
-    key_word = "fate_hierarchy"
-    available_choices = [
-        xx.split(f"{key_word}_")[1]
-        for xx in adata.uns.keys()
-        if xx.startswith(f"{key_word}_")
-    ]
-    if source not in available_choices:
-        logg.error(
-            f"{key_word}_{source} has not been computed. Please set source to be {available_choices}"
+    key_word = f"fate_hierarchy_{source}"
+
+    available_choices = hf.parse_output_choices(adata, key_word, where="uns")
+
+    parent_map = adata.uns[key_word]["parent_map"]
+    node_mapping = adata.uns[key_word]["node_mapping"]
+    history = adata.uns[key_word]["history"]
+    fate_names = adata.uns[key_word]["fate_names"]
+
+    rename_fates = hf.rename_list(fate_names, rename_fates)
+
+    print_hierarchy(parent_map, rename_fates)
+    if plot_history:
+        plot_neighbor_joining(
+            settings.figure_path,
+            node_mapping,
+            history[0],
+            history[1],
+            history[2],
         )
-    else:
-        parent_map = adata.uns[f"{key_word}_{source}"]["parent_map"]
-        node_mapping = adata.uns[f"{key_word}_{source}"]["node_mapping"]
-        history = adata.uns[f"{key_word}_{source}"]["history"]
-        fate_names = adata.uns[f"{key_word}_{source}"]["fate_names"]
-
-        rename_fates = hf.rename_list(fate_names, rename_fates)
-
-        print_hierarchy(parent_map, rename_fates)
-        if plot_history:
-            plot_neighbor_joining(
-                settings.figure_path,
-                node_mapping,
-                history[0],
-                history[1],
-                history[2],
-            )
 
 
 def fate_map(
@@ -227,7 +214,13 @@ def fate_map(
     """
 
     key_word = f"fate_map_{source}"
-    available_choices, method, cell_id_t1, __ = hf.parse_output_choices(adata, key_word)
+    available_choices = hf.parse_output_choices(adata, key_word, where="obs")
+    map_backward = adata.uns[key_word]["map_backward"]
+    method = adata.uns[key_word]["method"]
+    if map_backward:
+        cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
+    else:
+        cell_id_t1 = adata.uns["Tmap_cell_id_t2"]
 
     if method == "norm-sum":
         color_bar_label = "Progenitor prob."
@@ -281,8 +274,13 @@ def fate_map(
 
             plt.tight_layout()
             data_des = adata.uns["data_des"][-1]
+            if figure_index != "":
+                figure_index == f"_{figure_index}"
             plt.savefig(
-                f"{settings.figure_path}/{data_des}_{key_word}_{fate_key}_{figure_index}.{settings.file_format_figs}"
+                os.path.join(
+                    f"{settings.figure_path}",
+                    f"{data_des}_{key_word}_{fate_key}{figure_index}.{settings.file_format_figs}",
+                )
             )
 
 
@@ -323,7 +321,13 @@ def fate_potency(
     """
 
     key_word = f"fate_potency_{source}"
-    available_choices, method, cell_id_t1, __ = hf.parse_output_choices(adata, key_word)
+    available_choices = hf.parse_output_choices(adata, key_word, where="obs")
+    map_backward = adata.uns[key_word]["map_backward"]
+    method = adata.uns[key_word]["method"]
+    if map_backward:
+        cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
+    else:
+        cell_id_t1 = adata.uns["Tmap_cell_id_t2"]
 
     time_info = np.array(adata.obs["time_info"])
     sp_idx = hf.selecting_cells_by_time_points(time_info[cell_id_t1], selected_times)
@@ -349,8 +353,14 @@ def fate_potency(
 
     plt.tight_layout()
     data_des = adata.uns["data_des"][-1]
+    if figure_index != "":
+        figure_index == f"_{figure_index}"
+
     plt.savefig(
-        f"{settings.figure_path}/{data_des}_{key_word}_{figure_index}.{settings.file_format_figs}"
+        os.path.join(
+            f"{settings.figure_path}",
+            f"{data_des}_{key_word}{figure_index}.{settings.file_format_figs}",
+        )
     )
 
 
@@ -396,7 +406,13 @@ def fate_bias(
     """
 
     key_word = f"fate_bias_{source}"
-    available_choices, method, cell_id_t1, __ = hf.parse_output_choices(adata, key_word)
+    available_choices = hf.parse_output_choices(adata, key_word, where="obs")
+    map_backward = adata.uns[key_word]["map_backward"]
+    method = adata.uns[key_word]["method"]
+    if map_backward:
+        cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
+    else:
+        cell_id_t1 = adata.uns["Tmap_cell_id_t2"]
 
     time_info = np.array(adata.obs["time_info"])
     sp_idx = hf.selecting_cells_by_time_points(time_info[cell_id_t1], selected_times)
@@ -456,6 +472,12 @@ def fate_bias(
 
     plt.tight_layout()
     data_des = adata.uns["data_des"][-1]
+    if figure_index != "":
+        figure_index == f"_{figure_index}"
+
     plt.savefig(
-        f"{settings.figure_path}/{data_des}_{key_word}_{fate_key}_{figure_index}.{settings.file_format_figs}"
+        os.path.join(
+            f"{settings.figure_path}",
+            f"{data_des}_{key_word}_{fate_key}{figure_index}.{settings.file_format_figs}",
+        )
     )

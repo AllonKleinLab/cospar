@@ -25,8 +25,8 @@ selected_fates = [
 
 
 def config(shared_datadir):
-    cs.settings.data_path = os.path.join(shared_datadir, "output")
-    cs.settings.figure_path = os.path.join(shared_datadir, "output")
+    cs.settings.data_path = os.path.join(shared_datadir, "..", "output")
+    cs.settings.figure_path = os.path.join(shared_datadir, "..", "output")
     cs.settings.verbosity = 0  # range: 0 (error),1 (warning),2 (info),3 (hint).
     cs.settings.set_figure_params(
         format="png", figsize=[4, 3.5], dpi=25, fontsize=14, pointsize=3, dpi_save=25
@@ -277,8 +277,8 @@ def test_Tmap_plotting(shared_datadir):
     )
     plt.close("all")
 
-    print("---------dynamic_trajectory_from_fate_bias")
-    cs.pl.dynamic_trajectory_from_fate_bias(
+    print("---------differentiation_trajectory")
+    cs.pl.differentiation_trajectory(
         adata,
         selected_fates=["Neutrophil", "Monocyte"],
         used_Tmap="transition_map",
@@ -393,6 +393,104 @@ def test_Tmap_plotting(shared_datadir):
     plt.close("all")
 
 
+def test_Tmap_analysis(shared_datadir):
+
+    cs.settings.data_path = os.path.join(shared_datadir, "..", "output")
+    cs.settings.figure_path = os.path.join(shared_datadir, "..", "output")
+    cs.settings.verbosity = 3  # range: 0 (error),1 (warning),2 (info),3 (hint).
+    cs.settings.set_figure_params(
+        format="png", figsize=[4, 3.5], dpi=25, fontsize=14, pointsize=3, dpi_save=150
+    )
+    cs.hf.set_up_folders()  # setup the data_path and figure_path
+
+    # file_name = os.path.join(
+    #     cs.settings.data_path,
+    #     "test_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad",
+    # )
+    # adata = cs.hf.read(file_name)
+
+    adata = cs.hf.read(
+        "/Users/shouwenwang/Dropbox (Personal)/Python/CoSpar/docs/source/data_cospar/LARRY_sp500_ranking1_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad"
+    )
+
+    selected_fates = [
+        "Ccr7_DC",
+        "Mast",
+        "Meg",
+        "pDC",
+        "Eos",
+        "Baso",
+        "Lymphoid",
+        "Erythroid",
+        "Neutrophil",
+        "Monocyte",
+    ]
+
+    cs.tl.fate_coupling(adata, source="transition_map", selected_fates=selected_fates)
+    cs.temp_plotting.fate_coupling(adata, source="transition_map")
+
+    cs.tl.fate_coupling(adata, source="X_clone", selected_fates=selected_fates)
+    cs.temp_plotting.fate_coupling(adata, source="X_clone")
+
+    cs.tl.fate_hierarchy(adata, source="transition_map", selected_fates=selected_fates)
+    cs.temp_plotting.fate_hierarchy(adata, source="transition_map")
+
+    cs.tl.fate_hierarchy(adata, source="X_clone", selected_fates=selected_fates)
+    cs.temp_plotting.fate_hierarchy(adata, source="X_clone")
+
+    selected_fates = [
+        "Neutrophil",
+        "Monocyte",
+    ]
+    cs.tl.fate_map(adata, source="transition_map", selected_fates=selected_fates)
+    cs.temp_plotting.fate_map(
+        adata,
+        source="transition_map",
+        selected_fates=selected_fates,
+        show_histogram=True,
+        selected_times="4",
+        horizontal=True,
+    )
+
+    selected_fates = [
+        "Ccr7_DC",
+        "Mast",
+        "Meg",
+        "pDC",
+        ["Eos", "Baso"],
+        "Lymphoid",
+        "Erythroid",
+        "Neutrophil",
+        "Monocyte",
+    ]
+    cs.tl.fate_potency(
+        adata, source="transition_map", selected_fates=selected_fates, fate_count=False
+    )
+    cs.temp_plotting.fate_potency(
+        adata,
+        source="transition_map",
+        show_histogram=True,
+        selected_times="4",
+    )
+
+    selected_fates = [
+        "Neutrophil",
+        "Monocyte",
+    ]
+    cs.tl.fate_bias(adata, source="transition_map", selected_fates=selected_fates)
+    cs.temp_plotting.fate_bias(
+        adata,
+        source="transition_map",
+        show_histogram=True,
+        selected_times="4",
+    )
+
+    print("-------------------------plotting")
+
+    selected_state_id_list = [1, 10]
+    map_backward = False
+
+
 def test_clean_up():
     print("---------Clean up")
     if Path(cs.settings.data_path).is_dir():
@@ -402,8 +500,11 @@ def test_clean_up():
         os.system("rm -r output")
 
 
+os.chdir(os.path.dirname(__file__))
+cs.settings.verbosity = 3  # range: 0 (error),1 (warning),2 (info),3 (hint).
 # test_load_dataset("data")
-# test_preprocessing('data')
-# test_clonal_analysis('data')
-# test_Tmap_inference('data')
-# test_Tmap_plotting('data')
+# test_preprocessing("data")
+# test_clonal_analysis("data")
+# test_Tmap_inference("data")
+# test_Tmap_plotting("data")
+test_Tmap_analysis("data")
