@@ -133,6 +133,7 @@ def compute_fate_probability_map(
         of fate clusters. It screens for valid fates, though.
     """
 
+    hf.check_available_map(adata)
     if method not in ["max", "sum", "mean", "norm-sum"]:
         logg.warn(
             "method not in {'max','sum','mean','norm-sum'}; use the 'norm-sum' method"
@@ -174,7 +175,7 @@ def compute_fate_probability_map(
 
     state_annote_BW = state_annote_1[cell_id_t2]
 
-    if used_Tmap in adata.uns.keys():
+    if used_Tmap in adata.uns["available_map"]:
         used_map = adata.uns[used_Tmap]
 
         fate_map, fate_entropy = compute_state_potential(
@@ -186,31 +187,14 @@ def compute_fate_probability_map(
             method=method,
         )
 
-        adata.uns["fate_map"] = {
-            "fate_array": mega_cluster_list,
-            "fate_map": fate_map,
-            "fate_entropy": fate_entropy,
-        }
-
     else:
-        logg.error(
-            f"used_Tmap should be among adata.uns.keys(), with _transition_map as suffix"
-        )
-    #### finish
+        raise ValueError(f"used_Tmap should be among {adata.uns['available_map']}")
 
+    # Note: we compute relative_bias (normalze against cluster size). This is no longer in active use
     N_macro = len(valid_fate_list)
-    #    fate_map=np.zeros((fate_map_0.shape[0],N_macro))
     relative_bias = np.zeros((fate_map.shape[0], N_macro))
     expected_prob = np.zeros(N_macro)
     for jj in range(N_macro):
-        # idx=np.in1d(fate_array_flat,valid_fate_list[jj])
-        # if method=='max':
-        #     fate_map[:,jj]=fate_map_0[:,idx].max(1)
-        # elif method=='mean':
-        #     fate_map[:,jj]=fate_map_0[:,idx].mean(1)
-        # else: # use the sum method
-        #     fate_map[:,jj]=fate_map_0[:,idx].sum(1)
-
         for yy in valid_fate_list[jj]:
             expected_prob[jj] = expected_prob[jj] + np.sum(
                 state_annote[cell_id_t2] == yy

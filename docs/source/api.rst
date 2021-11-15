@@ -96,8 +96,8 @@ Plotting and Analysis
    pl.fate_map
    pl.fate_potency
    pl.fate_bias
-   pl.differentiation_trajectory
-   pl.dynamic_trajectory_via_iterative_mapping
+   pl.progenitor
+   pl.iterative_differentiation
    pl.gene_expression_dynamics
    pl.fate_coupling_from_Tmap
    pl.fate_hierarchy_from_Tmap

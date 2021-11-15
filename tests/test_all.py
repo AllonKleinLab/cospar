@@ -277,8 +277,8 @@ def test_Tmap_plotting(shared_datadir):
     )
     plt.close("all")
 
-    print("---------differentiation_trajectory")
-    cs.pl.differentiation_trajectory(
+    print("---------progenitor")
+    cs.pl.progenitor(
         adata,
         selected_fates=["Neutrophil", "Monocyte"],
         used_Tmap="transition_map",
@@ -384,7 +384,7 @@ def test_Tmap_plotting(shared_datadir):
     plt.close("all")
 
     print("---------Dynamic trajectory via iterative mapping")
-    cs.pl.dynamic_trajectory_via_iterative_mapping(
+    cs.pl.iterative_differentiation(
         adata,
         selected_fate="Neutrophil",
         plot_separately=True,
@@ -413,82 +413,209 @@ def test_Tmap_analysis(shared_datadir):
         "/Users/shouwenwang/Dropbox (Personal)/Python/CoSpar/docs/source/data_cospar/LARRY_sp500_ranking1_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad"
     )
 
-    selected_fates = [
-        "Ccr7_DC",
-        "Mast",
-        "Meg",
-        "pDC",
-        "Eos",
-        "Baso",
-        "Lymphoid",
-        "Erythroid",
-        "Neutrophil",
-        "Monocyte",
-    ]
+    # selected_fates = [
+    #     "Ccr7_DC",
+    #     "Mast",
+    #     "Meg",
+    #     "pDC",
+    #     "Eos",
+    #     "Baso",
+    #     "Lymphoid",
+    #     "Erythroid",
+    #     "Neutrophil",
+    #     "Monocyte",
+    # ]
 
-    cs.tl.fate_coupling(adata, source="transition_map", selected_fates=selected_fates)
-    cs.temp_plotting.fate_coupling(adata, source="transition_map")
+    # cs.tl.fate_coupling(adata, source="transition_map", selected_fates=selected_fates)
+    # cs.temp_plotting.fate_coupling(adata, source="transition_map")
 
-    cs.tl.fate_coupling(adata, source="X_clone", selected_fates=selected_fates)
-    cs.temp_plotting.fate_coupling(adata, source="X_clone")
+    # cs.tl.fate_coupling(adata, source="X_clone", selected_fates=selected_fates)
+    # cs.temp_plotting.fate_coupling(adata, source="X_clone")
 
-    cs.tl.fate_hierarchy(adata, source="transition_map", selected_fates=selected_fates)
-    cs.temp_plotting.fate_hierarchy(adata, source="transition_map")
+    # cs.tl.fate_hierarchy(adata, source="transition_map", selected_fates=selected_fates)
+    # cs.temp_plotting.fate_hierarchy(adata, source="transition_map")
 
-    cs.tl.fate_hierarchy(adata, source="X_clone", selected_fates=selected_fates)
-    cs.temp_plotting.fate_hierarchy(adata, source="X_clone")
+    # cs.tl.fate_hierarchy(adata, source="X_clone", selected_fates=selected_fates)
+    # cs.temp_plotting.fate_hierarchy(adata, source="X_clone")
 
-    selected_fates = [
-        "Neutrophil",
-        "Monocyte",
-    ]
-    cs.tl.fate_map(adata, source="transition_map", selected_fates=selected_fates)
-    cs.temp_plotting.fate_map(
-        adata,
-        source="transition_map",
-        selected_fates=selected_fates,
-        show_histogram=True,
-        selected_times="4",
-        horizontal=True,
-    )
+    # selected_fates = [
+    #     "Neutrophil",
+    #     "Monocyte",
+    # ]
+    # cs.tl.fate_map(adata, source="transition_map", selected_fates=selected_fates)
+    # cs.temp_plotting.fate_map(
+    #     adata,
+    #     source="transition_map",
+    #     selected_fates=selected_fates,
+    #     show_histogram=True,
+    #     selected_times="4",
+    #     horizontal=True,
+    # )
 
-    selected_fates = [
-        "Ccr7_DC",
-        "Mast",
-        "Meg",
-        "pDC",
-        ["Eos", "Baso"],
-        "Lymphoid",
-        "Erythroid",
-        "Neutrophil",
-        "Monocyte",
-    ]
-    cs.tl.fate_potency(
-        adata, source="transition_map", selected_fates=selected_fates, fate_count=False
-    )
-    cs.temp_plotting.fate_potency(
-        adata,
-        source="transition_map",
-        show_histogram=True,
-        selected_times="4",
-    )
+    # # selected_fates = [
+    # #     "Ccr7_DC",
+    # #     "Mast",
+    # #     "Meg",
+    # #     "pDC",
+    # #     ["Eos", "Baso"],
+    # #     "Lymphoid",
+    # #     "Erythroid",
+    # #     "Neutrophil",
+    # #     "Monocyte",
+    # # ]
+    # cs.tl.fate_potency(
+    #     adata, source="transition_map", selected_fates=selected_fates, fate_count=True
+    # )
+    # cs.temp_plotting.fate_potency(
+    #     adata,
+    #     source="transition_map",
+    #     show_histogram=True,
+    #     selected_times="4",
+    # )
 
-    selected_fates = [
-        "Neutrophil",
-        "Monocyte",
-    ]
-    cs.tl.fate_bias(adata, source="transition_map", selected_fates=selected_fates)
-    cs.temp_plotting.fate_bias(
-        adata,
-        source="transition_map",
-        show_histogram=True,
-        selected_times="4",
-    )
+    # selected_fates = [
+    #     "Neutrophil",
+    #     "Monocyte",
+    # ]
+    # cs.tl.fate_bias(
+    #     adata,
+    #     source="transition_map",
+    #     selected_fates=selected_fates,
+    #     sum_fate_prob_thresh=0.01,
+    # )
+    # cs.temp_plotting.fate_bias(
+    #     adata,
+    #     source="transition_map",
+    #     show_histogram=True,
+    #     selected_times="4",
+    # )
+    # cs.temp_plotting.fate_bias(
+    #     adata,
+    #     source="transition_map",
+    #     show_histogram=True,
+    #     selected_fates=selected_fates,
+    #     selected_times="4",
+    # )
 
-    print("-------------------------plotting")
+    # selected_fates = [
+    #     "Neutrophil",
+    #     "Monocyte",
+    # ]
+    # cs.tl.progenitor(
+    #     adata,
+    #     source="transition_map",
+    #     selected_fates=selected_fates,
+    #     sum_fate_prob_thresh=0.01,
+    # )
+    # cs.temp_plotting.progenitor(
+    #     adata,
+    #     source="transition_map",
+    #     selected_times="4",
+    # )
 
-    selected_state_id_list = [1, 10]
-    map_backward = False
+    # cs.tl.iterative_differentiation(
+    #     adata,
+    #     source="transition_map",
+    #     selected_fates="Neutrophil",
+    #     apply_time_constaint=True,
+    #     map_backward=False,
+    # )
+    # cs.temp_plotting.iterative_differentiation(
+    #     adata,
+    #     source="transition_map",
+    # )
+
+    # cs.tl.clonal_fate_bias(adata, selected_fate="Neutrophil")
+    # cs.temp_plotting.clonal_fate_bias(adata)
+
+    # cs.temp_plotting.barcode_heatmap(
+    #     adata, log_transform=True, selected_fates=selected_fates
+    # )
+
+    # cs.temp_plotting.clones_on_manifold(adata, selected_clone_list=[1, 2, 3])
+    # cs.temp_plotting.gene_expression_dynamics(
+    #     adata, selected_fate="Neutrophil", gene_name_list=["Gata1"]
+    # )
+
+    # gene_list = [
+    #     "Mpo",
+    #     "Elane",
+    #     "Gstm1",
+    #     "Gata2",
+    #     "Srgn",
+    #     "Mt2",
+    #     "Ctsg",
+    #     "Mt1",
+    #     "S100a8",
+    #     "Prtn3",
+    #     "Gfi1",
+    #     "Dstn",
+    #     "Cd63",
+    #     "Ap3s1",
+    #     "Arl11",
+    #     "Hk3",
+    #     "Tmx4",
+    #     "Slpi",
+    #     "Igf1r",
+    #     "Gsr",
+    #     "H2-Aa",
+    #     "H2-Eb1",
+    #     "Ighm",
+    #     "Ly6a",
+    #     "Cd74",
+    #     "Olfm1",
+    #     "Ccr2",
+    #     "Satb1",
+    #     "Mef2c",
+    #     "Lpl",
+    #     "Pou2f2",
+    #     "Wfdc17",
+    #     "Emp1",
+    #     "Psap",
+    #     "Cybb",
+    #     "Bcl11a",
+    #     "Cd52",
+    #     "Ms4a6c",
+    #     "Tmem108",
+    #     "Ifi203",
+    # ]
+
+    # selected_fates = [
+    #     "Neutrophil",
+    #     "Monocyte",
+    #     ["Baso", "Eos", "Erythroid", "Mast", "Meg"],
+    #     ["pDC", "Ccr7_DC", "Lymphoid"],
+    # ]
+    # renames = ["Neu", "Mon", "Meg-Ery-MBaE", "Lym-Dc"]
+
+    # cs.temp_plotting.gene_expression_heat_map(
+    #     adata,
+    #     selected_genes=gene_list,
+    #     selected_fates=selected_fates,
+    #     rename_fates=renames,
+    #     fig_width=12,
+    # )
+
+    # cs.temp_plotting.gene_expression_on_manifold(
+    #     adata, selected_genes=["Gata1", "Elane"], savefig=True
+    # )
+
+    # df1, df2 = cs.tl.differential_genes(
+    #     adata, cell_group_A="Neutrophil", cell_group_B="Monocyte"
+    # )
+    # import numpy as np
+
+    # state_info = np.array(adata.obs["state_info"])
+    # df1, df2 = cs.tl.differential_genes(
+    #     adata,
+    #     cell_group_A=(state_info == "Neutrophil"),
+    #     cell_group_B=(state_info == "Monocyte"),
+    # )
+    # print(df1)
+
+    # cs.temp_plotting.single_cell_transition(
+    #     adata, selected_state_id_list=[1, 2], savefig=True, map_backward=False
+    # )
 
 
 def test_clean_up():

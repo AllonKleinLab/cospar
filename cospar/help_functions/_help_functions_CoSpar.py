@@ -630,7 +630,7 @@ def analyze_selected_fates(state_info, selected_fates):
     state_info = np.array(state_info)
     valid_state_annot = list(set(state_info))
     if type(selected_fates) is str:
-        selected_fates = list(selected_fates)
+        selected_fates = [selected_fates]
     if selected_fates is None:
         selected_fates = valid_state_annot
 
@@ -1387,20 +1387,20 @@ def get_X_clone_with_reference_ordering(
     return X_clone[:, sp_idx], reference_clone_id[sp_idx]
 
 
-def parse_output_choices(adata, key_word, where="obs"):
+def parse_output_choices(adata, key_word, where="obs", interrupt=True):
     if where == "obs":
         raw_choices = [xx for xx in adata.obs.keys() if xx.startswith(f"{key_word}")]
     else:
         raw_choices = [xx for xx in adata.uns.keys() if xx.startswith(f"{key_word}")]
 
-    if len(raw_choices) == 0:
+    if (interrupt) and (len(raw_choices) == 0):
         raise ValueError(f"{key_word} has not been computed yet.")
 
     available_choices = []
     for xx in raw_choices:
         y = xx.split(f"{key_word}")[1]
         if y.startswith("_"):
-            y = y.split("_")[1]
+            y = y[1:]
         available_choices.append(y)
 
     return available_choices

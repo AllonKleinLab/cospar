@@ -269,6 +269,7 @@ def fate_map(
     map_backward=True,
     method="norm-sum",
     fate_count=False,
+    force_run=False,
 ):
     """
     Plot transition probability to given fate/ancestor clusters.
@@ -327,48 +328,86 @@ def fate_map(
         raise ValueError(f"source should be among {adata.uns['available_map']}")
 
     else:
-        if map_backward:
-            cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
-        else:
-            cell_id_t1 = adata.uns["Tmap_cell_id_t2"]
 
-        if method == "norm-sum":
-            color_bar_label = "Progenitor prob."
-        else:
-            color_bar_label = "Fate probability"
-
+        state_annote = adata.obs["state_info"]
         (
-            fate_map,
             mega_cluster_list,
-            relative_bias,
-            expected_prob,
-            valid_fate_list,
+            __,
+            __,
             sel_index_list,
-            fate_entropy,
-        ) = tl_util.compute_fate_probability_map(
-            adata,
-            selected_fates=selected_fates,
-            used_Tmap=source,
-            map_backward=map_backward,
-            method=method,
-            fate_count=fate_count,
+        ) = hf.analyze_selected_fates(state_annote, selected_fates)
+
+        key_word = f"fate_map_{source}"
+        available_choices = hf.parse_output_choices(
+            adata, key_word, where="obs", interrupt=False
         )
 
-        if len(mega_cluster_list) == 0:
-            logg.error("No cells selected. Computation aborted!")
+        # check if we need to recompute the map
+        re_compute = True
+        condi_0 = len(available_choices) > 0
+        condi_1 = set(mega_cluster_list) <= set(available_choices)
+        if condi_0 & condi_1:
+            map_backward_all = set(
+                [
+                    adata.uns["fate_map_params"][f"{source}_{x}"]["map_backward"]
+                    for x in mega_cluster_list
+                ]
+            )
+            method_all = set(
+                [
+                    adata.uns["fate_map_params"][f"{source}_{x}"]["method"]
+                    for x in mega_cluster_list
+                ]
+            )
+            # check that the parameters are uniform and equals to input
+            if len(map_backward_all) == 1 and len(method_all) == 1:
+                condi_2 = map_backward == list(map_backward_all)[0]
+                condi_3 = method == list(method_all)[0]
+                if condi_2 and condi_3:
+                    re_compute = False
+        if not (re_compute or force_run):
+            logg.info("Use pre-computed fate map")
         else:
-            for j, fate in enumerate(mega_cluster_list):
-                temp_map = np.zeros(adata.shape[0]) + np.nan
-                temp_map[cell_id_t1] = fate_map[:, j]
-                adata.obs[f"fate_map_{source}_{fate}"] = temp_map
-            adata.uns[f"fate_map_{source}"] = {
-                "map_backward": map_backward,
-                "method": method,
-            }
+            (
+                fate_map,
+                mega_cluster_list,
+                relative_bias,
+                expected_prob,
+                valid_fate_list,
+                sel_index_list,
+                fate_entropy,
+            ) = tl_util.compute_fate_probability_map(
+                adata,
+                selected_fates=selected_fates,
+                used_Tmap=source,
+                map_backward=map_backward,
+                method=method,
+                fate_count=fate_count,
+            )
 
-            temp_map = np.zeros(adata.shape[0]) + np.nan
-            temp_map[cell_id_t1] = fate_entropy
-            adata.uns[f"fate_potency"] = temp_map
+            if map_backward:
+                cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
+            else:
+                cell_id_t1 = adata.uns["Tmap_cell_id_t2"]
+
+            if "fate_map_params" not in adata.uns.keys():
+                adata.uns[f"fate_map_params"] = {}
+
+            if len(mega_cluster_list) == 0:
+                logg.error("No cells selected. Computation aborted!")
+            else:
+                for j, fate in enumerate(mega_cluster_list):
+                    temp_map = np.zeros(adata.shape[0]) + np.nan
+                    temp_map[cell_id_t1] = fate_map[:, j]
+                    adata.obs[f"fate_map_{source}_{fate}"] = temp_map
+                    adata.uns[f"fate_map_params"][f"{source}_{fate}"] = {
+                        "map_backward": map_backward,
+                        "method": method,
+                    }
+
+                temp_map = np.zeros(adata.shape[0]) + np.nan
+                temp_map[cell_id_t1] = fate_entropy
+                adata.uns[f"fate_potency_tmp"] = temp_map
 
         logg.info(f"Results saved at adata.obs['fate_map_{source}_XXX']")
 
@@ -395,9 +434,12 @@ def fate_potency(
         map_backward=map_backward,
         method=method,
         fate_count=fate_count,
+        force_run=True,
     )
-    adata.obs[f"fate_potency_{source}"] = adata.uns["fate_potency"]
-    adata.uns[f"fate_potency_{source}"] = {
+    adata.obs[f"fate_potency_{source}"] = adata.uns["fate_potency_tmp"]
+    if "fate_potency_params" not in adata.uns.keys():
+        adata.uns[f"fate_potency_params"] = {}
+    adata.uns[f"fate_potency_params"][f"{source}"] = {
         "map_backward": map_backward,
         "method": method,
     }
@@ -410,7 +452,7 @@ def fate_bias(
     source="transition_map",
     map_backward=True,
     method="norm-sum",
-    sum_fate_prob_thresh=0.05,
+    sum_fate_prob_thresh=0,
     pseudo_count=0,
 ):
     """
@@ -490,10 +532,8 @@ def fate_bias(
         source=source,
         map_backward=map_backward,
         method=method,
+        force_run=True,
     )
-
-    if pseudo_count == 0:
-        pseudo_count = 10 ** (-10)
 
     if map_backward:
         cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
@@ -506,6 +546,10 @@ def fate_bias(
     fate_vector_2 = np.array(adata.obs[f"fate_map_{source}_{mega_cluster_list[1]}"])[
         cell_id_t1
     ]
+
+    if pseudo_count == 0:
+        pseudo_count = 10 ** (-10)
+
     add_count = pseudo_count * np.max([fate_vector_1, fate_vector_2])
     fate_vector_1 = fate_vector_1 + add_count
     fate_vector_2 = fate_vector_2 + add_count
@@ -520,27 +564,26 @@ def fate_bias(
         f"fate_bias_{source}_{mega_cluster_list[0]}*{mega_cluster_list[1]}"
     ] = temp_map
 
-    adata.uns[f"fate_bias_{source}"] = {"map_backward": map_backward, "method": method}
+    if "fate_bias_params" not in adata.uns.keys():
+        adata.uns[f"fate_bias_params"] = {}
+    adata.uns[f"fate_bias_params"][
+        f"{source}_{mega_cluster_list[0]}*{mega_cluster_list[1]}"
+    ] = {"map_backward": map_backward, "method": method}
+
     logg.info(f"Results saved at adata.obs['fate_bias_{source}']")
 
 
-def differentiation_trajectory(
+def progenitor(
     adata,
     selected_fates=None,
-    used_Tmap="transition_map",
+    source="transition_map",
     map_backward=True,
     method="norm-sum",
-    selected_times=None,
     bias_threshold_A=0.5,
     bias_threshold_B=0.5,
     sum_fate_prob_thresh=0,
     pseudo_count=0,
     avoid_target_states=False,
-    mask=None,
-    plot_ancestor=True,
-    savefig=False,
-    plot_target_state=True,
-    target_transparency=0.2,
 ):
     """
     Identify trajectories towards/from two given clusters.
@@ -561,7 +604,7 @@ def differentiation_trajectory(
     selected_fates: `list`
         List of cluster ids consistent with adata.obs['state_info'].
         It allows a nested structure.
-    used_Tmap: `str`
+    source: `str`
         The transition map to be used for plotting: {'transition_map',
         'intraclone_transition_map',...}. The actual available
         map depends on adata itself, which can be accessed at adata.uns['available_map']
@@ -586,186 +629,191 @@ def differentiation_trajectory(
     pseudo_count: `float`, optional (default: 0)
         Pseudo count to compute the fate bias. The bias = (Pa+c0)/(Pa+Pb+2*c0),
         where c0=pseudo_count*(maximum fate probability) is a rescaled pseudo count.
-    savefig: `bool`, optional (default: False)
-        Save all plots.
-    avoid_target_states: `bool`, optional (default: False)
-        If true, avoid selecting cells at the target cluster (A, or B) as
-        ancestor population.
-    mask: `np.array`, optional (default: None)
-        A boolean array for available cell states. It should has the length as adata.shape[0].
-        Especially useful to constrain the states to show fate bias.
-    plot_ancestor: `bool`, optional (default: True)
-        If true, plot the progenitor states that have been selected based on cell fate bias.
-    plot_target_state: `bool`, optional (default: True)
-        If true, highlight the target clusters as defined in selected_fates.
-    target_transparency: `float`, optional (default: 0.2)
-        Transparency parameter for plotting.
+    """
+
+    state_info = adata.obs["state_info"]
+    (
+        mega_cluster_list,
+        valid_fate_list,
+        __,
+        sel_index_list,
+    ) = hf.analyze_selected_fates(state_info, selected_fates)
+
+    if len(mega_cluster_list) != 2:
+        raise ValueError("selected_fates must have only two valid fates")
+
+    fate_bias(
+        adata,
+        selected_fates=selected_fates,
+        source=source,
+        map_backward=map_backward,
+        method=method,
+        sum_fate_prob_thresh=sum_fate_prob_thresh,
+        pseudo_count=pseudo_count,
+    )
+
+    if map_backward:
+        cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
+    else:
+        cell_id_t1 = adata.uns["Tmap_cell_id_t2"]
+
+    fate_key = f"{mega_cluster_list[0]}*{mega_cluster_list[1]}"
+    fate_vector = np.array(adata.obs[f"fate_bias_{source}_{fate_key}"])[cell_id_t1]
+
+    idx_for_group_A = fate_vector > (bias_threshold_A)
+    idx_for_group_B = fate_vector < (bias_threshold_B)
+
+    if avoid_target_states:
+        for zz in valid_fate_list[0]:
+            id_A_t1 = np.nonzero(state_info[cell_id_t1] == zz)[0]
+            idx_for_group_A[id_A_t1] = False
+
+        for zz in valid_fate_list[1]:
+            id_B_t1 = np.nonzero(state_info[cell_id_t1] == zz)[0]
+            idx_for_group_B[id_B_t1] = False
+
+    group_A_idx_full = np.zeros(adata.shape[0], dtype=bool)
+    group_A_idx_full[cell_id_t1] = idx_for_group_A
+    group_B_idx_full = np.zeros(adata.shape[0], dtype=bool)
+    group_B_idx_full[cell_id_t1] = idx_for_group_B
+
+    # store the trajectory
+    key_word = "progenitor"
+    if f"{key_word}_params" not in adata.uns.keys():
+        adata.uns[f"{key_word}_params"] = {}
+
+    temp_list = [group_A_idx_full, group_B_idx_full]
+    for j, fate_name in enumerate(mega_cluster_list):
+        adata.obs[f"{key_word}_{source}_{fate_name}"] = temp_list[j]
+        selected_idx = sel_index_list[j]
+        combined_prob_temp = temp_list[j].astype(int) + selected_idx.astype(int)
+        adata.obs[f"diff_trajectory_{source}_{fate_name}"] = combined_prob_temp
+        adata.uns[f"{key_word}_params"][f"{source}_{fate_name}"] = {
+            "map_backward": map_backward,
+            "method": method,
+        }
+
+
+def iterative_differentiation(
+    adata,
+    selected_fates=None,
+    source="transition_map",
+    map_backward=True,
+    map_threshold=0.1,
+    apply_time_constaint=False,
+):
+    """
+    Infer trajectory towards/from a cluster
+
+    If map_backward=True, infer the trajectory backward in time.
+    Using inferred transition map, the inference is applied recursively. It
+    starts with the cell states for the selected fate and uses the selected
+    map to infer the immediate ancestor states. Then, using these putative
+    ancestor states as the secondary input, it finds their immediate ancestors
+    again. This goes on until all time points are exhausted.
+
+    It only works for transition map from multi-time clones.
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+        Assume to contain transition maps at adata.uns.
+    selected_fate: `str`, or `list`
+        Targeted cluster of the trajectory, as consistent with adata.obs['state_info']
+        When it is a list, the listed clusters are combined into a single fate cluster.
+    used_Tmap: `str`
+        The transition map to be used for plotting: {'transition_map',
+        'intraclone_transition_map',...}. The actual available
+        map depends on adata itself, which can be accessed at adata.uns['available_map']
+    map_backward: `bool`, optional (default: True)
+        If `map_backward=True`, show fate properties of initial cell states :math:`i`;
+        otherwise, show progenitor properties of later cell states :math:`j`.
+        This is used for building the fate map :math:`P_i(\mathcal{C})`. See :func:`.fate_map`.
+    map_threshold: `float`, optional (default: 0.1)
+        Relative threshold in the range [0,1] for truncating the fate map
+        towards the cluster. Only states above the threshold will be selected.
+    apply_time_constaint: `bool`, optional (default: False)
+        If true, in each iteration of finding the immediate ancestor states, select cell states
+        at the corresponding time point.
 
     Returns
     -------
-    adata.obs['cell_group_A']: `np.array` of `bool`
-        A boolean array for selected progenitor states towards fate :math:`\mathcal{A}`.
-    adata.obs['cell_group_B']: `np.array` of `bool`
-        A boolean array for selected progenitor states towards fate :math:`\mathcal{B}`.
     adata.obs[f'traj_{fate_name}']: `np.array`
-        A binary array for indicating states belonging to a trajectory.
+        The probability of each state to belong to a trajectory.
     """
 
-    diff_gene_A = []
-    diff_gene_B = []
+    # We always use the probabilistic map, which is more realiable. Otherwise, the result is very sensitive to thresholding
     hf.check_available_map(adata)
-    fig_width = settings.fig_width
-    fig_height = settings.fig_height
-    point_size = settings.fig_point_size
-
-    if used_Tmap not in adata.uns["available_map"]:
-        logg.error(f"used_Tmap should be among {adata.uns['available_map']}")
-
+    if source not in adata.uns["available_map"]:
+        raise ValueError(f"source should be among {adata.uns['available_map']}")
     else:
-        if map_backward:
-            cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
-            cell_id_t2 = adata.uns["Tmap_cell_id_t2"]
+        # we normalize the map in advance to avoid normalization later in mapout_trajectories
+        used_map = adata.uns[source]
+        resol = 10 ** (-10)
+        used_map = hf.sparse_rowwise_multiply(
+            used_map, 1 / (resol + np.sum(used_map, 1).A.flatten())
+        )
 
+        if not map_backward:
+            used_map = used_map.T
+
+        state_annote = adata.obs["state_info"]
+        (
+            mega_cluster_list,
+            __,
+            __,
+            sel_index_list,
+        ) = hf.analyze_selected_fates(state_annote, selected_fates)
+
+        if len(mega_cluster_list) == 0:
+            logg.error("No cells selected. Computation aborted!")
         else:
-            cell_id_t2 = adata.uns["Tmap_cell_id_t1"]
-            cell_id_t1 = adata.uns["Tmap_cell_id_t2"]
+            for k0, fate_key in enumerate(mega_cluster_list):
+                selected_idx = sel_index_list[k0]
 
-        figure_path = settings.figure_path
-        state_annote_t1 = np.array(adata.obs["state_info"][cell_id_t1])
-
-        if len(selected_fates) != 2:
-            logg.error(f" Must provide exactly two fates.")
-
-        else:
-            ## select time points
-            time_info = np.array(adata.obs["time_info"])
-            sp_idx = hf.selecting_cells_by_time_points(
-                time_info[cell_id_t1], selected_times
-            )
-            if mask is not None:
-                if len(mask) == adata.shape[0]:
-                    mask = mask.astype(bool)
-                    sp_idx = sp_idx & (mask[cell_id_t1])
+                time_info = np.array(adata.obs["time_info"])
+                if map_backward:
+                    cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
+                    cell_id_t2 = adata.uns["Tmap_cell_id_t2"]
+                    sort_time_info = np.sort(list(set(time_info)))[::-1]
                 else:
-                    logg.error(
-                        "mask length does not match adata.shape[0]. Ignored mask."
+                    cell_id_t2 = adata.uns["Tmap_cell_id_t1"]
+                    cell_id_t1 = adata.uns["Tmap_cell_id_t2"]
+                    sort_time_info = np.sort(list(set(time_info)))
+
+                if apply_time_constaint:
+                    selected_idx = selected_idx * (time_info == sort_time_info[0])
+                prob_array = [selected_idx]
+
+                # used_map=hf.sparse_column_multiply(used_map,1/(resol+used_map.sum(0)))
+                for j, t_0 in enumerate(sort_time_info[1:]):
+                    prob_1r_full = np.zeros(adata.shape[0])
+                    prob_1r_full[cell_id_t1] = tl_util.mapout_trajectories(
+                        used_map,
+                        prob_array[j],
+                        threshold=map_threshold,
+                        cell_id_t1=cell_id_t1,
+                        cell_id_t2=cell_id_t2,
                     )
 
-            # if 'fate_map' not in adata.uns.keys():
-            (
-                fate_map,
-                mega_cluster_list,
-                relative_bias,
-                expected_prob,
-                valid_fate_list,
-                sel_index_list,
-                fate_entropy,
-            ) = tl_util.compute_fate_probability_map(
-                adata,
-                selected_fates=selected_fates,
-                used_Tmap=used_Tmap,
-                map_backward=map_backward,
-                method=method,
-            )
-
-            if (len(mega_cluster_list) != 2) or (np.sum(sp_idx) == 0):
-                logg.error(
-                    f"Do not have valid fates or time points. Computation aborted!"
-                )
-            else:
-                if pseudo_count == 0:
-                    pseudo_count = 10 ** (-10)
-
-                potential_vector_temp = fate_map + pseudo_count * np.max(fate_map)
-                valid_idx = fate_map.sum(1) > sum_fate_prob_thresh  # default 0.5
-
-                diff = potential_vector_temp[:, 0]  # -potential_vector_temp[:,1]
-                tot = potential_vector_temp.sum(1)
-
-                # valid_idx=tot>sum_fate_prob_thresh # default 0
-                valid_id = np.nonzero(valid_idx)[0]
-                vector_array = np.zeros(np.sum(valid_idx))
-                vector_array = diff[valid_idx] / (tot[valid_idx])
-
-                idx_for_group_A = np.zeros(len(tot), dtype=bool)
-                idx_for_group_B = np.zeros(len(tot), dtype=bool)
-                idx_for_group_A[valid_id] = vector_array > (bias_threshold_A)
-                idx_for_group_B[valid_id] = vector_array < (bias_threshold_B)
-
-                ### remove states already exist in the selected fate cluster
-                if avoid_target_states:
-                    for zz in valid_fate_list[0]:
-                        id_A_t1 = np.nonzero(state_annote_t1 == zz)[0]
-                        idx_for_group_A[id_A_t1] = False
-
-                    for zz in valid_fate_list[1]:
-                        id_B_t1 = np.nonzero(state_annote_t1 == zz)[0]
-                        idx_for_group_B[id_B_t1] = False
-
-                group_A_idx_full = np.zeros(adata.shape[0], dtype=bool)
-                group_A_idx_full[cell_id_t1[sp_idx]] = idx_for_group_A[sp_idx]
-                group_B_idx_full = np.zeros(adata.shape[0], dtype=bool)
-                group_B_idx_full[cell_id_t1[sp_idx]] = idx_for_group_B[sp_idx]
-                adata.obs["cell_group_A"] = group_A_idx_full
-                adata.obs["cell_group_B"] = group_B_idx_full
-
-                if plot_ancestor:
-                    x_emb = adata.obsm["X_emb"][:, 0]
-                    y_emb = adata.obsm["X_emb"][:, 1]
-                    state_annote = adata.obs["state_info"]
-
-                    fig, nrow, ncol = start_subplot_figure(
-                        2, row_height=4, n_columns=2, fig_width=8
+                    ## thresholding the result
+                    prob_1r_full = prob_1r_full * (
+                        prob_1r_full > map_threshold * np.max(prob_1r_full)
                     )
-                    ax = plt.subplot(nrow, ncol, 1)
-                    customized_embedding(
-                        x_emb, y_emb, group_A_idx_full, ax=ax, point_size=point_size
-                    )
-                    if plot_target_state:
-                        for zz in valid_fate_list[0]:
-                            idx_2 = state_annote == zz
-                            ax.plot(
-                                x_emb[idx_2],
-                                y_emb[idx_2],
-                                ".",
-                                color="cyan",
-                                markersize=point_size * 1,
-                                alpha=target_transparency,
-                            )
-                    ax.set_title(f"Group A")
-                    ax.axis("off")
 
-                    ax = plt.subplot(nrow, ncol, 2)
-                    customized_embedding(
-                        x_emb, y_emb, group_B_idx_full, ax=ax, point_size=point_size
-                    )
-                    if plot_target_state:
-                        for zz in valid_fate_list[1]:
-                            idx_2 = state_annote == zz
-                            ax.plot(
-                                x_emb[idx_2],
-                                y_emb[idx_2],
-                                ".",
-                                color="cyan",
-                                markersize=point_size * 1,
-                                alpha=target_transparency,
-                            )
-                    ax.set_title(f"Group B")
-                    ax.axis("off")
+                    if apply_time_constaint:
+                        prob_1r_full = prob_1r_full * (time_info == t_0)
 
-                    plt.tight_layout()
-                    if savefig:
-                        fig.savefig(
-                            f"{figure_path}/ancestor_state_groups.{settings.file_format_figs}"
-                        )
+                    # rescale
+                    prob_1r_full = prob_1r_full / (np.max(prob_1r_full) + resol)
 
-                # diff_gene_A,diff_gene_B=differential_genes(adata,plot_groups=plot_groups,gene_N=gene_N,plot_gene_N=plot_gene_N,savefig=savefig,point_size=point_size)
+                    prob_array.append(prob_1r_full)
 
-                # store the trajectory
-                temp_list = [group_A_idx_full, group_B_idx_full]
-                for j, fate_name in enumerate(mega_cluster_list):
-                    selected_idx = sel_index_list[j]
-                    combined_prob_temp = temp_list[j].astype(int) + selected_idx.astype(
-                        int
-                    )
-                    adata.obs[f"traj_{fate_name}"] = combined_prob_temp
+                cumu_prob = np.array(prob_array).sum(0)
+                key_word = f"iterative_diff_{source}_{fate_key}"
+                adata.uns[key_word] = {
+                    "diff_prob_list": prob_array,
+                    "sorted_time_info": sort_time_info,
+                    "map_backward": map_backward,
+                }
+                adata.obs[f"diff_trajectory_{source}_{fate_key}"] = cumu_prob
