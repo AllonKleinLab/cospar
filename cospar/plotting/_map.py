@@ -15,7 +15,7 @@ from scipy.cluster import hierarchy
 from sklearn.manifold import SpectralEmbedding
 
 from cospar import tool as tl
-from cospar.temp_plotting import _utils as pl_util
+from cospar.plotting import _utils as pl_util
 
 from .. import help_functions as hf
 from .. import logging as logg

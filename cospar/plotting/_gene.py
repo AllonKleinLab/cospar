@@ -15,7 +15,7 @@ from scipy.cluster import hierarchy
 from sklearn.manifold import SpectralEmbedding
 
 from cospar import tool as tl
-from cospar.temp_plotting import _utils as pl_util
+from cospar.plotting import _utils as pl_util
 
 from .. import help_functions as hf
 from .. import logging as logg
@@ -150,6 +150,8 @@ def gene_expression_dynamics(
                 prob_0 = np.array(adata.obs[traj_name])
 
                 sel_cell_idx = (prob_0 > traj_threshold * np.max(prob_0)) & final_mask
+                if np.sum(sel_cell_idx) == 0:
+                    raise ValueError("No cells selected!")
 
                 # logg.error(sel_cell_idx)
                 sel_cell_id = np.nonzero(sel_cell_idx)[0]
