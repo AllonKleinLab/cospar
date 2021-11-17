@@ -47,6 +47,25 @@ def test_load_dataset(shared_datadir):
     # cs.datasets.reprogramming_Day0_3_28()
 
 
+def test_load_data_from_scratch(shared_datadir):
+    import numpy as np
+    import pandas as pd
+    import scipy.io as sio
+
+    config(shared_datadir)
+    df_cell_id = pd.read_csv(f"{shared_datadir}/cell_id.txt")
+    file_name = os.path.join(shared_datadir, "test_adata_preprocessed.h5ad")
+    adata_orig = cs.hf.read(file_name)
+    adata_orig = cs.pp.initialize_adata_object(
+        adata_orig,
+        cell_names=df_cell_id["Cell_ID"],
+    )
+    df_X_clone = pd.read_csv(f"{shared_datadir}/clonal_data_in_table_format.txt")
+    cs.pp.get_X_clone(adata_orig, df_X_clone["Cell_ID"], df_X_clone["Clone_ID"])
+    print(adata_orig.obsm["X_clone"].shape)
+    # cs.pl.embedding(adata_orig, color="state_info")
+
+
 def test_preprocessing(shared_datadir):
     config(shared_datadir)
     file_name = os.path.join(shared_datadir, "test_adata_preprocessed.h5ad")
@@ -75,6 +94,7 @@ def test_preprocessing(shared_datadir):
         X_clone=X_clone,
         data_des=data_des,
     )
+
     adata_orig = cs.pp.initialize_adata_object(adata=adata_orig_0, X_clone=X_clone)
 
     print("------------get_highly_variable_genes")
@@ -412,6 +432,8 @@ def test_Tmap_analysis(shared_datadir):
     adata = cs.hf.read(
         "/Users/shouwenwang/Dropbox (Personal)/Python/CoSpar/docs/source/data_cospar/LARRY_sp500_ranking1_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad"
     )
+    X_clone = adata.obsm["X_clone"]
+    print(type(X_clone))
 
     selected_fates = [
         "Ccr7_DC",
@@ -426,13 +448,13 @@ def test_Tmap_analysis(shared_datadir):
         "Monocyte",
     ]
 
-    cs.tl.fate_coupling(adata, source="transition_map", selected_fates=selected_fates)
+    cs.tl.fate_coupling(adata, source="transition_map")
     cs.plotting.fate_coupling(adata, source="transition_map")
 
-    cs.tl.fate_coupling(adata, source="X_clone", selected_fates=selected_fates)
+    cs.tl.fate_coupling(adata, source="X_clone")
     cs.plotting.fate_coupling(adata, source="X_clone")
 
-    cs.tl.fate_hierarchy(adata, source="transition_map", selected_fates=selected_fates)
+    cs.tl.fate_hierarchy(adata, source="transition_map")
     cs.plotting.fate_hierarchy(adata, source="transition_map")
 
     cs.tl.fate_hierarchy(adata, source="X_clone", selected_fates=selected_fates)
@@ -630,7 +652,8 @@ os.chdir(os.path.dirname(__file__))
 cs.settings.verbosity = 3  # range: 0 (error),1 (warning),2 (info),3 (hint).
 # test_load_dataset("data")
 # test_preprocessing("data")
+test_load_data_from_scratch("data")
 # test_clonal_analysis("data")
 # test_Tmap_inference("data")
 # test_Tmap_plotting("data")
-test_Tmap_analysis("data")
+# test_Tmap_analysis("data")
