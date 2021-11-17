@@ -101,9 +101,11 @@ def barcode_heatmap(
                 )
                 rename_fates = mega_cluster_list
 
+            if "x_ticks" not in kwargs.keys():
+                kwargs["x_ticks"] = rename_fates
+
             ax = pl_util.heatmap(
                 coarse_clone_annot.T,
-                x_ticks=rename_fates,
                 color_bar_label="Barcode count",
                 log_transform=log_transform,
                 fig_width=fig_width,

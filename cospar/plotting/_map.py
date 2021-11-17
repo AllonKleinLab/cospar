@@ -72,10 +72,13 @@ def fate_coupling(
     fate_names = adata.uns[key_word]["fate_names"]
     rename_fates = hf.rename_list(fate_names, rename_fates)
 
+    if "x_ticks" not in kwargs.keys():
+        kwargs["x_ticks"] = rename_fates
+    if "y_ticks" not in kwargs.keys():
+        kwargs["y_ticks"] = rename_fates
+
     ax = pl_util.heatmap(
         X_coupling,
-        x_ticks=rename_fates,
-        y_ticks=rename_fates,
         order_map=True,
         color_bar_label=f"Fate coupling",
         color_bar=color_bar,
