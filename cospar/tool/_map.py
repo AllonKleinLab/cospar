@@ -48,10 +48,12 @@ def fate_hierarchy(
         The history of the iterative reconstruction
     """
 
-    if not (type(selected_fates) == list and len(selected_fates) > 0):
-        raise ValueError("selected_fates must be a list with more than one elements")
+    state_info = np.array(adata.obs["state_info"])
+    mega_cluster_list, valid_fate_list, __, __ = hf.analyze_selected_fates(
+        state_info, selected_fates
+    )
 
-    fate_N = len(selected_fates)
+    fate_N = len(valid_fate_list)
     X_history = []
     merged_pairs_history = []
     node_names_history = []
@@ -59,7 +61,7 @@ def fate_hierarchy(
 
     parent_map = {}
     selected_fates_tmp = []
-    for xx in selected_fates:
+    for xx in valid_fate_list:
         if type(xx) is not list:
             xx = [xx]
         selected_fates_tmp.append(xx)
