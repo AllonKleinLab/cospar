@@ -259,10 +259,10 @@ def print_hierarchy(parent_map, celltype_names):
 def heatmap(
     data_matrix,
     order_map=True,
-    x_ticks="",
-    y_ticks="",
+    x_ticks=None,
+    y_ticks=None,
     col_range=[0, 99],
-    color_bar_label="cov",
+    color_bar_label="",
     log_transform=False,
     color_map=plt.cm.Reds,
     vmin=None,
@@ -270,6 +270,8 @@ def heatmap(
     fig_width=4,
     fig_height=6,
     color_bar=True,
+    x_label=None,
+    y_label=None,
 ):
     """
     Plot ordered heat map of non-square data_matrix matrix
@@ -337,9 +339,8 @@ def heatmap(
     fig, ax = plt.subplots()
     ax.imshow(new_data, aspect="auto", cmap=color_map, vmin=vmin, vmax=vmax)
 
-    if type(x_ticks) == str:
-        if x_ticks == "":
-            plt.xticks([])
+    if x_ticks is None:
+        plt.xticks([])
     else:
         plt.xticks(
             x_array + 0.4,
@@ -348,15 +349,19 @@ def heatmap(
             ha="right",
         )
 
-    if type(y_ticks) == str:
-        if y_ticks == "":
-            plt.yticks([])
+    if y_ticks is None:
+        plt.yticks([])
     else:
         plt.yticks(
             y_array + 0.4,
             np.array(y_ticks)[order_y],
             ha="right",
         )
+
+    if x_label is not None:
+        ax.set_xlabel(x_label)
+    if y_label is not None:
+        ax.set_ylabel(y_label)
 
     if color_bar:
         norm = mpl_Normalize(vmin=vmin, vmax=vmax)

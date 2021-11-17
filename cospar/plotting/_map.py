@@ -29,6 +29,7 @@ def fate_coupling(
     rename_fates=None,
     color_map=plt.cm.Reds,
     figure_index="",
+    **kwargs,
 ):
     """
     Plot fate coupling determined by the transition map.
@@ -81,6 +82,7 @@ def fate_coupling(
         fig_width=fig_width,
         fig_height=fig_height,
         color_map=color_map,
+        **kwargs,
     )
 
     plt.tight_layout()

@@ -32,6 +32,7 @@ def barcode_heatmap(
     fig_width=4,
     fig_height=6,
     figure_index="",
+    **kwargs,
 ):
     """
     Plot barcode heatmap among different fate clusters.
@@ -108,6 +109,7 @@ def barcode_heatmap(
                 fig_width=fig_width,
                 fig_height=fig_height,
                 color_bar=color_bar,
+                **kwargs,
             )
 
             plt.tight_layout()
