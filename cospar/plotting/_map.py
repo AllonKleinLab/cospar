@@ -92,7 +92,7 @@ def fate_coupling(
     plt.savefig(
         os.path.join(
             figure_path,
-            f"{data_des}_{key_word}_{source}{figure_index}.{settings.file_format_figs}",
+            f"{data_des}_{key_word}{figure_index}.{settings.file_format_figs}",
         )
     )
     return ax
