@@ -532,7 +532,7 @@ def get_X_clone(
         reference_clone_id=reference_clone_id,
     )
     if X_clone.sum() == 0:
-        logg.error(
+        raise ValueError(
             "X_clone is not initialized. Zero entries detected.\n"
             "Possible reason: the reference_cell_id (from adata.obs_names or directly provided) is not right"
         )
