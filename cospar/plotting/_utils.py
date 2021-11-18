@@ -231,31 +231,6 @@ def plot_neighbor_joining(
     plt.savefig(output_directory + "/neighbor_joint_heatmaps.pdf")
 
 
-def print_hierarchy(parent_map, celltype_names):
-    child_map = {
-        i: [] for i in set(list(parent_map.values()) + list(parent_map.keys()))
-    }
-    for i, j in parent_map.items():
-        child_map[j].append(i)
-
-    leaf_names = {i: n for i, n in enumerate(celltype_names)}
-
-    def get_newick(n):
-        if n in leaf_names:
-            return leaf_names[n]
-        else:
-            return (
-                "("
-                + ",".join([get_newick(nn) for nn in sorted(child_map[n])[::-1]])
-                + ")"
-            )
-
-    tree_string = get_newick(np.max(list(child_map.keys()))) + ";"
-
-    t = Tree(tree_string)
-    print(t)
-
-
 def heatmap(
     data_matrix,
     order_map=True,

@@ -76,6 +76,31 @@ def get_normalized_covariance(data, method="Weinreb"):
         return X  # /np.max(X)
 
 
+def convert_to_tree(parent_map, celltype_names):
+    child_map = {
+        i: [] for i in set(list(parent_map.values()) + list(parent_map.keys()))
+    }
+    for i, j in parent_map.items():
+        child_map[j].append(i)
+
+    leaf_names = {i: n for i, n in enumerate(celltype_names)}
+
+    def get_newick(n):
+        if n in leaf_names:
+            return leaf_names[n]
+        else:
+            return (
+                "("
+                + ",".join([get_newick(nn) for nn in sorted(child_map[n])[::-1]])
+                + ")"
+            )
+
+    tree_string = get_newick(np.max(list(child_map.keys()))) + ";"
+
+    t = Tree(tree_string)
+    return t
+
+
 def compute_fate_probability_map(
     adata,
     selected_fates=None,

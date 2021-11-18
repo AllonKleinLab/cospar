@@ -127,12 +127,14 @@ def fate_hierarchy(
         node_mapping[key] = [fate_names[xx] for xx in value]
 
     history = (X_history, merged_pairs_history, node_names_history)
+    t = tl_util.convert_to_tree(parent_map, fate_names)
 
     adata.uns[f"fate_hierarchy_{source}"] = {
         "parent_map": parent_map,
         "node_mapping": node_mapping,
         "history": history,
         "fate_names": fate_names,
+        "tree": t,
     }
     logg.info(f"Results saved as dictionary at adata.uns['fate_hierarchy_{source}']")
 

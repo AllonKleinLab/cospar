@@ -139,10 +139,11 @@ def fate_hierarchy(
     node_mapping = adata.uns[key_word]["node_mapping"]
     history = adata.uns[key_word]["history"]
     fate_names = adata.uns[key_word]["fate_names"]
-
+    fate_tree = adata.uns[key_word]["tree"]
     rename_fates = hf.rename_list(fate_names, rename_fates)
 
-    pl_util.print_hierarchy(parent_map, rename_fates)
+    # t = pl_util.convert_to_tree(parent_map, rename_fates)
+    print(fate_tree)
     if plot_history:
         pl_util.plot_neighbor_joining(
             settings.figure_path,
