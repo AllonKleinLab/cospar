@@ -277,15 +277,20 @@ def heatmap(
     x_array = np.arange(data_matrix.shape[1])
     y_array = np.arange(data_matrix.shape[0])
     if order_map:
-        # reordering the x_label
+        # reordering x and y labels
         # This method is fragile. Would fail if the amount of data is insufficient
         # We add a pseudocount (0.01) to stablize the method
-        X = tl.get_normalized_covariance(data_matrix, method="SW") + 0.01
-        Z = hierarchy.ward(X)
-        order_x = hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, X))
+        pseudo_count = 0.01
         if data_matrix.shape[0] != data_matrix.shape[1]:
+            X = tl.get_normalized_covariance(data_matrix, method="SW") + pseudo_count
+            Z = hierarchy.ward(X)
+            order_x = hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, X))
             order_y = hf.get_hierch_order(data_matrix)
         else:
+            Z = hierarchy.ward(data_matrix + pseudo_count)
+            order_x = hierarchy.leaves_list(
+                hierarchy.optimal_leaf_ordering(Z, data_matrix + pseudo_count)
+            )
             order_y = order_x
     else:
         order_x = x_array
@@ -310,6 +315,10 @@ def heatmap(
             vmax = np.max(col_data)
         else:
             vmax = np.percentile(col_data, col_range[1])
+            if (vmax == 0) & (np.max(col_data) >= 1):
+                vmax = 1
+            if (vmax == 0) & (np.max(col_data) <= 1):
+                vmax = np.max(col_data)
 
     fig, ax = plt.subplots()
     ax.imshow(new_data, aspect="auto", cmap=color_map, vmin=vmin, vmax=vmax)
