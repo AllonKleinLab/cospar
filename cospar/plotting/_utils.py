@@ -42,7 +42,9 @@ def start_subplot_figure(n_subplots, n_columns=5, fig_width=14, row_height=3):
     return fig, n_rows, n_columns
 
 
-def embedding(adata, basis="X_emb", color=None, cmap=plt.cm.Reds, **kwargs):
+def embedding(
+    adata, basis="X_emb", color=None, cmap=darken_cmap(plt.cm.Reds, 0.9), **kwargs
+):
     """
     Scatter plot for user-specified embedding basis.
     We imported :func:`~scanpy.pl.embedding` for this purpose.
@@ -59,24 +61,7 @@ def embedding(adata, basis="X_emb", color=None, cmap=plt.cm.Reds, **kwargs):
 
     from scanpy.plotting._tools import embedding as sc_embedding
 
-    fig_height = settings.fig_height
-    fig_width = settings.fig_width
-    data_des = adata.uns["data_des"][-1]
-    fig = plt.figure(figsize=(fig_width, fig_height))
-    ax = plt.subplot(1, 1, 1)
-
-    flag = False
-    if color in adata.obs.keys():
-        flag = True
-    if color in adata.var_names:
-        flag = True
-
-    if flag:
-        sc_embedding(adata, basis=basis, color=color, ax=ax, cmap=cmap, **kwargs)
-        plt.tight_layout()
-        fig.savefig(f"{settings.figure_path}/{data_des}_embedding.png", dpi=300)
-    else:
-        logg.error(f"Could not find key {color} in .var_names or .obs.columns.")
+    sc_embedding(adata, basis=basis, color=color, cmap=cmap, **kwargs)
 
 
 def customized_embedding(
