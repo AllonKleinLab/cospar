@@ -525,10 +525,14 @@ def get_X_clone(
         else:
             logg.error("reference_cell_id does not have the size of adata.shape[0]")
 
-    X_clone, reference_clone_id = hf.get_X_clone_with_reference_ordering(
+    (
+        X_clone,
+        reference_clone_id_1,
+        reference_cell_id,
+    ) = hf.get_X_clone_with_reference_ordering(
         clone_data_cell_id,
         clone_data_barcode_id,
-        reference_cell_id,
+        reference_cell_id=reference_cell_id,
         reference_clone_id=reference_clone_id,
     )
     if X_clone.sum() == 0:
@@ -537,8 +541,8 @@ def get_X_clone(
             "Possible reason: the reference_cell_id (from adata.obs_names or directly provided) is not right"
         )
     else:
-        adata.obsm["X_clone"] = ssp.csr_matrix(X_clone)
-        adata.uns["clone_id"] = reference_clone_id
+        adata.obsm["X_clone"] = X_clone
+        adata.uns["clone_id"] = reference_clone_id_1
 
         hf.check_available_clonal_info(adata)
 

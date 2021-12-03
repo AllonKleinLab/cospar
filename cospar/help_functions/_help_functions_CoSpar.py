@@ -1338,9 +1338,9 @@ def set_up_folders(data_path_new=None, figure_path_new=None):
 def get_X_clone_with_reference_ordering(
     clone_data_cell_id,
     clone_data_barcode_id,
-    reference_cell_id,
+    reference_cell_id=None,
     reference_clone_id=None,
-    use_sparse_matrix=False,
+    drop_duplicates=True,
 ):
     """
     Build the X_clone matrix from data.
@@ -1367,47 +1367,43 @@ def get_X_clone_with_reference_ordering(
     reference_clone_id: `list`
     """
 
-    clone_data_cell_id = list(clone_data_cell_id)
-    clone_data_barcode_id = list(clone_data_barcode_id)
-    reference_cell_id = np.array(reference_cell_id).astype("<U9")
     if reference_clone_id is None:
         reference_clone_id = list(set(clone_data_barcode_id))
+    if reference_cell_id is None:
+        reference_cell_id = list(set(clone_data_cell_id))
 
-    reference_clone_id = np.array(reference_clone_id).astype("<U9")
-    if use_sparse_matrix:
-        print("Use sparse matrix")
-        X_clone_row = []
-        X_clone_col = []
-        X_clone_val = []
-        for j in tqdm(range(len(clone_data_cell_id))):
-            cell_idx_temp = reference_cell_id == clone_data_cell_id[j]
-            if np.sum(cell_idx_temp) > 0:
-                # in our design, a cell may not be barcoded, but a barcoded
-                # cell must has a unique clone ID.
-                row_id = np.nonzero(cell_idx_temp)[0]
-                col_id = np.nonzero(reference_clone_id == clone_data_barcode_id[j])[0]
-                X_clone_row.append(row_id[0])
-                X_clone_col.append(col_id[0])
-                X_clone_val.append(1)
+    if drop_duplicates:
+        df = pd.DataFrame(
+            {"cell_id": clone_data_cell_id, "clone_id": clone_data_barcode_id}
+        ).drop_duplicates()
+        clone_data_cell_id = df["cell_id"]
+        clone_data_barcode_id = df["clone_id"]
 
-        X_clone = ssp.coo_matrix(
-            (X_clone_val, (X_clone_row, X_clone_col)),
-            shape=(len(reference_cell_id), len(reference_clone_id)),
-        )
-        X_clone = ssp.csr_matrix(X_clone)
-    else:
-        ## generate X_clone where the cell idx have been sorted
-        X_clone = np.zeros((len(reference_cell_id), len(reference_clone_id)))
-        logg.info(f"Total number of barcode entries: {len(clone_data_cell_id)}")
-        for j in tqdm(range(len(clone_data_cell_id))):
-            cell_id_1 = np.nonzero(reference_cell_id == clone_data_cell_id[j])[0]
-            clone_id_1 = np.nonzero(reference_clone_id == clone_data_barcode_id[j])[0]
-            # X_clone[cell_id_1,clone_id_1] += 1
-            X_clone[cell_id_1, clone_id_1] = 1
-        X_clone = ssp.csr_matrix(X_clone)
+    reference_clone_id = np.array(reference_clone_id)
+    reference_cell_id = np.array(reference_cell_id)
+
+    X_clone_row = []
+    X_clone_col = []
+    X_clone_val = []
+    for j in tqdm(range(len(clone_data_cell_id))):
+        cell_idx_temp = reference_cell_id == clone_data_cell_id[j]
+        if np.sum(cell_idx_temp) > 0:
+            # in our design, a cell may not be barcoded, but a barcoded
+            # cell must has a unique clone ID.
+            row_id = np.nonzero(cell_idx_temp)[0]
+            col_id = np.nonzero(reference_clone_id == clone_data_barcode_id[j])[0]
+            X_clone_row.append(row_id[0])
+            X_clone_col.append(col_id[0])
+            X_clone_val.append(1)
+
+    X_clone = ssp.coo_matrix(
+        (X_clone_val, (X_clone_row, X_clone_col)),
+        shape=(len(reference_cell_id), len(reference_clone_id)),
+    )
+    X_clone = ssp.csr_matrix(X_clone)
 
     sp_idx = X_clone.sum(0).A.flatten() > 0
-    return X_clone[:, sp_idx], reference_clone_id[sp_idx]
+    return X_clone[:, sp_idx], reference_clone_id[sp_idx], reference_cell_id
 
 
 def parse_output_choices(adata, key_word, where="obs", interrupt=True):
