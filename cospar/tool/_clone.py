@@ -13,12 +13,12 @@ from scipy.cluster import hierarchy
 
 # from plotnine import *
 from sklearn.manifold import SpectralEmbedding
+from tqdm import tqdm
 
 from cospar.tool import _utils as tl_util
 
 from .. import help_functions as hf
 from .. import logging as logg
-from .. import settings
 
 
 def clonal_fate_bias(adata, selected_fate="", alternative="two-sided"):
@@ -82,9 +82,7 @@ def clonal_fate_bias(adata, selected_fate="", alternative="two-sided"):
         target_ratio_array = np.zeros(clone_N)
         P_value = np.zeros(clone_N)
 
-        for m in range(clone_N):
-            if m % 50 == 0:
-                logg.info(f"Current clone id: {m}")
+        for m in tqdm(range(clone_N)):
             target_cell_idx = (X_clone[:, m].sum(1).A > 0).flatten()
             target_clone_size = np.sum(target_cell_idx)
 

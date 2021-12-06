@@ -67,7 +67,9 @@ def barcode_heatmap(
         if type(selected_times) is not list:
             selected_times = [selected_times]
     sp_idx = hf.selecting_cells_by_time_points(time_info, selected_times)
-    clone_annot = adata[sp_idx].obsm["X_clone"]
+    X_clone_0 = adata[sp_idx].obsm["X_clone"]
+    cell_idx = X_clone_0.sum(0).A.flatten() > 0
+    X_clone = X_clone_0[:, cell_idx]
     state_annote = adata[sp_idx].obs["state_info"]
 
     if np.sum(sp_idx) == 0:
@@ -86,11 +88,9 @@ def barcode_heatmap(
             data_des = f"{data_des}_clonal"
             figure_path = settings.figure_path
 
-            coarse_clone_annot = np.zeros(
-                (len(mega_cluster_list), clone_annot.shape[1])
-            )
+            coarse_X_clone = np.zeros((len(mega_cluster_list), X_clone.shape[1]))
             for j, idx in enumerate(sel_index_list):
-                coarse_clone_annot[j, :] = clone_annot[idx].sum(0)
+                coarse_X_clone[j, :] = X_clone[idx].sum(0)
 
             if rename_fates is None:
                 rename_fates = mega_cluster_list
@@ -105,7 +105,7 @@ def barcode_heatmap(
                 kwargs["x_ticks"] = rename_fates
 
             ax = pl_util.heatmap(
-                coarse_clone_annot.T,
+                coarse_X_clone.T,
                 color_bar_label="Barcode count",
                 log_transform=log_transform,
                 fig_width=fig_width,
@@ -161,7 +161,7 @@ def clones_on_manifold(
     data_des = adata.uns["data_des"][-1]
     # data_path=settings.data_path
     figure_path = settings.figure_path
-    clone_annot = adata.obsm["X_clone"]
+    X_clone = adata.obsm["X_clone"]
     time_info = np.array(adata.obs["time_info"])
 
     # use only valid time points
@@ -169,11 +169,11 @@ def clones_on_manifold(
     selected_times = np.sort(list(set(time_info[sp_idx])))
 
     selected_clone_list = np.array(selected_clone_list)
-    full_id_list = np.arange(clone_annot.shape[1])
+    full_id_list = np.arange(X_clone.shape[1])
     valid_idx = np.in1d(full_id_list, selected_clone_list)
     if np.sum(valid_idx) < len(selected_clone_list):
         logg.error(
-            f"Valid id range is (0,{clone_annot.shape[1]-1}). Please use a smaller ID!"
+            f"Valid id range is (0,{X_clone.shape[1]-1}). Please use a smaller ID!"
         )
         selected_clone_list = full_id_list[valid_idx]
 
@@ -198,7 +198,7 @@ def clones_on_manifold(
             )
             for j, xx in enumerate(selected_times):
                 idx_t = time_info == selected_times[j]
-                idx_clone = clone_annot[:, my_id].A.flatten() > 0
+                idx_clone = X_clone[:, my_id].A.flatten() > 0
                 idx = idx_t & idx_clone
                 ax.plot(
                     x_emb[idx],
