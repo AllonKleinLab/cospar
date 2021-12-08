@@ -32,6 +32,7 @@ def barcode_heatmap(
     fig_width=4,
     fig_height=6,
     figure_index="",
+    plot=True,
     **kwargs,
 ):
     """
@@ -60,6 +61,11 @@ def barcode_heatmap(
         Figure width.
     fig_height: `float`, optional (default: 6)
         Figure height.
+
+    Returns:
+    --------
+    The coarse-grained X_clone matrix and the selected clusters are returned at
+    adata.uns['barcode_heatmap']. The coarse-grained X_clone keeps all clone IDs.
     """
 
     time_info = np.array(adata.obs["time_info"])
@@ -68,8 +74,8 @@ def barcode_heatmap(
             selected_times = [selected_times]
     sp_idx = hf.selecting_cells_by_time_points(time_info, selected_times)
     X_clone_0 = adata[sp_idx].obsm["X_clone"]
-    cell_idx = X_clone_0.sum(0).A.flatten() > 0
-    X_clone = X_clone_0[:, cell_idx]
+    clone_idx = X_clone_0.sum(0).A.flatten() > 0
+    # X_clone = X_clone_0[:, clone_idx]
     state_annote = adata[sp_idx].obs["state_info"]
 
     if np.sum(sp_idx) == 0:
@@ -88,9 +94,9 @@ def barcode_heatmap(
             data_des = f"{data_des}_clonal"
             figure_path = settings.figure_path
 
-            coarse_X_clone = np.zeros((len(mega_cluster_list), X_clone.shape[1]))
+            coarse_X_clone = np.zeros((len(mega_cluster_list), X_clone_0.shape[1]))
             for j, idx in enumerate(sel_index_list):
-                coarse_X_clone[j, :] = X_clone[idx].sum(0)
+                coarse_X_clone[j, :] = X_clone_0[idx].sum(0)
 
             if rename_fates is None:
                 rename_fates = mega_cluster_list
@@ -104,26 +110,74 @@ def barcode_heatmap(
             if "x_ticks" not in kwargs.keys():
                 kwargs["x_ticks"] = rename_fates
 
-            ax = pl_util.heatmap(
-                coarse_X_clone.T,
-                color_bar_label="Barcode count",
-                log_transform=log_transform,
-                fig_width=fig_width,
-                fig_height=fig_height,
-                color_bar=color_bar,
-                **kwargs,
-            )
+            adata.uns["barcode_heatmap"] = {
+                "coarse_X_clone": coarse_X_clone,
+                "fate_names": rename_fates,
+            }
+            logg.info("Data saved at adata.uns['barcode_heatmap']")
 
-            plt.tight_layout()
-            if figure_index != "":
-                figure_index == f"_{figure_index}"
-            plt.savefig(
-                os.path.join(
-                    figure_path,
-                    f"{data_des}_barcode_heatmap{figure_index}.{settings.file_format_figs}",
+            if plot:
+                ax = pl_util.heatmap(
+                    coarse_X_clone[:, clone_idx].T,
+                    color_bar_label="Barcode count",
+                    log_transform=log_transform,
+                    fig_width=fig_width,
+                    fig_height=fig_height,
+                    color_bar=color_bar,
+                    **kwargs,
                 )
-            )
-            return ax
+
+                plt.tight_layout()
+                if figure_index != "":
+                    figure_index == f"_{figure_index}"
+                plt.savefig(
+                    os.path.join(
+                        figure_path,
+                        f"{data_des}_barcode_heatmap{figure_index}.{settings.file_format_figs}",
+                    )
+                )
+                return ax
+
+
+def clonal_fates_across_time(adata, selected_times):
+    """
+    Returns:
+    clonal_fates_t1, clonal_fates_t2
+    """
+    if len(selected_times) != 2:
+        raise ValueError("selected_times must be a list with two values")
+    barcode_heatmap(
+        adata,
+        selected_times=selected_times[0],
+        color_bar=True,
+        log_transform=False,
+        plot=False,
+    )
+    clonal_fates_t1 = (adata.uns["barcode_heatmap"]["coarse_X_clone"] > 0).sum(0)
+    barcode_heatmap(
+        adata,
+        selected_times=selected_times[1],
+        color_bar=True,
+        log_transform=False,
+        plot=False,
+    )
+    clonal_fates_t2 = (adata.uns["barcode_heatmap"]["coarse_X_clone"] > 0).sum(0)
+
+    pl_util.jitter(clonal_fates_t1, clonal_fates_t2)
+    plt.xlabel(f"Number of fates per clone (t={selected_times[0]})")
+    plt.ylabel(f"Number of fates per clone (t={selected_times[1]})")
+    data_des = adata.uns["data_des"][0]
+    plt.savefig(
+        os.path.join(
+            settings.figure_path,
+            f"{data_des}_barcode_coupling_across_time.{settings.file_format_figs}",
+        )
+    )
+    adata.uns["clonal_fates_across_time"] = {
+        "clonal_fates_t1": clonal_fates_t1,
+        "clonal_fates_t2": clonal_fates_t2,
+    }
+    logg.info("Data saved at adata.uns['clonal_fates_across_time']")
 
 
 def clones_on_manifold(

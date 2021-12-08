@@ -465,3 +465,38 @@ def fate_map_embedding(
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.set_title(f"Ave.: {np.mean(fate_map_temp):.2f}")
+
+
+def rand_jitter(arr):
+    stdev = 0.01 * (max(arr) - min(arr))
+    return arr + np.random.randn(len(arr)) * stdev
+
+
+def jitter(
+    x,
+    y,
+    s=10,
+    c="b",
+    marker="o",
+    cmap=None,
+    norm=None,
+    vmin=None,
+    vmax=None,
+    alpha=None,
+    linewidths=None,
+    **kwargs,
+):
+    return plt.scatter(
+        rand_jitter(x),
+        rand_jitter(y),
+        s=s,
+        c=c,
+        marker=marker,
+        cmap=cmap,
+        norm=norm,
+        vmin=vmin,
+        vmax=vmax,
+        alpha=alpha,
+        linewidths=linewidths,
+        **kwargs,
+    )
