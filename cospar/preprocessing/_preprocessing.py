@@ -96,10 +96,9 @@ def initialize_adata_object(
             adata = sc.AnnData(ssp.csr_matrix(X_state))
             adata.var_names = list(gene_names)
         else:
-            logg.error(
+            raise ValueError(
                 "If adata is not provided, X_state and gene_names must be provided. Abort initialization."
             )
-            return None
 
     if cell_names is not None:
         adata.obs_names = list(cell_names)
@@ -129,10 +128,9 @@ def initialize_adata_object(
             X_clone = adata.obsm["X_clone"]
     else:
         if X_clone.shape[0] != adata.shape[0]:
-            logg.error(
+            raise ValueError(
                 "X_clone.shape[0] not equal to cell number. Abort initialization."
             )
-            return None
 
     # remove clones without a cell
     if X_clone.shape[1] > 1:
@@ -381,11 +379,11 @@ def get_X_pca(adata, n_pca_comp=40):
     )
     if "highly_variable" not in adata.var.keys():
         if adata.shape[1] > 100:
-            logg.error(
+            raise ValueError(
                 "Did not find highly variable genes index in adata.var['highly_variable']\n"
                 "Please run cs.pl.get_highly_variable_genes first!"
             )
-            return None
+
         else:
             logg.warn(
                 "Did not find highly variable genes index in adata.var['highly_variable']\n"

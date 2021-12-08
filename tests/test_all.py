@@ -188,7 +188,7 @@ def test_Tmap_inference(shared_datadir):
     print("---------infer_Tmap_from_multitime_clones")
     adata = cs.tmap.infer_Tmap_from_multitime_clones(
         adata_orig,
-        clonal_time_points=["2", "4"],
+        initial_time_points=["2", "4"],
         later_time_point="6",
         smooth_array=[5, 5, 5],
         sparsity_threshold=0.1,
@@ -233,7 +233,7 @@ def test_Tmap_inference(shared_datadir):
     cs.hf.save_map(adata)
 
 
-def test_Tmap_plotting(shared_datadir):
+def test_Tmap_plotting_old(shared_datadir):
     config(shared_datadir)
     file_name = os.path.join(shared_datadir, "test_adata_preprocessed.h5ad")
     adata_orig = cs.hf.read(file_name)
@@ -423,15 +423,15 @@ def test_Tmap_analysis(shared_datadir):
     )
     cs.hf.set_up_folders()  # setup the data_path and figure_path
 
-    # file_name = os.path.join(
-    #     cs.settings.data_path,
-    #     "test_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad",
-    # )
-    # adata = cs.hf.read(file_name)
-
-    adata = cs.hf.read(
-        "/Users/shouwenwang/Dropbox (Personal)/Python/CoSpar/docs/source/data_cospar/LARRY_sp500_ranking1_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad"
+    file_name = os.path.join(
+        cs.settings.data_path,
+        "test_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad",
     )
+    adata = cs.hf.read(file_name)
+
+    # adata = cs.hf.read(
+    #     "/Users/shouwenwang/Dropbox (HMS)/Python/CoSpar/docs/source/data_cospar/LARRY_sp500_ranking1_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad"
+    # )
     X_clone = adata.obsm["X_clone"]
     print(type(X_clone))
 
@@ -650,10 +650,10 @@ def test_clean_up():
 
 os.chdir(os.path.dirname(__file__))
 cs.settings.verbosity = 3  # range: 0 (error),1 (warning),2 (info),3 (hint).
-# test_load_dataset("data")
-# test_preprocessing("data")
+test_load_dataset("data")
+test_preprocessing("data")
 test_load_data_from_scratch("data")
 # test_clonal_analysis("data")
-# test_Tmap_inference("data")
-# test_Tmap_plotting("data")
-# test_Tmap_analysis("data")
+test_Tmap_inference("data")
+# test_Tmap_plotting_old("data")
+test_Tmap_analysis("data")
