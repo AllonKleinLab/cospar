@@ -757,5 +757,8 @@ def single_cell_transition(
             plt.tight_layout()
             if savefig:
                 fig.savefig(
-                    f"{figure_path}/{data_des}_single_cell_transition_{source}_{map_backward}.{settings.file_format_figs}"
+                    os.path.join(
+                        figure_path,
+                        f"{data_des}_single_cell_transition_{source}_{map_backward}.{settings.file_format_figs}",
+                    )
                 )

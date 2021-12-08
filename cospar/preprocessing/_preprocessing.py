@@ -83,11 +83,11 @@ def initialize_adata_object(
 
     ### making folders
     if not Path(data_path).is_dir():
-        logg.info(f"creating directory {data_path}/ for saving data")
+        logg.info(f"creating directory {data_path} for saving data")
         Path(data_path).mkdir(parents=True)
 
     if not Path(figure_path).is_dir():
-        logg.info(f"creating directory {figure_path}/ for saving figures")
+        logg.info(f"creating directory {figure_path} for saving figures")
         Path(figure_path).mkdir(parents=True)
 
     if adata is None:

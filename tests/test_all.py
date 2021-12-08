@@ -53,14 +53,16 @@ def test_load_data_from_scratch(shared_datadir):
     import scipy.io as sio
 
     config(shared_datadir)
-    df_cell_id = pd.read_csv(f"{shared_datadir}/cell_id.txt")
+    df_cell_id = pd.read_csv(os.path.join(shared_datadir, "cell_id.txt"))
     file_name = os.path.join(shared_datadir, "test_adata_preprocessed.h5ad")
     adata_orig = cs.hf.read(file_name)
     adata_orig = cs.pp.initialize_adata_object(
         adata_orig,
         cell_names=df_cell_id["Cell_ID"],
     )
-    df_X_clone = pd.read_csv(f"{shared_datadir}/clonal_data_in_table_format.txt")
+    df_X_clone = pd.read_csv(
+        os.path.join(shared_datadir, "clonal_data_in_table_format.txt")
+    )
     cs.pp.get_X_clone(adata_orig, df_X_clone["Cell_ID"], df_X_clone["Clone_ID"])
     print(adata_orig.obsm["X_clone"].shape)
     # cs.pl.embedding(adata_orig, color="state_info")
@@ -128,54 +130,31 @@ def test_clonal_analysis(shared_datadir):
     config(shared_datadir)
 
     file_name = os.path.join(shared_datadir, "test_adata_preprocessed.h5ad")
-    adata_orig = cs.hf.read(file_name)
+    adata = cs.hf.read(file_name)
     print("------------------------------Basic clonal analysis")
     print("----------barcode_heatmap")
     selected_times = None
 
-    cs.pl.barcode_heatmap(
-        adata_orig,
-        selected_times=selected_times,
-        selected_fates=selected_fates,
-        color_bar=True,
-        log_transform=False,
-    )
+    cs.pl.barcode_heatmap(adata, log_transform=True, selected_fates=selected_fates)
     plt.close("all")
 
     print("----------fate_coupling_from_clones")
-    selected_times = None
-    cs.pl.fate_coupling_from_clones(
-        adata_orig,
-        selected_times=selected_times,
-        selected_fates=selected_fates,
-        color_bar=True,
-        method="Weinreb",
-    )
-    plt.close("all")
+
+    cs.tl.fate_coupling(adata, source="X_clone")
+    cs.pl.fate_coupling(adata, source="X_clone")
 
     print("----------fate_hierarchy_from_clones")
-    cs.pl.fate_hierarchy_from_clones(
-        adata_orig,
-        selected_times=selected_times,
-        selected_fates=selected_fates,
-        plot_history=True,
-    )
+    cs.tl.fate_hierarchy(adata, source="X_clone")
+    cs.pl.fate_hierarchy(adata, source="X_clone")
     plt.close("all")
 
     print("----------clonal_fate_bias")
-    result = cs.pl.clonal_fate_bias(
-        adata_orig, selected_fate="Monocyte", alternative="two-sided"
-    )
+    cs.tl.clonal_fate_bias(adata, selected_fate="Neutrophil")
+    cs.pl.clonal_fate_bias(adata)
     plt.close("all")
 
     print("----------clones_on_manifold")
-    ids = result["Clone ID"][:2]
-    cs.pl.clones_on_manifold(
-        adata_orig,
-        selected_clone_list=ids,
-        color_list=["black", "red", "blue"],
-        clone_point_size=10,
-    )
+    cs.pl.clones_on_manifold(adata, selected_clone_list=[1, 2, 3])
     plt.close("all")
 
 
@@ -188,7 +167,7 @@ def test_Tmap_inference(shared_datadir):
     print("---------infer_Tmap_from_multitime_clones")
     adata = cs.tmap.infer_Tmap_from_multitime_clones(
         adata_orig,
-        initial_time_points=["2", "4"],
+        clonal_time_points=["2", "4"],
         later_time_point="6",
         smooth_array=[5, 5, 5],
         sparsity_threshold=0.1,
@@ -200,8 +179,8 @@ def test_Tmap_inference(shared_datadir):
     print("---------infer_Tmap_from_one_time_clones")
     adata_1 = cs.tmap.infer_Tmap_from_one_time_clones(
         adata_orig,
-        initial_time_points=["4"],
-        later_time_point="6",
+        initial_time_points=["2"],
+        later_time_point="4",
         initialize_method="OT",
         OT_cost="GED",
         smooth_array=[5, 5, 5],
@@ -231,186 +210,6 @@ def test_Tmap_inference(shared_datadir):
 
     print("-------------------------save maps")
     cs.hf.save_map(adata)
-
-
-def test_Tmap_plotting_old(shared_datadir):
-    config(shared_datadir)
-    file_name = os.path.join(shared_datadir, "test_adata_preprocessed.h5ad")
-    adata_orig = cs.hf.read(file_name)
-    adata = cs.tmap.infer_Tmap_from_multitime_clones(
-        adata_orig,
-        clonal_time_points=["2", "4"],
-        later_time_point="6",
-        smooth_array=[5, 5, 5],
-        sparsity_threshold=0.1,
-        intraclone_threshold=0.2,
-        max_iter_N=5,
-        epsilon_converge=0.01,
-    )
-
-    print("-------------------------plotting")
-
-    selected_state_id_list = [1, 10]
-    map_backward = False
-
-    print("---------single_cell_transition")
-    cs.pl.single_cell_transition(
-        adata,
-        selected_state_id_list=selected_state_id_list,
-        used_Tmap="transition_map",
-        map_backward=map_backward,
-    )
-    plt.close("all")
-
-    print("---------fate map")
-    cs.pl.fate_map(
-        adata,
-        selected_fates=["Neutrophil", "Monocyte"],
-        used_Tmap="transition_map",
-        map_backward=True,
-        plot_target_state=True,
-        horizontal=True,
-    )
-    plt.close("all")
-
-    print("---------fate entropy")
-    cs.pl.fate_potency(
-        adata,
-        used_Tmap="transition_map",
-        map_backward=True,
-        method="norm-sum",
-        color_bar=True,
-        fate_count=True,
-    )
-    plt.close("all")
-
-    print("---------fate bias")
-    cs.pl.fate_bias(
-        adata,
-        selected_fates=["Neutrophil", "Monocyte"],
-        used_Tmap="transition_map",
-        pseudo_count=0,
-        plot_target_state=False,
-        map_backward=True,
-        sum_fate_prob_thresh=0.002,
-        method="norm-sum",
-    )
-    plt.close("all")
-
-    print("---------progenitor")
-    cs.pl.progenitor(
-        adata,
-        selected_fates=["Neutrophil", "Monocyte"],
-        used_Tmap="transition_map",
-        map_backward=True,
-        bias_threshold_A=0.5,
-        bias_threshold_B=0.5,
-        sum_fate_prob_thresh=0.2,
-        avoid_target_states=True,
-    )
-    plt.close("all")
-
-    print("---------DGE analysis")
-    dge_gene_A, dge_gene_B = cs.pl.differential_genes(adata, plot_gene_N=0)
-    plt.close("all")
-
-    print("---------gene expression on manifold")
-    selected_genes = dge_gene_A["gene"][:2]
-    cs.pl.gene_expression_on_manifold(
-        adata, selected_genes=selected_genes, color_bar=True, savefig=False
-    )
-    plt.close("all")
-
-    print("---------gene expression heatmap")
-    gene_list = list(dge_gene_A["gene"][:20]) + list(
-        dge_gene_B["gene"][:20]
-    )  # select the top 20 genes from both populations
-
-    cs.pl.gene_expression_heat_map(
-        adata,
-        selected_genes=gene_list,
-        selected_fates=[
-            "Neutrophil",
-            "Monocyte",
-            ["Baso", "Eos", "Erythroid", "Mast", "Meg"],
-            ["pDC", "Ccr7_DC", "Lymphoid"],
-        ],
-        rename_fates=["Neu", "Mon", "Meg-Ery-MBaE", "Lym-Dc"],
-        fig_width=12,
-    )
-    plt.close("all")
-
-    print("---------gene expression dynamics")
-    cs.pl.gene_expression_dynamics(
-        adata,
-        selected_fate="Neutrophil",
-        gene_name_list=["Gata1", "Mpo", "Elane", "S100a8"],
-        traj_threshold=0.2,
-        invert_PseudoTime=False,
-        compute_new=True,
-        gene_exp_percentile=99,
-        n_neighbors=8,
-        plot_raw_data=False,
-    )
-    plt.close("all")
-
-    print("---------Fate coupling from Tmap")
-    cs.pl.fate_coupling_from_Tmap(
-        adata,
-        selected_fates=selected_fates,
-        used_Tmap="transition_map",
-    )
-    plt.close("all")
-
-    print("---------Fate hierachy from Tmap")
-    cs.pl.fate_hierarchy_from_Tmap(
-        adata,
-        selected_fates=selected_fates,
-        used_Tmap="transition_map",
-        rename_fates=selected_fates,
-    )
-    plt.close("all")
-
-    # # For some reason, these two functions are extremely slow to test (they generate figures and stop the process)
-    # print("---------Refine state info from marker genes")
-    # confirm_change = False
-    # marker_genes = ["Mpo", "Elane", "S100a8"]
-    # cs.pp.refine_state_info_by_marker_genes(
-    #     adata,
-    #     marker_genes,
-    #     express_threshold=0.1,
-    #     selected_times=["4"],
-    #     new_cluster_name="new",
-    #     add_neighbor_N=10,
-    #     confirm_change=confirm_change,
-    # )
-    # plt.close("all")
-
-    # print("---------Refine state info by leiden clustering")
-    # confirm_change = False
-    # cs.pp.refine_state_info_by_leiden_clustering(
-    #     adata,
-    #     selected_times=["2"],
-    #     n_neighbors=20,
-    #     resolution=0.5,
-    #     confirm_change=confirm_change,
-    # )
-    # plt.close("all")
-
-    print("---------Differential genes for given fates")
-    cs.pl.differential_genes_for_given_fates(
-        adata, selected_fates=["Neutrophil", "Monocyte"], plot_gene_N=2
-    )
-    plt.close("all")
-
-    print("---------Dynamic trajectory via iterative mapping")
-    cs.pl.iterative_differentiation(
-        adata,
-        selected_fate="Neutrophil",
-        plot_separately=True,
-        used_Tmap="intraclone_transition_map",
-    )
-    plt.close("all")
 
 
 def test_Tmap_analysis(shared_datadir):
@@ -449,23 +248,17 @@ def test_Tmap_analysis(shared_datadir):
     ]
 
     cs.tl.fate_coupling(adata, source="transition_map")
-    cs.plotting.fate_coupling(adata, source="transition_map")
-
-    cs.tl.fate_coupling(adata, source="X_clone")
-    cs.plotting.fate_coupling(adata, source="X_clone")
+    cs.pl.fate_coupling(adata, source="transition_map")
 
     cs.tl.fate_hierarchy(adata, source="transition_map")
-    cs.plotting.fate_hierarchy(adata, source="transition_map")
-
-    cs.tl.fate_hierarchy(adata, source="X_clone", selected_fates=selected_fates)
-    cs.plotting.fate_hierarchy(adata, source="X_clone")
+    cs.pl.fate_hierarchy(adata, source="transition_map")
 
     selected_fates = [
         "Neutrophil",
         "Monocyte",
     ]
     cs.tl.fate_map(adata, source="transition_map", selected_fates=selected_fates)
-    cs.plotting.fate_map(
+    cs.pl.fate_map(
         adata,
         source="transition_map",
         selected_fates=selected_fates,
@@ -474,21 +267,10 @@ def test_Tmap_analysis(shared_datadir):
         horizontal=True,
     )
 
-    # selected_fates = [
-    #     "Ccr7_DC",
-    #     "Mast",
-    #     "Meg",
-    #     "pDC",
-    #     ["Eos", "Baso"],
-    #     "Lymphoid",
-    #     "Erythroid",
-    #     "Neutrophil",
-    #     "Monocyte",
-    # ]
     cs.tl.fate_potency(
         adata, source="transition_map", selected_fates=selected_fates, fate_count=True
     )
-    cs.plotting.fate_potency(
+    cs.pl.fate_potency(
         adata,
         source="transition_map",
         show_histogram=True,
@@ -505,13 +287,13 @@ def test_Tmap_analysis(shared_datadir):
         selected_fates=selected_fates,
         sum_fate_prob_thresh=0.01,
     )
-    cs.plotting.fate_bias(
+    cs.pl.fate_bias(
         adata,
         source="transition_map",
         show_histogram=True,
         selected_times="4",
     )
-    cs.plotting.fate_bias(
+    cs.pl.fate_bias(
         adata,
         source="transition_map",
         show_histogram=True,
@@ -529,7 +311,7 @@ def test_Tmap_analysis(shared_datadir):
         selected_fates=selected_fates,
         sum_fate_prob_thresh=0.01,
     )
-    cs.plotting.progenitor(
+    cs.pl.progenitor(
         adata,
         source="transition_map",
         selected_times="4",
@@ -541,20 +323,12 @@ def test_Tmap_analysis(shared_datadir):
         selected_fates="Neutrophil",
         apply_time_constaint=False,
     )
-    cs.plotting.iterative_differentiation(
+    cs.pl.iterative_differentiation(
         adata,
         source="transition_map",
     )
 
-    cs.tl.clonal_fate_bias(adata, selected_fate="Neutrophil")
-    cs.plotting.clonal_fate_bias(adata)
-
-    cs.plotting.barcode_heatmap(
-        adata, log_transform=True, selected_fates=selected_fates
-    )
-
-    cs.plotting.clones_on_manifold(adata, selected_clone_list=[1, 2, 3])
-    cs.plotting.gene_expression_dynamics(
+    cs.pl.gene_expression_dynamics(
         adata, selected_fate="Neutrophil", gene_name_list=["Gata1"]
     )
 
@@ -562,10 +336,6 @@ def test_Tmap_analysis(shared_datadir):
         "Mpo",
         "Elane",
         "Gstm1",
-        "Gata2",
-        "Srgn",
-        "Mt2",
-        "Ctsg",
         "Mt1",
         "S100a8",
         "Prtn3",
@@ -573,32 +343,9 @@ def test_Tmap_analysis(shared_datadir):
         "Dstn",
         "Cd63",
         "Ap3s1",
-        "Arl11",
-        "Hk3",
-        "Tmx4",
-        "Slpi",
-        "Igf1r",
-        "Gsr",
         "H2-Aa",
         "H2-Eb1",
         "Ighm",
-        "Ly6a",
-        "Cd74",
-        "Olfm1",
-        "Ccr2",
-        "Satb1",
-        "Mef2c",
-        "Lpl",
-        "Pou2f2",
-        "Wfdc17",
-        "Emp1",
-        "Psap",
-        "Cybb",
-        "Bcl11a",
-        "Cd52",
-        "Ms4a6c",
-        "Tmem108",
-        "Ifi203",
     ]
 
     selected_fates = [
@@ -609,7 +356,7 @@ def test_Tmap_analysis(shared_datadir):
     ]
     renames = ["Neu", "Mon", "Meg-Ery-MBaE", "Lym-Dc"]
 
-    cs.plotting.gene_expression_heat_map(
+    cs.pl.gene_expression_heat_map(
         adata,
         selected_genes=gene_list,
         selected_fates=selected_fates,
@@ -617,7 +364,7 @@ def test_Tmap_analysis(shared_datadir):
         fig_width=12,
     )
 
-    cs.plotting.gene_expression_on_manifold(
+    cs.pl.gene_expression_on_manifold(
         adata, selected_genes=["Gata1", "Elane"], savefig=True
     )
 
@@ -634,7 +381,7 @@ def test_Tmap_analysis(shared_datadir):
     )
     print(df1)
 
-    cs.plotting.single_cell_transition(
+    cs.pl.single_cell_transition(
         adata, selected_state_id_list=[1, 2], savefig=True, map_backward=False
     )
 
@@ -642,9 +389,6 @@ def test_Tmap_analysis(shared_datadir):
 def test_clean_up():
     print("---------Clean up")
     if Path(cs.settings.data_path).is_dir():
-        # os.system(
-        #     "mkdir -p temp; mv data/test_adata_preprocessed.h5ad temp/test_adata_preprocessed.h5ad; rm -r data; rm -r figure; mv temp data"
-        # )
         os.system("rm -r output")
 
 
@@ -653,7 +397,6 @@ cs.settings.verbosity = 3  # range: 0 (error),1 (warning),2 (info),3 (hint).
 test_load_dataset("data")
 test_preprocessing("data")
 test_load_data_from_scratch("data")
-# test_clonal_analysis("data")
+test_clonal_analysis("data")
 test_Tmap_inference("data")
-# test_Tmap_plotting_old("data")
 test_Tmap_analysis("data")

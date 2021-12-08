@@ -134,8 +134,8 @@ def gene_expression_dynamics(
             data_des = adata.uns["data_des"][-1]
             data_path = settings.data_path
             figure_path = settings.figure_path
-            file_name = (
-                f"{data_path}/{data_des}_fate_trajectory_pseudoTime_{fate_name}.npy"
+            file_name = os.path.join(
+                data_path, f"{data_des}_fate_trajectory_pseudoTime_{fate_name}.npy"
             )
 
             traj_name = f"diff_trajectory_{source}_{fate_name}"
@@ -153,10 +153,8 @@ def gene_expression_dynamics(
                 if np.sum(sel_cell_idx) == 0:
                     raise ValueError("No cells selected!")
 
-                # logg.error(sel_cell_idx)
                 sel_cell_id = np.nonzero(sel_cell_idx)[0]
 
-                # file_name=f"data/Pseudotime_{which_branch}_t2.npy"
                 if os.path.exists(file_name) and (not compute_new):
                     logg.info("Load pre-computed pseudotime")
                     PseudoTime = np.load(file_name)
@@ -214,7 +212,10 @@ def gene_expression_dynamics(
                     plt.cm.ScalarMappable(cmap=plt.cm.Reds), ax=ax1, label="Pseudo time"
                 )
                 fig.savefig(
-                    f"{figure_path}/{data_des}_fate_trajectory_pseudoTime_{fate_name}.{settings.file_format_figs}"
+                    os.path.join(
+                        figure_path,
+                        f"{data_des}_fate_trajectory_pseudoTime_{fate_name}.{settings.file_format_figs}",
+                    )
                 )
 
                 temp_dict = {"PseudoTime": PseudoTime}
@@ -260,7 +261,10 @@ def gene_expression_dynamics(
                 )
 
                 gplot.save(
-                    f"{figure_path}/{data_des}_fate_trajectory_pseutoTime_gene_expression_{fate_name}.{settings.file_format_figs}",
+                    os.path.join(
+                        figure_path,
+                        f"{data_des}_fate_trajectory_pseutoTime_gene_expression_{fate_name}.{settings.file_format_figs}",
+                    ),
                     width=fig_width,
                     height=fig_height,
                     verbose=False,
@@ -479,5 +483,8 @@ def gene_expression_on_manifold(
         plt.tight_layout()
         if savefig:
             plt.savefig(
-                f"{figure_path}/gene_expression_{selected_genes[j]}.{settings.file_format_figs}"
+                os.path.join(
+                    figure_path,
+                    f"gene_expression_{selected_genes[j]}.{settings.file_format_figs}",
+                )
             )

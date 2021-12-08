@@ -1,3 +1,4 @@
+import os
 from pathlib import Path, PurePath
 
 from scanpy import read
@@ -289,16 +290,16 @@ def load_data_core(
     data_path, figure_path, data_name, data_des, url_prefix=url_prefix_0
 ):
     url = f"{url_prefix}/{data_name}"
-    path = f"{data_path}/{data_name}"
+    path = os.path.join(data_path, data_name)
     path = Path(path)
     figure_path = Path(figure_path)
 
     if not path.parent.is_dir():
-        logg.info(f"creating directory {path.parent}/ for saving data")
+        logg.info(f"creating directory {path.parent} for saving data")
         path.parent.mkdir(parents=True)
 
     if not figure_path.is_dir():
-        logg.info(f"creating directory {figure_path}/ for saving figures")
+        logg.info(f"creating directory {figure_path} for saving figures")
         figure_path.mkdir(parents=True)
 
     # print(url)
@@ -326,7 +327,7 @@ def _check_datafile_present_and_download(path, backup_url=None):
         "... this may take a while but only happens once"
     )
     if not path.parent.is_dir():
-        logg.info(f"creating directory {path.parent}/ for saving data")
+        logg.info(f"creating directory {path.parent} for saving data")
         path.parent.mkdir(parents=True)
 
     _download(backup_url, path)

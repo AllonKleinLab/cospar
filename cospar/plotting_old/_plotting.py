@@ -170,7 +170,9 @@ def embedding(adata, basis="X_emb", color=None):
     if flag:
         sc_embedding(adata, basis=basis, color=color, ax=ax)
         plt.tight_layout()
-        fig.savefig(f"{settings.figure_path}/{data_des}_embedding.png", dpi=300)
+        fig.savefig(
+            os.path.join(settings.figure_path, f"{data_des}_embedding.png"), dpi=300
+        )
     else:
         logg.error(f"Could not find key {color} in .var_names or .obs.columns.")
 
@@ -376,7 +378,10 @@ def gene_expression_on_manifold(
 
         if savefig:
             fig.savefig(
-                f"{figure_path}/lung_marker_genes_{selected_genes[j]}.{settings.file_format_figs}"
+                os.path.join(
+                    figure_path,
+                    f"lung_marker_genes_{selected_genes[j]}.{settings.file_format_figs}",
+                )
             )
 
 
@@ -508,9 +513,11 @@ def single_cell_transition(
             plt.tight_layout()
             if savefig:
                 fig.savefig(
-                    f"{figure_path}/plotting_transition_map_probability_{map_backward}.{settings.file_format_figs}"
+                    os.path.join(
+                        figure_path,
+                        f"plotting_transition_map_probability_{map_backward}.{settings.file_format_figs}",
+                    )
                 )
-            # plt.rc('text', usetex=False)
 
 
 def fate_map(
@@ -724,7 +731,10 @@ def fate_map(
 
             plt.tight_layout()
             fig.savefig(
-                f"{figure_path}/{data_des}_fate_map_overview_{description[j]}{figure_index}.{settings.file_format_figs}"
+                os.path.join(
+                    figure_path,
+                    f"{data_des}_fate_map_overview_{description[j]}{figure_index}.{settings.file_format_figs}",
+                )
             )
 
             if show_histogram:
@@ -743,7 +753,10 @@ def fate_map(
                     ax.set_title(f"{description[j]}, Ave.: {int(np.mean(xxx)*100)/100}")
                 plt.tight_layout()
                 fig.savefig(
-                    f"{figure_path}/{data_des}_intrinsic_fate_bias_BW{map_backward}_histogram{figure_index}.{settings.file_format_figs}"
+                    os.path.join(
+                        figure_path,
+                        f"{data_des}_intrinsic_fate_bias_BW{map_backward}_histogram{figure_index}.{settings.file_format_figs}",
+                    )
                 )
 
             ## save data to adata
@@ -920,7 +933,10 @@ def fate_potency(
 
             plt.tight_layout()
             fig.savefig(
-                f"{figure_path}/{data_des}_fate_potency{figure_index}.{settings.file_format_figs}"
+                os.path.join(
+                    figure_path,
+                    f"{data_des}_fate_potency{figure_index}.{settings.file_format_figs}",
+                )
             )
 
             ## save data to adata
@@ -1154,7 +1170,10 @@ def fate_bias(
 
                 plt.tight_layout()
                 fig.savefig(
-                    f"{figure_path}/{data_des}_fate_bias_BW{map_backward}{figure_index}.{settings.file_format_figs}"
+                    os.path.join(
+                        figure_path,
+                        f"{data_des}_fate_bias_BW{map_backward}{figure_index}.{settings.file_format_figs}",
+                    )
                 )
 
                 ## save data to adata
@@ -1178,7 +1197,10 @@ def fate_bias(
                     ax.set_title(f"Average: {int(np.mean(xxx)*100)/100}")
                     plt.tight_layout()
                     fig.savefig(
-                        f"{figure_path}/{data_des}_fate_bias_BW{map_backward}_histogram{figure_index}.{settings.file_format_figs}"
+                        os.path.join(
+                            figure_path,
+                            f"{data_des}_fate_bias_BW{map_backward}_histogram{figure_index}.{settings.file_format_figs}",
+                        )
                     )
 
 
@@ -1312,7 +1334,10 @@ def plot_precomputed_fate_bias(
                 Clb.ax.set_title(f"{color_bar_title}")
 
         fig.savefig(
-            f"{settings.figure_path}/{data_des}_fate_bias_{observable_name}_{figure_index}.{settings.file_format_figs}"
+            os.path.join(
+                settings.figure_path,
+                f"{data_des}_fate_bias_{observable_name}_{figure_index}.{settings.file_format_figs}",
+            )
         )
     return ax1
 
@@ -1598,7 +1623,9 @@ def differential_genes(
             plt.tight_layout()
             if savefig:
                 fig.savefig(
-                    f"{figure_path}/dge_analysis_groups.{settings.file_format_figs}"
+                    os.path.join(
+                        figure_path, f"dge_analysis_groups.{settings.file_format_figs}"
+                    )
                 )
 
         # logg.error("Plot differentially-expressed genes for group A")
@@ -1630,7 +1657,10 @@ def differential_genes(
             plt.tight_layout()
             if savefig:
                 fig.savefig(
-                    f"{figure_path}/dge_analysis_groups_A_genes.{settings.file_format_figs}"
+                    os.path.join(
+                        figure_path,
+                        f"dge_analysis_groups_A_genes.{settings.file_format_figs}",
+                    )
                 )
 
             # logg.error("Plot differentially-expressed genes for group B")
@@ -1658,7 +1688,10 @@ def differential_genes(
             plt.tight_layout()
             if savefig:
                 fig.savefig(
-                    f"{figure_path}/dge_analysis_groups_B_genes.{settings.file_format_figs}"
+                    os.path.join(
+                        figure_path,
+                        f"dge_analysis_groups_B_genes.{settings.file_format_figs}",
+                    )
                 )
 
     return diff_gene_A, diff_gene_B
@@ -2007,7 +2040,10 @@ def progenitor(
                     plt.tight_layout()
                     if savefig:
                         fig.savefig(
-                            f"{figure_path}/ancestor_state_groups.{settings.file_format_figs}"
+                            os.path.join(
+                                figure_path,
+                                f"ancestor_state_groups.{settings.file_format_figs}",
+                            )
                         )
 
                 # diff_gene_A,diff_gene_B=differential_genes(adata,plot_groups=plot_groups,gene_N=gene_N,plot_gene_N=plot_gene_N,savefig=savefig,point_size=point_size)
@@ -2214,7 +2250,10 @@ def iterative_differentiation(
                         )
 
                 fig.savefig(
-                    f"{figure_path}/{data_des}_predicting_fate_trajectory_separate_BW{map_backward}.{settings.file_format_figs}"
+                    os.path.join(
+                        figure_path,
+                        f"{data_des}_predicting_fate_trajectory_separate_BW{map_backward}.{settings.file_format_figs}",
+                    )
                 )
             else:
 
@@ -2242,7 +2281,10 @@ def iterative_differentiation(
                 )
 
                 fig.savefig(
-                    f"{figure_path}/{data_des}_predicting_fate_trajectory_allTime_BW{map_backward}.{settings.file_format_figs}"
+                    os.path.join(
+                        figure_path,
+                        f"{data_des}_predicting_fate_trajectory_allTime_BW{map_backward}.{settings.file_format_figs}",
+                    )
                 )
 
             if color_bar:
@@ -2367,8 +2409,8 @@ def gene_expression_dynamics(
             data_des = adata.uns["data_des"][-1]
             data_path = settings.data_path
             figure_path = settings.figure_path
-            file_name = (
-                f"{data_path}/{data_des}_fate_trajectory_pseudoTime_{fate_name}.npy"
+            file_name = os.path.join(
+                data_path, f"{data_des}_fate_trajectory_pseudoTime_{fate_name}.npy"
             )
 
             traj_name = f"traj_{fate_name}"
@@ -2445,7 +2487,10 @@ def gene_expression_dynamics(
                     plt.cm.ScalarMappable(cmap=plt.cm.Reds), ax=ax1, label="Pseudo time"
                 )
                 fig.savefig(
-                    f"{figure_path}/{data_des}_fate_trajectory_pseudoTime_{fate_name}.{settings.file_format_figs}"
+                    os.path.join(
+                        figure_path,
+                        f"{data_des}_fate_trajectory_pseudoTime_{fate_name}.{settings.file_format_figs}",
+                    )
                 )
 
                 temp_dict = {"PseudoTime": PseudoTime}
@@ -2491,7 +2536,10 @@ def gene_expression_dynamics(
                 )
 
                 gplot.save(
-                    f"{figure_path}/{data_des}_fate_trajectory_pseutoTime_gene_expression_{fate_name}.{settings.file_format_figs}",
+                    os.path.join(
+                        figure_path,
+                        f"{data_des}_fate_trajectory_pseutoTime_gene_expression_{fate_name}.{settings.file_format_figs}",
+                    ),
                     width=fig_width,
                     height=fig_height,
                     verbose=False,
@@ -2594,7 +2642,10 @@ def clones_on_manifold(
                     ax.set_title(f"ID: {my_id}")
 
             fig.savefig(
-                f"{figure_path}/{data_des}_different_clones_{my_id}.{settings.file_format_figs}"
+                os.path.join(
+                    figure_path,
+                    f"{data_des}_different_clones_{my_id}.{settings.file_format_figs}",
+                )
             )
 
 
@@ -2742,7 +2793,9 @@ def clonal_fate_bias(
         # ax.set_xlim([0,0.8])
         fig.tight_layout()
         fig.savefig(
-            f"{figure_path}/{data_des}_clonal_fate_bias.{settings.file_format_figs}"
+            os.path.join(
+                figure_path, f"{data_des}_clonal_fate_bias.{settings.file_format_figs}"
+            )
         )
         # plt.rc('text', usetex=False)
         # plt.show()
@@ -2770,7 +2823,10 @@ def clonal_fate_bias(
                 f"Average: {int(np.mean(target_fraction_array)*100)/100};   Expect: {int(np.mean(target_idx)*100)/100}"
             )
             fig.savefig(
-                f"{figure_path}/{data_des}_observed_clonal_fraction.{settings.file_format_figs}"
+                os.path.join(
+                    figure_path,
+                    f"{data_des}_observed_clonal_fraction.{settings.file_format_figs}",
+                )
             )
 
         return result
@@ -2861,8 +2917,8 @@ def clonal_fate_bias_v0(
         fate_name = mega_cluster_list[0]
         target_idx = sel_index_list[0]
 
-        file_name = (
-            f"{data_path}/{data_des}_clonal_fate_bias_{N_resampling}_{fate_name}.npz"
+        file_name = os.path.join(
+            data_path, f"{data_des}_clonal_fate_bias_{N_resampling}_{fate_name}.npz"
         )
 
         if (not os.path.exists(file_name)) or compute_new:
@@ -2977,7 +3033,9 @@ def clonal_fate_bias_v0(
         # ax.set_xlim([0,0.8])
         fig.tight_layout()
         fig.savefig(
-            f"{figure_path}/{data_des}_clonal_fate_bias.{settings.file_format_figs}"
+            os.path.join(
+                figure_path, f"{data_des}_clonal_fate_bias.{settings.file_format_figs}"
+            )
         )
         plt.rc("text", usetex=False)
         # plt.show()
@@ -2998,7 +3056,10 @@ def clonal_fate_bias_v0(
                 f"Average: {int(np.mean(target_fraction_array)*100)/100};   Expect: {int(np.mean(target_idx)*100)/100}"
             )
             fig.savefig(
-                f"{figure_path}/{data_des}_observed_clonal_fraction.{settings.file_format_figs}"
+                os.path.join(
+                    figure_path,
+                    f"{data_des}_observed_clonal_fraction.{settings.file_format_figs}",
+                )
             )
 
         return fate_bias, sort_idx, clone_size_array[sort_idx]

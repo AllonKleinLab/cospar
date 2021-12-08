@@ -888,7 +888,7 @@ def save_map(adata):
         if xx in adata.uns.keys():
             adata.uns.pop(xx)
 
-    file_name = f"{data_path}/{data_des}_adata_with_transition_map.h5ad"
+    file_name = os.path.join(data_path, f"{data_des}_adata_with_transition_map.h5ad")
     adata.write_h5ad(file_name, compression="gzip")
     print(f"Saved file: {file_name}")
 
@@ -923,7 +923,10 @@ def smooth_a_vector(
     temp_str = "0" + str(trunca_threshold)[2:]
 
     if use_full_Smatrix:
-        similarity_file_name = f"{data_path}/{data_des}_Similarity_matrix_with_all_cell_states_kNN{neighbor_N}_Truncate{temp_str}"
+        similarity_file_name = os.path.join(
+            data_path,
+            f"{data_des}_Similarity_matrix_with_all_cell_states_kNN{neighbor_N}_Truncate{temp_str}",
+        )
 
         if not os.path.exists(similarity_file_name + f"_SM{round_of_smooth}.npz"):
             logg.error(
@@ -935,7 +938,10 @@ def smooth_a_vector(
             return None
 
     else:
-        similarity_file_name = f"{data_path}/{data_des_1}_Similarity_matrix_with_selected_states_kNN{neighbor_N}_Truncate{temp_str}"
+        similarity_file_name = os.path.join(
+            data_path,
+            f"{data_des_1}_Similarity_matrix_with_selected_states_kNN{neighbor_N}_Truncate{temp_str}",
+        )
 
     # we cannot force it to compute new at this time. Otherwise, if we use_full_Smatrix, the resulting similarity is actually from adata, thus not full similarity.
 
@@ -1117,7 +1123,7 @@ def save_preprocessed_adata(adata, data_des=None):
     #     if xx not in ['state_info', 'time_info']:
     #         adata.obs.pop(xx)
 
-    file_name = f"{data_path}/{data_des}_adata_preprocessed.h5ad"
+    file_name = os.path.join(data_path, f"{data_des}_adata_preprocessed.h5ad")
     adata.write_h5ad(file_name, compression="gzip")
     print(f"Saved file: {file_name}")
 
@@ -1129,7 +1135,7 @@ def load_saved_adata_with_key(data_des):
 
     data_path = settings.data_path
     # print(f"Load data: data_des='{data_des}'")
-    file_name = f"{data_path}/{data_des}_adata_with_transition_map.h5ad"
+    file_name = os.path.join(data_path, f"{data_des}_adata_with_transition_map.h5ad")
     if os.path.exists(file_name):
         adata = read(file_name)
         return adata
@@ -1327,11 +1333,11 @@ def set_up_folders(data_path_new=None, figure_path_new=None):
         settings.figure_path = figure_path_new
 
     if not Path(settings.data_path).is_dir():
-        logg.info(f"creating directory {settings.data_path}/ for saving data")
+        logg.info(f"creating directory {settings.data_path} for saving data")
         Path(settings.data_path).mkdir(parents=True)
 
     if not Path(settings.figure_path).is_dir():
-        logg.info(f"creating directory {settings.figure_path}/ for saving figures")
+        logg.info(f"creating directory {settings.figure_path} for saving figures")
         Path(settings.figure_path).mkdir(parents=True)
 
 

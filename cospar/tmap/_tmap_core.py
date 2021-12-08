@@ -394,7 +394,10 @@ def infer_Tmap_from_multitime_clones_private(
     temp_str = "0" + str(trunca_threshold[0])[2:]
 
     if use_full_Smatrix:
-        similarity_file_name = f"{data_path}/{data_des}_Similarity_matrix_with_all_cell_states_kNN{neighbor_N}_Truncate{temp_str}"
+        similarity_file_name = os.path.join(
+            data_path,
+            f"{data_des}_Similarity_matrix_with_all_cell_states_kNN{neighbor_N}_Truncate{temp_str}",
+        )
         for round_of_smooth in smooth_array:
             if not os.path.exists(similarity_file_name + f"_SM{round_of_smooth}.npz"):
                 raise ValueError(
@@ -403,7 +406,10 @@ def infer_Tmap_from_multitime_clones_private(
                 )
 
     else:
-        similarity_file_name = f"{data_path}/{data_des_1}_Similarity_matrix_with_selected_states_kNN{neighbor_N}_Truncate{temp_str}"
+        similarity_file_name = os.path.join(
+            data_path,
+            f"{data_des_1}_Similarity_matrix_with_selected_states_kNN{neighbor_N}_Truncate{temp_str}",
+        )
 
     initial_similarity_array = []
     final_similarity_array = []
@@ -1331,7 +1337,10 @@ def infer_Tmap_from_optimal_transport(
     data_path = settings.data_path
 
     ######## apply optimal transport
-    CustomOT_file_name = f"{data_path}/{data_des}_CustomOT_map_epsilon{OT_epsilon}_KNN{OT_dis_KNN}_OTcost{OT_cost}.npz"
+    CustomOT_file_name = os.path.join(
+        data_path,
+        f"{data_des}_CustomOT_map_epsilon{OT_epsilon}_KNN{OT_dis_KNN}_OTcost{OT_cost}.npz",
+    )
     if os.path.exists(CustomOT_file_name) and (not compute_new):
 
         logg.info("Load pre-computed custom OT matrix")
@@ -1354,7 +1363,10 @@ def infer_Tmap_from_optimal_transport(
         # use sklearn KNN graph construction method and select the connectivity option, not related to UMAP
         # use the mode 'distance' to obtain the shortest-path *distance*, rather than 'connectivity'
         if OT_cost == "SPD":
-            SPD_file_name = f"{data_path}/{data_des}_ShortestPathDistanceMatrix_t0t1_KNN{OT_dis_KNN}.npy"
+            SPD_file_name = os.path.join(
+                data_path,
+                f"{data_des}_ShortestPathDistanceMatrix_t0t1_KNN{OT_dis_KNN}.npy",
+            )
             if os.path.exists(SPD_file_name) and (not compute_new):
 
                 logg.info("Load pre-computed shortest path distance matrix")

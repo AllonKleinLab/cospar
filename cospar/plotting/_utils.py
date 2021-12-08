@@ -213,7 +213,7 @@ def plot_neighbor_joining(
         axs[i].set_yticks(np.arange(X.shape[1]) + 0.2)
         axs[i].set_yticklabels(["" for grp in column_groups], rotation=90, ha="right")
     fig.set_size_inches((16, 4))
-    plt.savefig(output_directory + "/neighbor_joint_heatmaps.pdf")
+    plt.savefig(os.path.join(output_directory, "neighbor_joint_heatmaps.pdf"))
 
 
 def heatmap(

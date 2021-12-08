@@ -163,7 +163,10 @@ def infer_Tmap_from_multitime_clones(
         temp_str = "0" + str(trunca_threshold[0])[2:]
         round_of_smooth = np.max(smooth_array)
         data_des = adata_orig.uns["data_des"][0]
-        similarity_file_name = f"{data_path}/{data_des}_Similarity_matrix_with_all_cell_states_kNN{CoSpar_KNN}_Truncate{temp_str}"
+        similarity_file_name = os.path.join(
+            data_path,
+            f"{data_des}_Similarity_matrix_with_all_cell_states_kNN{CoSpar_KNN}_Truncate{temp_str}",
+        )
         if not (
             os.path.exists(similarity_file_name + f"_SM{round_of_smooth}.npz")
             and (not compute_new)
@@ -839,17 +842,6 @@ def infer_Tmap_from_one_time_clones_twoTime(
         )
 
         adata = adata_orig[sp_idx]
-        # adata=sc.AnnData(adata_orig.X[sp_idx]);
-        # adata.var_names=adata_orig.var_names
-        # adata.obsm['X_pca']=adata_orig.obsm['X_pca'][sp_idx]
-        # adata.obsm['X_emb']=adata_orig.obsm['X_emb'][sp_idx]
-        # adata.obs['state_info']=pd.Categorical(adata_orig.obs['state_info'][sp_idx])
-        # adata.obs['time_info']=pd.Categorical(adata_orig.obs['time_info'][sp_idx])
-        # clone_annot_orig=adata_orig.obsm['X_clone']
-        # barcode_id=np.nonzero(clone_annot_orig[sp_idx].A.sum(0).flatten()>0)[0]
-        # clone_annot=clone_annot_orig[sp_idx][:,barcode_id]
-        # adata.obsm['X_clone']=clone_annot
-
         data_des_0 = adata_orig.uns["data_des"][-1]
         data_des_orig = adata_orig.uns["data_des"][0]
         data_des = (
@@ -872,9 +864,6 @@ def infer_Tmap_from_one_time_clones_twoTime(
         adata.uns["sp_idx"] = sp_idx
         data_path = settings.data_path
 
-        cell_id_array_t1 = Tmap_cell_id_t1
-        cell_id_array_t2 = Tmap_cell_id_t2
-
         ###############################
         # prepare the similarity matrix with all state info, all subsequent similarity will be down-sampled from this one.
         if use_full_Smatrix and (joint_optimization or (initialize_method != "OT")):
@@ -882,7 +871,10 @@ def infer_Tmap_from_one_time_clones_twoTime(
             temp_str = "0" + str(trunca_threshold[0])[2:]
             round_of_smooth = np.max(smooth_array)
             data_des = adata_orig.uns["data_des"][0]
-            similarity_file_name = f"{data_path}/{data_des}_Similarity_matrix_with_all_cell_states_kNN{CoSpar_KNN}_Truncate{temp_str}"
+            similarity_file_name = os.path.join(
+                data_path,
+                f"{data_des}_Similarity_matrix_with_all_cell_states_kNN{CoSpar_KNN}_Truncate{temp_str}",
+            )
             if not (
                 os.path.exists(similarity_file_name + f"_SM{round_of_smooth}.npz")
                 and (not compute_new)

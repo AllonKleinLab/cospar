@@ -268,7 +268,10 @@ def clones_on_manifold(
                     ax.set_title(f"ID: {my_id}")
 
             fig.savefig(
-                f"{figure_path}/{data_des}_different_clones_{my_id}.{settings.file_format_figs}"
+                os.path.join(
+                    figure_path,
+                    f"{data_des}_different_clones_{my_id}.{settings.file_format_figs}",
+                )
             )
 
 
@@ -338,7 +341,9 @@ def clonal_fate_bias(adata, show_histogram=True, FDR=0.05):
     ax.legend()
     fig.tight_layout()
     fig.savefig(
-        f"{figure_path}/{data_des}_clonal_fate_bias.{settings.file_format_figs}"
+        os.path.join(
+            figure_path, f"{data_des}_clonal_fate_bias.{settings.file_format_figs}"
+        )
     )
 
     if show_histogram:
@@ -353,5 +358,8 @@ def clonal_fate_bias(adata, show_histogram=True, FDR=0.05):
         ax.set_title(f"Average: {np.mean(target_fraction_array):.2f}")
         fig.tight_layout()
         fig.savefig(
-            f"{figure_path}/{data_des}_observed_clonal_fraction.{settings.file_format_figs}"
+            os.path.join(
+                figure_path,
+                f"{data_des}_observed_clonal_fraction.{settings.file_format_figs}",
+            )
         )
