@@ -26,7 +26,6 @@ def differential_genes(
     cell_group_A=None,
     cell_group_B=None,
     FDR_cutoff=0.05,
-    plot_gene_N=3,
     sort_by="ratio",
 ):
     """
@@ -47,8 +46,6 @@ def differential_genes(
         If not specified, we set it to be adata.obs['cell_group_A'].
     plot_groups: `bool`, optional (default: True)
         If true, plot the selected ancestor states for A, B
-    plot_gene_N: `int`, optional (default: 5)
-        Number of top DGE genes to plot
     savefig: `bool`, optional (default: False)
         Save all plots.
     FDR_cutoff: `float`, optional (default: 0.05)
@@ -87,7 +84,7 @@ def differential_genes(
                     "cell_group_A (or B) should be either a cluster name among adata.obs['state_info'] or a boolean array of size adata.shape[0]."
                 )
         else:
-            group_idx = cell_group_X
+            group_idx = np.array(cell_group_X).astype("bool")
 
         selections.append(group_idx)
 

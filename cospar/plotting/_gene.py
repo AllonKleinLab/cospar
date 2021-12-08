@@ -141,7 +141,7 @@ def gene_expression_dynamics(
             traj_name = f"diff_trajectory_{source}_{fate_name}"
             if traj_name not in adata.obs.keys():
                 logg.error(
-                    f"The target fate trajectory for {fate_name} have not been inferred yet.\n"
+                    f"The target fate trajectory for {fate_name} with {source} have not been inferred yet.\n"
                     "Please infer the trajectory with first with cs.pl.progenitor, \n"
                     "or cs.pl.iterative_differentiation."
                 )

@@ -574,7 +574,7 @@ def fate_bias(
         f"{source}_{mega_cluster_list[0]}*{mega_cluster_list[1]}"
     ] = {"map_backward": map_backward, "method": method}
 
-    logg.info(f"Results saved at adata.obs['fate_bias_{source}']")
+    logg.info(f"Results saved at adata.obs['fate_bias_{source}_fateA*fateB']")
 
 
 def progenitor(
@@ -635,7 +635,7 @@ def progenitor(
         where c0=pseudo_count*(maximum fate probability) is a rescaled pseudo count.
     """
 
-    state_info = adata.obs["state_info"]
+    state_info = np.array(adata.obs["state_info"])
     (
         mega_cluster_list,
         valid_fate_list,
@@ -692,10 +692,14 @@ def progenitor(
         selected_idx = sel_index_list[j]
         combined_prob_temp = temp_list[j].astype(int) + selected_idx.astype(int)
         adata.obs[f"diff_trajectory_{source}_{fate_name}"] = combined_prob_temp
+        adata.obs[f"progenitor_{source}_{fate_name}"] = temp_list[j].astype(int)
         adata.uns[f"{key_word}_params"][f"{source}_{fate_name}"] = {
             "map_backward": map_backward,
             "method": method,
         }
+        logg.info(
+            "Data saved at adata.obs[f'progenitor_{source}_{fate_name}'] and adata.obs[f'diff_trajectory_{source}_{fate_name}']"
+        )
 
 
 def iterative_differentiation(
@@ -821,3 +825,6 @@ def iterative_differentiation(
                     "map_backward": map_backward,
                 }
                 adata.obs[f"diff_trajectory_{source}_{fate_key}"] = cumu_prob
+                logg.info(
+                    f"Data saved at adata.obs[f'diff_trajectory_{source}_{fate_key}']"
+                )

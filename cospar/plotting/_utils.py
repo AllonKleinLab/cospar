@@ -412,9 +412,9 @@ def fate_map_embedding(
         )
     else:
         customized_embedding(
-            x_emb[cell_id_t1],
-            y_emb[cell_id_t1],
-            np.zeros(len(y_emb[cell_id_t1])),
+            x_emb[cell_id_t1][sp_idx],
+            y_emb[cell_id_t1][sp_idx],
+            np.zeros(len(y_emb[cell_id_t1][sp_idx])),
             point_size=point_size,
             ax=ax0,
             title=figure_title,

@@ -171,7 +171,6 @@ def fate_map(
     color_bar=True,
     target_transparency=0.2,
     figure_index="",
-    horizontal=False,
     mask=None,
     color_map=plt.cm.Reds,
 ):
@@ -207,8 +206,6 @@ def fate_map(
         for visual effect. Range: [0,1].
     figure_index: `str`, optional (default: '')
         String index for annotate filename for saved figures. Used to distinuigh plots from different conditions.
-    horizontal: `bool`, optional (default: False)
-        If true, plot the figure panels horizontally; else, vertically.
     mask: `np.array`, optional (default: None)
         A boolean array for available cell states. It should has the length as adata.shape[0].
         Especially useful to constrain the states to show fate bias.
@@ -275,7 +272,6 @@ def fate_map(
                 show_histogram=show_histogram,
                 auto_color_scale=auto_color_scale,
                 color_bar=color_bar,
-                horizontal=horizontal,
                 target_transparency=target_transparency,
                 color_map=color_map,
             )

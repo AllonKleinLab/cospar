@@ -1419,7 +1419,9 @@ def parse_output_choices(adata, key_word, where="obs", interrupt=True):
         raw_choices = [xx for xx in adata.uns.keys() if xx.startswith(f"{key_word}")]
 
     if (interrupt) and (len(raw_choices) == 0):
-        raise ValueError(f"{key_word} has not been computed yet.")
+        raise ValueError(
+            f"{key_word} has not been computed yet. Please run the counterpart function at cs.tl.XXX using the appropriate source name."
+        )
 
     available_choices = []
     for xx in raw_choices:

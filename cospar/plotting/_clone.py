@@ -305,20 +305,19 @@ def clonal_fate_bias(adata, show_histogram=True, FDR=0.05):
     result: `pd.DataFrame`
     """
 
-    df = adata.uns["clonal_fate_bias"]
-    clone_size_array = df["Clone_ID"]
-    Q_value = df["Q_value"]
-    fate_bias = df["Fate_bias"]
-    target_fraction_array = df["clonal_fraction_in_target_fate"]
+    if "clonal_fate_bias" not in adata.uns.keys():
+        raise ValueError(
+            "clonal_fate_bias has not been computed. Run cs.tl.clonal_fate_bias first"
+        )
+    else:
+        df = adata.uns["clonal_fate_bias"]
+        fate_bias = df["Fate_bias"]
+        target_fraction_array = df["clonal_fraction_in_target_fate"]
 
     fig_width = settings.fig_width
     fig_height = settings.fig_height
-    point_size = settings.fig_point_size
-    state_info = adata.obs["state_info"]
     data_des = adata.uns["data_des"][-1]
-    data_path = settings.data_path
     figure_path = settings.figure_path
-    state_list = list(set(state_info))
     FDR_threshold = -np.log10(FDR)
 
     fig = plt.figure(figsize=(fig_width, fig_height))
