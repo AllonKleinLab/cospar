@@ -20,7 +20,7 @@ from .. import tool as tl
 # v1 version, allows to set later time point
 def infer_Tmap_from_multitime_clones(
     adata_orig,
-    initial_time_points=None,
+    clonal_time_points=None,
     later_time_point=None,
     smooth_array=[15, 10, 5],
     CoSpar_KNN=20,
@@ -46,7 +46,7 @@ def infer_Tmap_from_multitime_clones(
 
     * If `later_time_point=None`, the inferred map allows transitions
       between neighboring time points. For example, if
-      initial_time_points=['day1','day2','day3'], then it computes transitions
+      clonal_time_points=['day1','day2','day3'], then it computes transitions
       for pairs (day1, day2) and (day2, day3), but not (day1, day3).
 
     * If `later_time_point` is specified, the function produces a map
@@ -58,12 +58,12 @@ def infer_Tmap_from_multitime_clones(
     ------------
     adata_orig: :class:`~anndata.AnnData` object
         Should be prepared from our anadata initialization.
-    initial_time_points: `list` of `str`, optional (default: all time points)
+    clonal_time_points: `list` of `str`, optional (default: all time points)
         List of time points to be included for analysis.
         We assume that each selected time point has clonal measurements.
     later_time_points: `list`, optional (default: None)
         If specified, the function will produce a map T between these early
-        time points among `initial_time_points` and the `later_time_point`.
+        time points among `clonal_time_points` and the `later_time_point`.
         If not specified, it produces a map T between neighboring clonal time points.
     smooth_array: `list`, optional (default: [15,10,5])
         List of smooth rounds at initial runs of iteration.
@@ -127,47 +127,29 @@ def infer_Tmap_from_multitime_clones(
     """
 
     t0 = time.time()
-    if "data_des" not in adata_orig.uns.keys():
-        adata_orig.uns["data_des"] = ["cospar"]
     hf.check_available_clonal_info(adata_orig)
     clonal_time_points_0 = np.array(adata_orig.uns["clonal_time_points"])
-    if type(later_time_point) == list:
-        later_time_point = later_time_point[0]
     if len(clonal_time_points_0) < 2:
         raise ValueError("There are no multi-time clones. Abort the inference.")
 
-    else:
-        if initial_time_points is None:
-            initial_time_points = clonal_time_points_0
+    if clonal_time_points is None:
+        clonal_time_points = clonal_time_points_0
 
-        if (later_time_point is not None) and (
-            later_time_point not in clonal_time_points_0
-        ):
-            raise ValueError(
-                f"later_time_point is not all among {clonal_time_points_0}. Computation aborted!"
-            )
+    if type(later_time_point) == list:
+        later_time_point = later_time_point[0]
 
-        if later_time_point is not None:
-            clonal_time_points = list(initial_time_points) + [later_time_point]
-            clonal_time_points = list(set(clonal_time_points))
+    if later_time_point is not None:
+        clonal_time_points = list(clonal_time_points) + [later_time_point]
+        clonal_time_points = list(set(clonal_time_points))
 
-        N_valid_time = np.sum(np.in1d(clonal_time_points_0, clonal_time_points))
-        if (N_valid_time != len(clonal_time_points)) or (N_valid_time < 2):
-            raise ValueError(
-                f"Selected time points are not all among {clonal_time_points_0}, or less than 2 time points are selected. Computation aborted!"
-            )
-
-    if save_subset:
-        if not (
-            np.all(np.diff(smooth_array) <= 0)
-            and np.all(np.array(smooth_array) % 5 == 0)
-        ):
-            raise ValueError(
-                "The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
-                "The correct form is like [20,15,10], or [10,10,10,5]. Its length determines the number of iteration.\n"
-                "You can also set save_subset=False to explore arbitrary smooth_array structure."
-            )
-
+    hf.check_input_parameters(
+        adata_orig,
+        later_time_point=later_time_point,
+        clonal_time_points=clonal_time_points,
+        smooth_array=smooth_array,
+        save_subset=save_subset,
+    )
+    # order the clonal time points
     time_ordering = adata_orig.uns["time_ordering"]
     sel_idx_temp = np.in1d(time_ordering, clonal_time_points)
     clonal_time_points = time_ordering[sel_idx_temp]
@@ -376,9 +358,6 @@ def infer_intraclone_Tmap(adata, intraclone_threshold=0.05, normalization_mode=1
         adata.uns["intraclone_transition_map"] = ssp.csr_matrix(demultiplexed_map)
 
 
-# v0: avoid cells that are already selected. We tested, this is better than not avoiding...
-
-
 def infer_Tmap_from_one_time_clones(
     adata_orig,
     initial_time_points=None,
@@ -526,59 +505,40 @@ def infer_Tmap_from_one_time_clones(
     """
 
     t0 = time.time()
-    if "data_des" not in adata_orig.uns.keys():
-        adata_orig.uns["data_des"] = ["cospar"]
-
-    if type(later_time_point) == list:
-        later_time_point = later_time_point[0]
-
     hf.check_available_clonal_info(adata_orig)
-    clonal_time_points_0 = adata_orig.uns["clonal_time_points"]
+    clonal_time_points_0 = np.array(adata_orig.uns["clonal_time_points"])
     time_ordering = adata_orig.uns["time_ordering"]
-
     if len(clonal_time_points_0) == 0:
         raise ValueError(
             "No clonal time points available for this dataset. Please run cs.tmap.infer_Tmap_from_state_info_alone."
         )
 
-    if len(time_ordering) == 1:
-        raise ValueError(
-            "There is only one time point. Tmap inference requires at least 2 time points. Inference aborted."
-        )
-
-    # use the last clonal later time point
     if later_time_point is None:
         sel_idx_temp = np.in1d(time_ordering, clonal_time_points_0)
         later_time_point = time_ordering[sel_idx_temp][-1]
-    else:
-        if not (later_time_point in clonal_time_points_0):
-            raise ValueError(
-                f"'later_time_point' do not contain clonal information. Please set later_time_point to be one of {adata_orig.uns['clonal_time_points']}"
-            )
+
+    if type(later_time_point) == list:
+        later_time_point = later_time_point[0]
+
+    # use the last clonal later time point
 
     if initial_time_points is None:
         sel_id_temp = np.nonzero(np.in1d(time_ordering, [later_time_point]))[0][0]
         initial_time_points = time_ordering[:sel_id_temp]
-    else:
-        # re-order time points. This also gets rid of invalid time points
-        sel_idx_temp = np.in1d(time_ordering, initial_time_points)
-        if np.sum(sel_idx_temp) > 0:
-            initial_time_points = time_ordering[sel_idx_temp]
-        else:
-            raise ValueError(
-                f"The 'initial_time_points' are not valid. Please select from {time_ordering}"
-            )
 
-    if save_subset:
-        if not (
-            np.all(np.diff(smooth_array) <= 0)
-            and np.all(np.array(smooth_array) % 5 == 0)
-        ):
-            raise ValueError(
-                "The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
-                "The correct form is like [20,15,10], or [10,10,10,5]."
-                "You can also set save_subset=False to explore arbitrary smooth_array structure."
-            )
+    sel_idx_temp = np.in1d(time_ordering, initial_time_points)
+    initial_time_points = list(time_ordering[sel_idx_temp])
+    if later_time_point in initial_time_points:
+        logg.warn(f"remove {later_time_point} from initial_time_points")
+        initial_time_points.remove(later_time_point)
+
+    hf.check_input_parameters(
+        adata_orig,
+        later_time_point=later_time_point,
+        initial_time_points=initial_time_points,
+        smooth_array=smooth_array,
+        save_subset=save_subset,
+    )
 
     if initialize_method not in ["OT", "HighVar"]:
         logg.warn(
@@ -593,6 +553,7 @@ def infer_Tmap_from_one_time_clones(
     sp_idx = np.zeros(adata_orig.shape[0], dtype=bool)
     time_info_orig = np.array(adata_orig.obs["time_info"])
     all_time_points = list(initial_time_points) + [later_time_point]
+
     label = "t"
     for xx in all_time_points:
         id_array = np.nonzero(time_info_orig == xx)[0]
@@ -1166,109 +1127,101 @@ def infer_Tmap_from_clonal_info_alone(
         The transition map is stored at adata.uns['clonal_transition_map']
     """
 
-    if "data_des" not in adata_orig.uns.keys():
-        adata_orig.uns["data_des"] = ["cospar"]
     hf.check_available_clonal_info(adata_orig)
     clonal_time_points_0 = np.array(adata_orig.uns["clonal_time_points"])
     if len(clonal_time_points_0) < 2:
-        logg.error("There are no multi-time clones. Abort the inference.")
+        raise ValueError("There are no multi-time clones. Abort the inference.")
 
+    if clonal_time_points is None:
+        clonal_time_points = clonal_time_points_0
+
+    if type(later_time_point) == list:
+        later_time_point = later_time_point[0]
+
+    if later_time_point is not None:
+        clonal_time_points = list(clonal_time_points) + [later_time_point]
+        clonal_time_points = list(set(clonal_time_points))
+
+    hf.check_input_parameters(
+        adata_orig,
+        later_time_point=later_time_point,
+        clonal_time_points=clonal_time_points,
+    )
+    # order the clonal time points
+    time_ordering = adata_orig.uns["time_ordering"]
+    sel_idx_temp = np.in1d(time_ordering, clonal_time_points)
+    clonal_time_points = time_ordering[sel_idx_temp]
+
+    if later_time_point is None:
+        logg.info("Infer transition map between neighboring time points.")
+        adata = infer_Tmap_from_clonal_info_alone_private(
+            adata_orig,
+            method=method,
+            clonal_time_points=clonal_time_points,
+            selected_fates=selected_fates,
+        )
+
+        return adata
     else:
-        if clonal_time_points is None:
-            clonal_time_points = clonal_time_points_0
+        logg.info(
+            f"Infer transition map between initial time points and the later time point."
+        )
+        # compute transition map between initial time points and the later time point
+        sel_id = np.nonzero(np.in1d(clonal_time_points, later_time_point))[0][0]
+        initial_time_points = clonal_time_points[:sel_id]
 
-        if (later_time_point is not None) and (
-            later_time_point not in clonal_time_points_0
-        ):
-            raise ValueError(
-                f"later_time_point is not all among {clonal_time_points_0}. Computation aborted!"
-            )
+        time_info_orig = np.array(adata_orig.obs["time_info"])
+        sp_idx = np.zeros(adata_orig.shape[0], dtype=bool)
+        all_time_points = list(initial_time_points) + [later_time_point]
+        label = "t"
+        for xx in all_time_points:
+            id_array = np.nonzero(time_info_orig == xx)[0]
+            sp_idx[id_array] = True
+            label = label + "*" + str(xx)
 
-        if later_time_point is not None:
-            clonal_time_points = list(clonal_time_points) + [later_time_point]
-            clonal_time_points = list(set(clonal_time_points))
+        adata = adata_orig[sp_idx]
+        data_des_orig = adata_orig.uns["data_des"][0]
+        data_des_0 = adata_orig.uns["data_des"][-1]
+        data_des = data_des_0 + f"_ClonalMap_Later_{label}"
+        adata_orig.uns["data_des"] = [data_des_orig, data_des]
 
-        N_valid_time = np.sum(np.in1d(clonal_time_points_0, clonal_time_points))
-        if (N_valid_time != len(clonal_time_points)) or (N_valid_time < 2):
-            raise ValueError(
-                f"Selected time points are not all among {clonal_time_points_0}, or less than 2 time points are selected. Computation aborted!"
-            )
+        time_info = np.array(adata_orig.obs["time_info"])
+        time_index_t2 = time_info == later_time_point
+        time_index_t1 = ~time_index_t2
 
-        # adjust the order of time points
-        time_ordering = adata_orig.uns["time_ordering"]
-        sel_idx_temp = np.in1d(time_ordering, clonal_time_points)
-        clonal_time_points = time_ordering[sel_idx_temp]
+        #### used for similarity matrix generation
+        Tmap_cell_id_t1 = np.nonzero(time_index_t1)[0]
+        Tmap_cell_id_t2 = np.nonzero(time_index_t2)[0]
+        adata.uns["Tmap_cell_id_t1"] = Tmap_cell_id_t1
+        adata.uns["Tmap_cell_id_t2"] = Tmap_cell_id_t2
+        adata.uns["clonal_cell_id_t1"] = Tmap_cell_id_t1
+        adata.uns["clonal_cell_id_t2"] = Tmap_cell_id_t2
+        adata.uns["sp_idx"] = sp_idx
+        data_path = settings.data_path
 
-        if later_time_point is None:
-            logg.info("Infer transition map between neighboring time points.")
-            adata = infer_Tmap_from_clonal_info_alone_private(
+        transition_map = np.zeros((len(Tmap_cell_id_t1), len(Tmap_cell_id_t2)))
+
+        # logg.info("------Infer transition map between initial time points and the later time one-------")
+        for yy in initial_time_points:
+            logg.info(f"--------Current initial time point: {yy}--------")
+
+            # by default, we extend the state space to all cells at the given time point.
+            adata_temp = infer_Tmap_from_clonal_info_alone_private(
                 adata_orig,
                 method=method,
-                clonal_time_points=clonal_time_points,
+                clonal_time_points=[yy, later_time_point],
                 selected_fates=selected_fates,
             )
 
-            return adata
-        else:
-            logg.info(
-                f"Infer transition map between initial time points and the later time point."
-            )
-            # compute transition map between initial time points and the later time point
-            sel_id = np.nonzero(np.in1d(clonal_time_points, later_time_point))[0][0]
-            initial_time_points = clonal_time_points[:sel_id]
+            temp_id_t1 = np.nonzero(time_info == yy)[0]
+            sp_id_t1 = hf.converting_id_from_fullSpace_to_subSpace(
+                temp_id_t1, Tmap_cell_id_t1
+            )[0]
 
-            time_info_orig = np.array(adata_orig.obs["time_info"])
-            sp_idx = np.zeros(adata_orig.shape[0], dtype=bool)
-            all_time_points = list(initial_time_points) + [later_time_point]
-            label = "t"
-            for xx in all_time_points:
-                id_array = np.nonzero(time_info_orig == xx)[0]
-                sp_idx[id_array] = True
-                label = label + "*" + str(xx)
+            # by default, we extend the state space to all cells at the given time point.
+            # so we only need to care about t1.
+            transition_map[sp_id_t1, :] = adata_temp.uns["clonal_transition_map"].A
 
-            adata = adata_orig[sp_idx]
-            data_des_orig = adata_orig.uns["data_des"][0]
-            data_des_0 = adata_orig.uns["data_des"][-1]
-            data_des = data_des_0 + f"_ClonalMap_Later_{label}"
-            adata_orig.uns["data_des"] = [data_des_orig, data_des]
+        adata.uns["clonal_transition_map"] = ssp.csr_matrix(transition_map)
 
-            time_info = np.array(adata_orig.obs["time_info"])
-            time_index_t2 = time_info == later_time_point
-            time_index_t1 = ~time_index_t2
-
-            #### used for similarity matrix generation
-            Tmap_cell_id_t1 = np.nonzero(time_index_t1)[0]
-            Tmap_cell_id_t2 = np.nonzero(time_index_t2)[0]
-            adata.uns["Tmap_cell_id_t1"] = Tmap_cell_id_t1
-            adata.uns["Tmap_cell_id_t2"] = Tmap_cell_id_t2
-            adata.uns["clonal_cell_id_t1"] = Tmap_cell_id_t1
-            adata.uns["clonal_cell_id_t2"] = Tmap_cell_id_t2
-            adata.uns["sp_idx"] = sp_idx
-            data_path = settings.data_path
-
-            transition_map = np.zeros((len(Tmap_cell_id_t1), len(Tmap_cell_id_t2)))
-
-            # logg.info("------Infer transition map between initial time points and the later time one-------")
-            for yy in initial_time_points:
-                logg.info(f"--------Current initial time point: {yy}--------")
-
-                # by default, we extend the state space to all cells at the given time point.
-                adata_temp = infer_Tmap_from_clonal_info_alone_private(
-                    adata_orig,
-                    method=method,
-                    clonal_time_points=[yy, later_time_point],
-                    selected_fates=selected_fates,
-                )
-
-                temp_id_t1 = np.nonzero(time_info == yy)[0]
-                sp_id_t1 = hf.converting_id_from_fullSpace_to_subSpace(
-                    temp_id_t1, Tmap_cell_id_t1
-                )[0]
-
-                # by default, we extend the state space to all cells at the given time point.
-                # so we only need to care about t1.
-                transition_map[sp_id_t1, :] = adata_temp.uns["clonal_transition_map"].A
-
-            adata.uns["clonal_transition_map"] = ssp.csr_matrix(transition_map)
-
-            return adata
+        return adata

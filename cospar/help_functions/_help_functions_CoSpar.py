@@ -1435,3 +1435,64 @@ def rename_list(old_names, new_names):
         )
         new_names = old_names
     return new_names
+
+
+def check_input_parameters(adata, **kwargs):
+    keys = kwargs.keys()
+    check_available_clonal_info(adata)
+    clonal_time_points_0 = np.array(adata.uns["clonal_time_points"])
+    time_ordering = adata.uns["time_ordering"]
+    if len(time_ordering) == 1:
+        raise ValueError(
+            "There is only one time point. Tmap inference requires at least 2 time points. Inference aborted."
+        )
+
+    if ("save_subset" in keys) and ("smooth_array" in keys):
+        save_subset = kwargs["save_subset"]
+        smooth_array = kwargs["smooth_array"]
+        if save_subset:
+            if not (
+                np.all(np.diff(smooth_array) <= 0)
+                and np.all(np.array(smooth_array) % 5 == 0)
+            ):
+                raise ValueError(
+                    "The smooth_array contains numbers not multiples of 5 or not in descending order.\n"
+                    "The correct form is like [20,15,10], or [10,10,10,5]."
+                    "You can also set save_subset=False to explore arbitrary smooth_array structure."
+                )
+
+    if "data_des" not in adata.uns.keys():
+        logg.warn("data_des not defined at adata.uns['data_des']. Set to be 'cospar'")
+        adata.uns["data_des"] = ["cospar"]
+
+    if "later_time_point" in keys:
+        later_time_point = kwargs["later_time_point"]
+        if (later_time_point is not None) and (
+            later_time_point not in clonal_time_points_0
+        ):
+            raise ValueError(
+                f"later_time_point is not all among {clonal_time_points_0}. Computation aborted!"
+            )
+
+    if "initial_time_points" in keys:
+        initial_time_points = kwargs["initial_time_points"]
+        N_valid_time = np.sum(np.in1d(time_ordering, initial_time_points))
+        if (N_valid_time != len(initial_time_points)) or (N_valid_time < 1):
+            raise ValueError(
+                f"The 'initial_time_points' are not all valid. Please select from {time_ordering}"
+            )
+
+        if "later_time_point" in keys:
+            later_time_point = kwargs["later_time_point"]
+            if np.sum(np.array(initial_time_points) > later_time_point) > 0:
+                raise ValueError(
+                    f"The 'initial_time_points' ({initial_time_points}) should be larger than later_time_point {later_time_point} "
+                )
+
+    if "clonal_time_points" in keys:
+        clonal_time_points = kwargs["clonal_time_points"]
+        N_valid_time = np.sum(np.in1d(clonal_time_points_0, clonal_time_points))
+        if (N_valid_time != len(clonal_time_points)) or (N_valid_time < 2):
+            raise ValueError(
+                f"Selected time points are not all among {clonal_time_points_0}, or less than 2 time points are selected. Computation aborted!"
+            )
