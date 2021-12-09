@@ -1,9 +1,7 @@
 Getting Started
 ---------------
 
-Here, we explain the basics of using CoSpar. In :doc:`CoSpar basics <20210121_cospar_tutorial_v2>`, we will demonstrate its usage in a sub-sampled dataset of hematopoiesis.
-
-CoSpar requires the count matrix not log-transformed. This is specifically assumed in selecting highly variable genes, in computing PCA, and in the HighVar method for initializing the joint optimization using a single clonal time point. CoSpar also assumes that the dataset has more than one time point. However, if you have only a snapshot, you can still manually cluster the cells into more than one time point to use CoSpar.
+Here, we explain the basics of using CoSpar. CoSpar requires the count matrix ``not log-transformed``. This is specifically assumed in selecting highly variable genes, in computing PCA, and in the HighVar method for initializing the joint optimization using a single clonal time point. CoSpar also assumes that the dataset has more than one time point. However, if you have only a snapshot, you can still manually cluster the cells into more than one time point to use CoSpar.
 
 First, import CoSpar with::
 
@@ -13,7 +11,12 @@ For better visualization you can change the matplotlib settings to our defaults 
 
     cs.settings.set_figure_params()
 
-If you want to adjust parameters for a particular plot, just pass the parameters into this function.
+If you want to adjust parameters for a particular plot, just pass the parameters into this function. The workflow of CoSpar is summarized by the following illustration:
+
+
+.. image:: https://user-images.githubusercontent.com/4595786/145308761-a6532c6b-ac5b-4457-a00e-4a0f3972a360.png
+   :width: 1000px
+   :align: center
 
 Initialization
 ''''''''''''''
@@ -65,11 +68,13 @@ You can generate the barcode heatmap across given clusters to inspect clonal beh
 
 You can quantify the clonal coupling across different fate clusters::
 
-    cs.pl.fate_coupling_from_clones(adata_orig,**params)
+    cs.tl.fate_coupling(adata_orig,source='X_clone',**params)
+    cs.pl.fate_coupling(adata_orig,source='X_clone',**params)
 
 Strong coupling implies the existence of bi-potent or multi-potent cell states at the time of barcoding. You can visualize the fate hierarchy by a simple neighbor-joining method::
 
-    cs.pl.fate_hierarchy_from_clones(adata_orig,**params)
+    cs.tl.fate_hierarchy(adata_orig,source='X_clone',**params)
+    cs.pl.fate_hierarchy(adata_orig,source='X_clone',**params)
 
 Finally, you can infer the fate bias :math:`-log_{10}(P_{value})` of each clone towards a designated fate cluster::
 
@@ -121,10 +126,10 @@ We also provide simple methods that infer transition map from clonal information
 
 The result is stored at ``adata.uns['clonal_transition_map']``.
 
-Visualization
-'''''''''''''
+Analysis and visualization
+''''''''''''''''''''''''''
 
-Finally, each of the computed transition maps can be explored on state embedding at the single-cell level using a variety of plotting functions. There are some common parameters: 1) ``used_Tmap``, for choosing one of the pre-computed transition maps for analysis; 2) ``selected_fates``, for visualizing the fate bias towards/against given fate clusters; 3) ``map_backward``, for analyzing forward or backward transitions; 4) ``method``, for different methods in fate probability analysis. See :doc:`CoSpar basics <20210121_cospar_tutorial_v2>` for more details.
+Finally, each of the computed transition maps can be explored on state embedding at the single-cell level using a variety of analysis and plotting functions. There are some common parameters: 1) ``source``, for choosing one of the pre-computed transition maps (or the raw clonal data) for analysis; 2) ``selected_fates``, for visualizing the fate bias towards/against given fate clusters; 3) ``map_backward``, for analyzing forward or backward transitions; 4) ``method``, for different methods in fate probability analysis. See :doc:`CoSpar basics <20210121_cospar_tutorial_v2>` for more details.
 
 
 Below, we frame the task in the language of analyzing backward transitions for convenience. To see where a cell came from, run::
@@ -133,30 +138,39 @@ Below, we frame the task in the language of analyzing backward transitions for c
 
 To visualize the fate probability of initial cell states, run::
 
+    cs.tl.fate_map(adata,**params)
     cs.pl.fate_map(adata,**params)
 
 To infer the fate bias of initial cell states between two fate clusters, run::
 
+    cs.tl.fate_bias(adata,**params)
     cs.pl.fate_bias(adata,**params)
 
 To infer the dynamic trajectory towards given fate clusters, run::
 
+    cs.tl.progenitor(adata,**params)
     cs.pl.progenitor(adata,**params)
+
+or, alternatively if you have data with multiple clonal time points, run::
+
+    cs.tl.iterative_differentiation(adata,**params)
     cs.pl.iterative_differentiation(adata,**params)
 
-The first method assumes two input fate clusters and infers each trajectory by thresholding the corresponding fate bias. The second method infers the trajectory by iteratively tracing a selected fate cluster all the way back to its putative origin at the initial time point. For both methods,  the inferred trajectory for each fate will be saved at ``adata.obs[f'traj_{fate_name}']``, and we can explore the gene expression dynamics along this trajectory using::
+The first method (``cs.tl.progenitor``) assumes two input fate clusters and infers each trajectory by thresholding the corresponding fate bias. The second method (``cs.tl.iterative_differentiation``) infers the trajectory by iteratively tracing a selected fate cluster all the way back to its putative origin at the initial time point. For both methods,  the inferred trajectory for each fate will be saved at ``adata.obs[f'diff_trajectory_{source}_{fate_name}']``, and we can explore the gene expression dynamics along this trajectory using::
 
     cs.pl.gene_expression_dynamics(adata,**params)
 
-Additionally, the first method (``cs.pl.progenitor``) exports the selected ancestor states for the two fate clusters at ``adata.obs['cell_group_A']`` and ``adata.obs['cell_group_B']``, which can be used to infer the driver genes for fate bifurcation by running::
+Additionally, the first method (``cs.pl.progenitor``) exports the selected ancestor states selected fate clusters at ``adata.obs[f'progenitor_{source}_{fate_name}']``, which can be used to infer the driver genes for fate bifurcation by running::
 
     cs.pl.differential_genes(adata,**params)
 
 
-If there are multiple mature fate clusters, you can infer their differentiation coupling from the fate probabilities of initial cells by::
+If there are multiple mature fate clusters, you can infer their differentiation coupling from the fate probabilities of initial cells or the raw clonal matrix by::
 
-    cs.pl.fate_coupling_from_Tmap(adata,**params)
+    cs.tl.fate_coupling(adata,source='transition_map',**params)
+    cs.pl.fate_coupling(adata,source='transition_map',**params)
 
 You can also infer the fate hierarchy from::
 
-    cs.pl.fate_hierarchy_from_Tmap(adata,**params)
+    cs.tl.fate_hierarchy(adata,source='transition_map',**params)
+    cs.pl.fate_hierarchy(adata,source='transition_map',**params)
