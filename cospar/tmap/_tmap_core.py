@@ -6,7 +6,7 @@ import pandas as pd
 import scanpy as sc
 import scipy.sparse as ssp
 
-import cospar.tmap._utils as tmap_util
+from cospar.tmap import _utils as tmap_util
 
 from .. import help_functions as hf
 from .. import logging as logg

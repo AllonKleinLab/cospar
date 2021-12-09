@@ -164,18 +164,6 @@ def test_Tmap_inference(shared_datadir):
     adata_orig = cs.hf.read(file_name)
     print("------------------------------T map inference")
 
-    print("---------infer_Tmap_from_multitime_clones")
-    adata = cs.tmap.infer_Tmap_from_multitime_clones(
-        adata_orig,
-        clonal_time_points=["2", "4"],
-        later_time_point="6",
-        smooth_array=[5, 5, 5],
-        sparsity_threshold=0.1,
-        intraclone_threshold=0.2,
-        max_iter_N=5,
-        epsilon_converge=0.01,
-    )
-
     print("---------infer_Tmap_from_one_time_clones")
     adata_1 = cs.tmap.infer_Tmap_from_one_time_clones(
         adata_orig,
@@ -209,28 +197,39 @@ def test_Tmap_inference(shared_datadir):
     )
 
     print("-------------------------save maps")
-    cs.hf.save_map(adata)
+    # cs.hf.save_map(adata_3)
 
 
 def test_Tmap_analysis(shared_datadir):
+    config(shared_datadir)
 
-    cs.settings.data_path = os.path.join(shared_datadir, "..", "output")
-    cs.settings.figure_path = os.path.join(shared_datadir, "..", "output")
-    cs.settings.verbosity = 3  # range: 0 (error),1 (warning),2 (info),3 (hint).
-    cs.settings.set_figure_params(
-        format="png", figsize=[4, 3.5], dpi=25, fontsize=14, pointsize=3, dpi_save=150
-    )
-    cs.hf.set_up_folders()  # setup the data_path and figure_path
+    load_pre_compute_map = False
+    if load_pre_compute_map:
+        # this is for fast local testing
+        file_name = os.path.join(
+            cs.settings.data_path,
+            "test_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad",
+        )
+        adata = cs.hf.read(file_name)
 
-    file_name = os.path.join(
-        cs.settings.data_path,
-        "test_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad",
-    )
-    adata = cs.hf.read(file_name)
+        # adata = cs.hf.read(
+        #     "/Users/shouwenwang/Dropbox (HMS)/Python/CoSpar/docs/source/data_cospar/LARRY_sp500_ranking1_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad"
+        # )
+    else:
+        file_name = os.path.join(shared_datadir, "test_adata_preprocessed.h5ad")
+        adata_orig = cs.hf.read(file_name)
+        print("---------infer_Tmap_from_multitime_clones")
+        adata = cs.tmap.infer_Tmap_from_multitime_clones(
+            adata_orig,
+            clonal_time_points=["2", "4"],
+            later_time_point="6",
+            smooth_array=[5, 5, 5],
+            sparsity_threshold=0.1,
+            intraclone_threshold=0.2,
+            max_iter_N=5,
+            epsilon_converge=0.01,
+        )
 
-    # adata = cs.hf.read(
-    #     "/Users/shouwenwang/Dropbox (HMS)/Python/CoSpar/docs/source/data_cospar/LARRY_sp500_ranking1_MultiTimeClone_Later_FullSpace0_t*2*4*6_adata_with_transition_map.h5ad"
-    # )
     X_clone = adata.obsm["X_clone"]
     print(type(X_clone))
 
@@ -388,11 +387,11 @@ def test_clean_up():
         os.system("rm -r output")
 
 
-os.chdir(os.path.dirname(__file__))
-cs.settings.verbosity = 3  # range: 0 (error),1 (warning),2 (info),3 (hint).
-# test_load_dataset("data")
-# test_preprocessing("data")
-# test_load_data_from_scratch("data")
-# test_clonal_analysis("data")
-# test_Tmap_inference("data")
-test_Tmap_analysis("data")
+# os.chdir(os.path.dirname(__file__))
+# cs.settings.verbosity = 3  # range: 0 (error),1 (warning),2 (info),3 (hint).
+# # test_load_dataset("data")
+# # test_preprocessing("data")
+# # test_load_data_from_scratch("data")
+# # test_clonal_analysis("data")
+# # test_Tmap_inference("data")
+# test_Tmap_analysis("data")
