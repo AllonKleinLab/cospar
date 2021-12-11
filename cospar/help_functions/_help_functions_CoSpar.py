@@ -1377,6 +1377,8 @@ def get_X_clone_with_reference_ordering(
         reference_clone_id = list(set(clone_data_barcode_id))
     if reference_cell_id is None:
         reference_cell_id = list(set(clone_data_cell_id))
+    reference_clone_id = np.array(reference_clone_id)
+    reference_cell_id = np.array(reference_cell_id)
 
     if drop_duplicates:
         df = pd.DataFrame(
@@ -1384,9 +1386,8 @@ def get_X_clone_with_reference_ordering(
         ).drop_duplicates()
         clone_data_cell_id = df["cell_id"]
         clone_data_barcode_id = df["clone_id"]
-
-    reference_clone_id = np.array(reference_clone_id)
-    reference_cell_id = np.array(reference_cell_id)
+    clone_data_cell_id = np.array(clone_data_cell_id)
+    clone_data_barcode_id = np.array(clone_data_barcode_id)
 
     X_clone_row = []
     X_clone_col = []
