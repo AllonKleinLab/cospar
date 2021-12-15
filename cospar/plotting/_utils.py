@@ -42,6 +42,33 @@ def start_subplot_figure(n_subplots, n_columns=5, fig_width=14, row_height=3):
     return fig, n_rows, n_columns
 
 
+def embedding_genes(adata, basis="X_emb", color=None, color_bar=True, **kwargs):
+    """
+    A test embedding method. Works better with subplots
+    """
+    if basis not in adata.obsm.keys():
+        raise ValueError(f"basis={basis} is not among {adata.obsm.keys()}")
+    if color in adata.var_names:
+        vector = adata[:, color].X.A.flatten()
+
+    elif color in adata.obs.keys():
+        vector = np.array(adata.obs[color])
+    else:
+        raise ValueError(f"color value is not right")
+
+    x_emb = adata.obsm[basis][:, 0]
+    y_emb = adata.obsm[basis][:, 1]
+    customized_embedding(
+        x_emb,
+        y_emb,
+        vector,
+        title=color,
+        col_range=(0, 99.8),
+        color_bar=color_bar,
+        **kwargs,
+    )
+
+
 def embedding(
     adata, basis="X_emb", color=None, cmap=darken_cmap(plt.cm.Reds, 0.9), **kwargs
 ):
@@ -467,8 +494,8 @@ def fate_map_embedding(
         ax.set_title(f"Ave.: {np.mean(fate_map_temp):.2f}")
 
 
-def rand_jitter(arr):
-    stdev = 0.01 * (max(arr) - min(arr))
+def rand_jitter(arr, std):
+    stdev = std * (max(arr) - min(arr))
     return arr + np.random.randn(len(arr)) * stdev
 
 
@@ -484,11 +511,12 @@ def jitter(
     vmax=None,
     alpha=None,
     linewidths=None,
+    std=0.01,
     **kwargs,
 ):
     return plt.scatter(
-        rand_jitter(x),
-        rand_jitter(y),
+        rand_jitter(x, std),
+        rand_jitter(y, std),
         s=s,
         c=c,
         marker=marker,

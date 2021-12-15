@@ -139,7 +139,7 @@ def barcode_heatmap(
                 return ax
 
 
-def clonal_fates_across_time(adata, selected_times):
+def clonal_fates_across_time(adata, selected_times, **kwargs):
     """
     Returns:
     clonal_fates_t1, clonal_fates_t2
@@ -163,7 +163,7 @@ def clonal_fates_across_time(adata, selected_times):
     )
     clonal_fates_t2 = (adata.uns["barcode_heatmap"]["coarse_X_clone"] > 0).sum(0)
 
-    pl_util.jitter(clonal_fates_t1, clonal_fates_t2)
+    pl_util.jitter(clonal_fates_t1, clonal_fates_t2, **kwargs)
     plt.xlabel(f"Number of fates per clone (t={selected_times[0]})")
     plt.ylabel(f"Number of fates per clone (t={selected_times[1]})")
     data_des = adata.uns["data_des"][0]
