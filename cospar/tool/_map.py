@@ -27,6 +27,7 @@ def fate_hierarchy(
     source: str = "X_clone",
     selected_times: list = None,
     method: str = "SW",
+    ignore_cell_number: bool = False,
 ):
     """
     Build fate hierarchy or lineage trees
@@ -46,6 +47,11 @@ def fate_hierarchy(
         For each node (internal or leaf node), give its composition of all leaf nodes. As an example: {0: [0], 1: [1], 2: [2], 3: [3], 4: [1, 3], 5: [0, 1, 3]}.  5 is an internal node, and it composes [0,1,3], which are all leaf nodes.
     history:
         The history of the iterative reconstruction
+    ignore_cell_number:
+        Ignore the cell number of a clone within a cluster. i.e., binarize a clone's
+        contribution towards a cluster. This only works when 'source=X_clone'.
+        This biases towards large clusters, which will host many clones (most of them just
+        a few cells)
     """
 
     state_info = np.array(adata.obs["state_info"])
@@ -80,6 +86,7 @@ def fate_hierarchy(
             selected_times=selected_times,
             method=method,
             silence=True,
+            ignore_cell_number=ignore_cell_number,
         )
         X_coupling = adata.uns[f"fate_coupling_{source}"]["X_coupling"]
         if counter == 1:
@@ -147,6 +154,7 @@ def fate_coupling(
     fate_map_method="sum",
     method="SW",
     silence=False,
+    ignore_cell_number: bool = False,
 ):
     """
     Plot fate coupling determined by the transition map.
@@ -185,6 +193,11 @@ def fate_coupling(
         Plot the color bar.
     method: `str`, optional (default: 'SW')
         Method to normalize the coupling matrix: {'SW', 'Weinreb'}.
+    ignore_cell_number:
+        Ignore the cell number of a clone within a cluster. i.e., binarize a clone's
+        contribution towards a cluster. This only works when 'source=X_clone'
+        This biases towards large clusters, which will host many clones (most of them just
+        a few cells)
 
     Returns
     -------
@@ -221,7 +234,10 @@ def fate_coupling(
                     (len(mega_cluster_list), clone_annot.shape[1])
                 )
                 for j, idx in enumerate(sel_index_list):
-                    coarse_clone_annot[j, :] = clone_annot[idx].sum(0)
+                    if ignore_cell_number:
+                        coarse_clone_annot[j, :] = clone_annot[idx].sum(0) > 0
+                    else:
+                        coarse_clone_annot[j, :] = clone_annot[idx].sum(0)
 
                 X_coupling = tl_util.get_normalized_covariance(
                     coarse_clone_annot.T, method=method
