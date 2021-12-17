@@ -62,6 +62,9 @@ def clonal_fate_bias(adata, selected_fate="", alternative="two-sided"):
     clone_N = X_clone.shape[1]
     cell_N = X_clone.shape[0]
 
+    if type(selected_fate) == list:
+        selected_fate = [selected_fate]
+
     if type(selected_fate) == str:
         selected_fate = [selected_fate]
 
@@ -124,3 +127,42 @@ def clonal_fate_bias(adata, selected_fate="", alternative="two-sided"):
 
         adata.uns["clonal_fate_bias"] = result
         logg.info("Data saved at adata.uns['clonal_fate_bias']")
+
+
+def identify_persistent_clones(adata):
+    time_info = np.array(adata.obs["time_info"])
+    X_clone = adata.obsm["X_clone"]
+    unique_time_info = list(set(time_info))
+    persistent_clone_idx = np.ones(X_clone.shape[1]).astype(bool)
+    for t in unique_time_info:
+        persistent_clone_idx = persistent_clone_idx & (
+            X_clone[time_info == t].sum(0).A.flatten() > 0
+        )
+    persistent_clone_ids = np.nonzero(persistent_clone_idx)[0]
+    return persistent_clone_ids
+
+
+def fate_biased_clones(
+    adata,
+    selected_fate,
+    fraction_threshold=0.1,
+    FDR_threshold=0.05,
+    persistent_clones=False,
+):
+    """
+    Find clones that significantly biased towards a given fate
+    """
+    clonal_fate_bias(adata, selected_fate=selected_fate)
+    result = adata.uns["clonal_fate_bias"]
+    valid_clone_ids = list(
+        result[
+            (result.Q_value < FDR_threshold)
+            & (result.clonal_fraction_in_target_fate > fraction_threshold)
+        ]["Clone_ID"]
+    )
+
+    if persistent_clones:
+        persistent_ids = identify_persistent_clones(adata)
+        valid_clone_ids = list(set(valid_clone_ids).intersection(set(persistent_ids)))
+
+    return valid_clone_ids
