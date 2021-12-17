@@ -736,3 +736,9 @@ def refine_state_info_by_marker_genes(
             pl.embedding(adata, color="state_info")
     else:
         logg.error("Either the gene names or the time point names are not right.")
+
+
+def remove_clones_with_one_cell(adata):
+    X_clone_0 = adata.obsm["X_clone"]
+    clone_idx = X_clone_0.sum(0).A.flatten() > 1
+    adata.obsm["X_clone"] = X_clone_0[:, clone_idx]
