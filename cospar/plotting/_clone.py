@@ -365,34 +365,38 @@ def clonal_fate_bias(adata, show_histogram=True, FDR=0.05):
 
 
 def clonal_reports(adata, selected_times=None, **kwargs):
+
     time_info = np.array(adata.obs["time_info"])
     sp_idx = hf.selecting_cells_by_time_points(time_info, selected_times)
-    X_clone_0 = adata.obsm["X_clone"]
-    X_clone = adata.obsm["X_clone"][sp_idx]
-    clone_size = X_clone.sum(0).A.flatten()
-    clonal_bc_number = X_clone.sum(1).A.flatten()
-    clonal_cells_N = np.sum(clonal_bc_number > 0)
-    total_N = X_clone.shape[0]
+    adata_1 = adata[sp_idx]
+    persistent_clone_ids = tl.identify_persistent_clones(adata_1)
+    X_clone = adata_1.obsm["X_clone"]
     total_clone_N = X_clone.shape[1]
-    useful_clone_N = np.sum(clone_size > 0)
-    unique_time_info = list(set(time_info[sp_idx]))
-    persistent_clone_idx = np.ones(X_clone.shape[1]).astype(bool)
-    for t in unique_time_info:
-        persistent_clone_idx = persistent_clone_idx & (
-            X_clone_0[time_info == t].sum(0) > 0
-        )
-
-    print(f"Cells with barcode: {clonal_cells_N} (out of {total_N} cells)")
-    print(f"Barcodes with cells: {useful_clone_N} (out of {total_clone_N} clones)")
     print(
-        f"Clones observed across selected times: {np.sum(persistent_clone_idx)} (out of {total_clone_N} clones)"
+        f"  Clones observed across selected times: {len(persistent_clone_ids)} (out of {total_clone_N} clones)"
     )
 
-    fig, axs = plt.subplots(1, 2, figsize=(8, 3.5))
-    ax = sns.histplot(clone_size[clone_size > 0], ax=axs[0], **kwargs)
-    ax.set_xlabel("Clone size")
-    ax.set_ylabel("Count")
+    for x in set(adata_1.obs["time_info"]):
+        print(f"---------t={x}---------")
+        adata_sp = adata_1[adata_1.obs["time_info"] == x]
+        X_clone = adata_sp.obsm["X_clone"]
+        clone_size = X_clone.sum(0).A.flatten()
+        clonal_bc_number = X_clone.sum(1).A.flatten()
+        clonal_cells_N = np.sum(clonal_bc_number > 0)
+        total_N = X_clone.shape[0]
+        total_clone_N = X_clone.shape[1]
+        useful_clone_N = np.sum(clone_size > 0)
+        print(f"    Cells with barcode: {clonal_cells_N} (out of {total_N} cells)")
+        print(
+            f"    Barcodes with cells: {useful_clone_N} (out of {total_clone_N} clones)"
+        )
 
-    ax = sns.histplot(clonal_bc_number[clonal_bc_number > 0], ax=axs[1], **kwargs)
-    ax.set_xlabel("Clonal barcode number per cell")
-    ax.set_ylabel("Count")
+        fig, axs = plt.subplots(1, 2, figsize=(8, 3.5))
+        ax = sns.histplot(clone_size[clone_size > 0], ax=axs[0], **kwargs)
+        ax.set_xlabel("Clone size")
+        ax.set_ylabel("Count")
+
+        ax = sns.histplot(clonal_bc_number[clonal_bc_number > 0], ax=axs[1], **kwargs)
+        ax.set_xlabel("Clonal barcode number per cell")
+        ax.set_ylabel("Count")
+        fig.suptitle(f"Time={x}")
