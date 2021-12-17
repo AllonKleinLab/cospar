@@ -738,7 +738,25 @@ def refine_state_info_by_marker_genes(
         logg.error("Either the gene names or the time point names are not right.")
 
 
-def remove_clones_with_one_cell(adata):
+def filter_clone_size(adata, lower_cutoff=2, upper_cutoff=None):
+    """
+    Filter out barcodes with cells outside of the range (lower_cutoff, upper_cutoff)
+    """
     X_clone_0 = adata.obsm["X_clone"]
-    clone_idx = X_clone_0.sum(0).A.flatten() > 1
+    clone_size = X_clone_0.sum(0).A.flatten()
+    clone_idx = clone_size >= lower_cutoff
+    if upper_cutoff is not None:
+        clone_idx = clone_idx & (clone_size <= upper_cutoff)
+
     adata.obsm["X_clone"] = X_clone_0[:, clone_idx]
+
+
+def filter_cells_with_many_barcodes(adata, max_barcodes=10):
+    """
+    Filter out cells with more than `max_barcodes` of barcodes
+    """
+    X_clone_0 = adata.obsm["X_clone"].A.copy()
+    barcode_N = X_clone_0.sum(1)
+    cell_idx = barcode_N > max_barcodes
+    X_clone_0[cell_idx] = 0
+    adata.obsm["X_clone"] = ssp.csr_matrix(X_clone_0)
