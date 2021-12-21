@@ -239,8 +239,9 @@ def fate_coupling(
                     else:
                         coarse_clone_annot[j, :] = clone_annot[idx].sum(0)
 
+                fate_idx = coarse_clone_annot.sum(1) > 0
                 X_coupling = tl_util.get_normalized_covariance(
-                    coarse_clone_annot.T, method=method
+                    coarse_clone_annot[fate_idx].T, method=method
                 )
     else:
         cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
@@ -264,18 +265,20 @@ def fate_coupling(
             map_backward=True,
             method=fate_map_method,
         )
-
+        fate_idx = fate_map.sum(0) > 0
         if (len(mega_cluster_list) == 0) or (np.sum(sp_idx) == 0):
             raise ValueError("No cells selected. Computation aborted!")
 
         else:
             X_coupling = tl_util.get_normalized_covariance(
-                fate_map[sp_idx], method=method
+                fate_map[sp_idx][:, fate_idx], method=method
             )
 
+    if np.sum(~fate_idx) > 0:
+        logg.warn(f"{mega_cluster_list[~fate_idx]} are ignored due to lack of cells")
     adata.uns[f"fate_coupling_{source}"] = {
         "X_coupling": X_coupling,
-        "fate_names": mega_cluster_list,
+        "fate_names": mega_cluster_list[fate_idx],
     }
 
     if not silence:

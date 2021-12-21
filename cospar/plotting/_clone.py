@@ -33,6 +33,7 @@ def barcode_heatmap(
     fig_height=6,
     figure_index="",
     plot=True,
+    pseudocount=10 ** (-10),
     **kwargs,
 ):
     """
@@ -118,7 +119,7 @@ def barcode_heatmap(
 
             if plot:
                 ax = pl_util.heatmap(
-                    coarse_X_clone[:, clone_idx].T,
+                    coarse_X_clone[:, clone_idx].T + pseudocount,
                     color_bar_label="Barcode count",
                     log_transform=log_transform,
                     fig_width=fig_width,
@@ -183,10 +184,12 @@ def clonal_fates_across_time(adata, selected_times, **kwargs):
 def clones_on_manifold(
     adata,
     selected_clone_list=[0],
-    clone_point_size=12,
     color_list=["red", "blue", "purple", "green", "cyan", "black"],
     selected_times=None,
     title=True,
+    clone_markersize=5,
+    clone_markeredgewidth=1,
+    **kwargs,
 ):
     """
     Plot clones on top of state embedding.
@@ -196,9 +199,10 @@ def clones_on_manifold(
     adata: :class:`~anndata.AnnData` object
     selected_clone_list: `list`
         List of selected clone ID's.
-    clone_point_size: `int`, optional (default: 12)
-        Relative size of the data point belonging to a clone,
-        as compared to other background points.
+    clone_markersize: `int`, optional (default: 12)
+        Clone marker size
+    clone_markeredgewidth: `int`, optional (default: 12)
+        Edige size for clone marker
     color_list: `list`, optional (default: ['red','blue','purple','green','cyan','black'])
         The list of color that defines color at respective time points.
     selected_times: `list`, optional (default: all)
@@ -259,9 +263,10 @@ def clones_on_manifold(
                     y_emb[idx],
                     ".",
                     color=color_list[j % len(color_list)],
-                    markersize=clone_point_size * point_size,
+                    markersize=clone_markersize,
                     markeredgecolor="white",
-                    markeredgewidth=point_size,
+                    markeredgewidth=clone_markeredgewidth,
+                    **kwargs,
                 )
 
                 if title:
