@@ -83,7 +83,6 @@ def fate_coupling(
     ) / 2
     ax = pl_util.heatmap(
         X_coupling,
-        order_map=True,
         color_bar_label=f"Fate coupling",
         color_bar=color_bar,
         fig_width=fig_width,

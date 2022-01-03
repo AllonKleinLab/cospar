@@ -245,7 +245,8 @@ def plot_neighbor_joining(
 
 def heatmap(
     data_matrix,
-    order_map=True,
+    order_map_x=True,
+    order_map_y=True,
     x_ticks=None,
     y_ticks=None,
     col_range=[0, 99],
@@ -259,6 +260,7 @@ def heatmap(
     color_bar=True,
     x_label=None,
     y_label=None,
+    pseudo_count=10 ** (-10),
 ):
     """
     Plot ordered heat map of non-square data_matrix matrix
@@ -266,8 +268,10 @@ def heatmap(
     ----------
     data_matrix: `np.array`
         The data matrix to be plotted
-    order_map: `bool`
-        Whether to re-order the matrix or not
+    order_map_x: `bool`
+        Whether to re-order the x coordinate of the matrix or not
+    order_map_y: `bool`
+        Whether to re-order the y coordinate of the matrix or not
     x_ticks, y_ticks: `list`
         List of variable names for x and y ticks
     color_bar_label: `str`, optional (default: 'cov')
@@ -288,24 +292,28 @@ def heatmap(
 
     x_array = np.arange(data_matrix.shape[1])
     y_array = np.arange(data_matrix.shape[0])
-    if order_map:
-        # reordering x and y labels
-        # This method is fragile. Would fail if the amount of data is insufficient
-        # We add a pseudocount (0.01) to stablize the method
-        pseudo_count = 0.01
+    if order_map_x and (data_matrix.shape[1] > 2):
         if data_matrix.shape[0] != data_matrix.shape[1]:
-            X = tl.get_normalized_covariance(data_matrix, method="SW") + pseudo_count
+            X = tl.get_normalized_covariance(data_matrix + pseudo_count, method="SW")
             Z = hierarchy.ward(X)
             order_x = hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, X))
-            order_y = hf.get_hierch_order(data_matrix)
         else:
             Z = hierarchy.ward(data_matrix + pseudo_count)
             order_x = hierarchy.leaves_list(
                 hierarchy.optimal_leaf_ordering(Z, data_matrix + pseudo_count)
             )
-            order_y = order_x
     else:
         order_x = x_array
+
+    if order_map_y and (data_matrix.shape[0] > 2):
+        if data_matrix.shape[0] != data_matrix.shape[1]:
+            order_y = hf.get_hierch_order(data_matrix + pseudo_count)
+        else:
+            Z = hierarchy.ward(data_matrix + pseudo_count)
+            order_y = hierarchy.leaves_list(
+                hierarchy.optimal_leaf_ordering(Z, data_matrix + pseudo_count)
+            )
+    else:
         order_y = y_array
 
     if log_transform:
