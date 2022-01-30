@@ -542,7 +542,7 @@ def get_X_clone(
         adata.obsm["X_clone"] = X_clone
         adata.uns["clone_id"] = reference_clone_id_1
 
-        hf.check_available_clonal_info(adata)
+        # hf.check_available_clonal_info(adata)
 
 
 ############# refine clusters for state_info

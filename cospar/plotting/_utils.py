@@ -243,6 +243,36 @@ def plot_neighbor_joining(
     plt.savefig(os.path.join(output_directory, "neighbor_joint_heatmaps.pdf"))
 
 
+def custom_hierachical_ordering(order_ids, matrix, pseudo_count=0.00001):
+    """
+    A recursive algorithm to rank the clones.
+    The matrix is fate-by-clone, and we order it in the clone dimension
+    """
+    if (len(order_ids) < 1) or (matrix.shape[1] < 2):
+        return matrix
+
+    order_ids = np.array(order_ids)
+    valid_clone_idx = np.ones(matrix.shape[1]) > 0
+    new_data_list = []
+    for j, x in enumerate(order_ids):
+        valid_clone_idx_tmp = valid_clone_idx & (matrix[x] > 0)
+        data_matrix = matrix[:, valid_clone_idx_tmp].T
+        valid_clone_idx = valid_clone_idx & (~valid_clone_idx_tmp)
+        if np.sum(valid_clone_idx_tmp) >= 2:
+            order_y = hf.get_hierch_order(data_matrix + pseudo_count)
+            updated_matrix = data_matrix[order_y].T
+        else:
+            updated_matrix = data_matrix.T
+        updated_matrix_1 = custom_hierachical_ordering(
+            order_ids[j + 1 :], updated_matrix, pseudo_count=pseudo_count
+        )
+        new_data_list.append(updated_matrix_1)
+    new_data_list.append(
+        matrix[:, valid_clone_idx]
+    )  # add the remaining clones not selected before
+    return np.column_stack(new_data_list)
+
+
 def heatmap(
     data_matrix,
     order_map_x=True,
@@ -349,7 +379,7 @@ def heatmap(
         plt.xticks(
             x_array + 0.4,
             np.array(x_ticks)[order_x],
-            rotation=70,
+            rotation=90,
             ha="right",
         )
 

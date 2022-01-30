@@ -28,6 +28,7 @@ def barcode_heatmap(
     selected_fates=None,
     color_bar=True,
     rename_fates=None,
+    binarize=False,
     log_transform=False,
     fig_width=4,
     fig_height=6,
@@ -75,7 +76,6 @@ def barcode_heatmap(
             selected_times = [selected_times]
     sp_idx = hf.selecting_cells_by_time_points(time_info, selected_times)
     X_clone_0 = adata[sp_idx].obsm["X_clone"]
-    clone_idx = X_clone_0.sum(0).A.flatten() > 0
     # X_clone = X_clone_0[:, clone_idx]
     state_annote = adata[sp_idx].obs["state_info"]
 
@@ -111,15 +111,24 @@ def barcode_heatmap(
             if "x_ticks" not in kwargs.keys():
                 kwargs["x_ticks"] = rename_fates
 
+            coarse_X_clone_new = pl_util.custom_hierachical_ordering(
+                np.arange(coarse_X_clone.shape[0]), coarse_X_clone
+            )
             adata.uns["barcode_heatmap"] = {
-                "coarse_X_clone": coarse_X_clone,
+                "coarse_X_clone": coarse_X_clone_new,
                 "fate_names": rename_fates,
             }
             logg.info("Data saved at adata.uns['barcode_heatmap']")
-
             if plot:
+                if binarize:
+                    final_matrix = coarse_X_clone_new > 0
+                else:
+                    final_matrix = coarse_X_clone_new
+                clone_idx = final_matrix.sum(0) > 0
                 ax = pl_util.heatmap(
-                    coarse_X_clone[:, clone_idx].T + pseudocount,
+                    final_matrix[:, clone_idx].T + pseudocount,
+                    order_map_x=False,
+                    order_map_y=False,
                     color_bar_label="Barcode count",
                     log_transform=log_transform,
                     fig_width=fig_width,
