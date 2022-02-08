@@ -1450,7 +1450,7 @@ def check_input_parameters(adata, **kwargs):
     keys = kwargs.keys()
     check_available_clonal_info(adata)
     clonal_time_points_0 = np.array(adata.uns["clonal_time_points"])
-    time_ordering = adata.uns["time_ordering"]
+    time_ordering = np.array(adata.uns["time_ordering"])
     if len(time_ordering) == 1:
         raise ValueError(
             "There is only one time point. Tmap inference requires at least 2 time points. Inference aborted."
@@ -1490,13 +1490,6 @@ def check_input_parameters(adata, **kwargs):
             raise ValueError(
                 f"The 'initial_time_points' are not all valid. Please select from {time_ordering}"
             )
-
-        if "later_time_point" in keys:
-            later_time_point = kwargs["later_time_point"]
-            if np.sum(np.array(initial_time_points) > later_time_point) > 0:
-                raise ValueError(
-                    f"The 'initial_time_points' ({initial_time_points}) should be larger than later_time_point {later_time_point} "
-                )
 
     if "clonal_time_points" in keys:
         clonal_time_points = kwargs["clonal_time_points"]
