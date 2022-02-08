@@ -423,6 +423,7 @@ def fate_map_embedding(
     target_transparency=0.2,
     histogram_scales=None,
     color_map=None,
+    order_method=None,
 ):
     """
     Note: sp_idx is a bool array, of the length len(cell_id_t1)
@@ -504,10 +505,15 @@ def fate_map_embedding(
         vmax = 1
         vmin = 0
 
+    if order_method == "fate_bias":
+        new_idx = np.argsort(abs(fate_map_temp - 0.5))
+    else:
+        new_idx = np.arange(len(fate_map_temp))
+
     customized_embedding(
-        x_emb[cell_id_t1][sp_idx],
-        y_emb[cell_id_t1][sp_idx],
-        fate_map_temp,
+        x_emb[cell_id_t1][sp_idx][new_idx],
+        y_emb[cell_id_t1][sp_idx][new_idx],
+        fate_map_temp[new_idx],
         point_size=point_size,
         ax=ax0,
         title=figure_title,
@@ -518,6 +524,7 @@ def fate_map_embedding(
         color_bar_label=color_bar_label,
         color_bar_title=color_bar_title,
         color_map=color_map,
+        order_points=False,
     )
 
     if show_histogram:
