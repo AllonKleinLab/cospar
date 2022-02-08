@@ -217,16 +217,15 @@ def fate_map(
     key_word = f"fate_map_{source}"
     available_choices = hf.parse_output_choices(adata, key_word, where="obs")
     time_info = np.array(adata.obs["time_info"])
+    state_info = adata.obs["state_info"]
     if selected_fates is None:
-        mega_cluster_list = available_choices
-    else:
-        state_info = adata.obs["state_info"]
-        (
-            mega_cluster_list,
-            valid_fate_list,
-            __,
-            sel_index_list,
-        ) = hf.analyze_selected_fates(state_info, selected_fates)
+        selected_fates = sorted(list(set(state_info)))
+    (
+        mega_cluster_list,
+        valid_fate_list,
+        __,
+        sel_index_list,
+    ) = hf.analyze_selected_fates(state_info, selected_fates)
 
     for j, fate_key in enumerate(mega_cluster_list):
         if fate_key not in available_choices:
@@ -476,6 +475,7 @@ def fate_bias(
         horizontal=horizontal,
         target_transparency=target_transparency,
         histogram_scales=[0, 1],
+        order_method="fate_bias",
     )
 
     plt.tight_layout()
@@ -501,6 +501,7 @@ def progenitor(
     auto_color_scale=False,
     target_transparency=0.2,
     figure_index="",
+    mask=None,
 ):
 
     key_word_0 = "progenitor"
@@ -547,6 +548,7 @@ def progenitor(
             fate_vector,
             cell_id_t1,
             sp_idx,
+            mask=mask,
             target_list=target_list,
             color_bar_label="",
             color_bar_title="",

@@ -34,24 +34,32 @@ def fate_hierarchy(
 
     Parameters
     ----------
-    source:
-        Which information to use for hierarchy construction: 'X_clone' or any of the pre-computed transition map like 'transition_map'.
+    adata: :class:`~anndata.AnnData` object
+        Assume to contain transition maps at adata.uns.
+    selected_fates: `list`, optional (default: all fates)
+        List of cluster ids consistent with adata.obs['state_info'].
+        It allows a nested list, where we merge clusters within
+        each sub-list into a mega-fate cluster.
+    source: `str`, optional (default: 'transition_map')
+        Choices: {'X_clone', 'transition_map',
+        'intraclone_transition_map',...}. If set to be 'clone', use only the clonal
+        information. If set to be any of the precomputed transition map, use the
+        transition map to compute the fate coupling. The actual available
+        map depends on adata itself, which can be accessed at adata.uns['available_map']
+    selected_times: `list`, optional (default: all)
+        A list of time points to further restrict the cell states to plot.
+        The default choice is not to constrain the cell states to show.
+    method: `str`, optional (default: 'SW')
+        Method to normalize the coupling matrix: {'SW', 'Weinreb'}.
+    ignore_cell_number:
+        Ignore the cell number of a clone within a cluster. i.e., binarize a clone's
+        contribution towards a cluster. This only works when 'source=X_clone'
+        This biases towards large clusters, which will host many clones (most of them just
+        a few cells)
 
     Returns
     -------
-    parent_map:
-        A dictionary that returns the parent node for each child node.
-        As an example:  {1: 4, 3: 4, 0: 5, 4: 5, 5: 6, 2: 6}
-        In this simple map, node 1 and 3 are child of both 4, and node 0 and 4 are child of both 5 etc. In neighbor joining algorithm, typically you get a binary branching tree, so each parent only has two child node. Note that the last node '6' is the founder node, and this founder node by default includes all leaf node, and are not included in the node_groups
-    node_groups:
-        For each node (internal or leaf node), give its composition of all leaf nodes. As an example: {0: [0], 1: [1], 2: [2], 3: [3], 4: [1, 3], 5: [0, 1, 3]}.  5 is an internal node, and it composes [0,1,3], which are all leaf nodes.
-    history:
-        The history of the iterative reconstruction
-    ignore_cell_number:
-        Ignore the cell number of a clone within a cluster. i.e., binarize a clone's
-        contribution towards a cluster. This only works when 'source=X_clone'.
-        This biases towards large clusters, which will host many clones (most of them just
-        a few cells)
+    Results stored at adata.uns[f"fate_hierarchy_{source}"]
     """
 
     state_info = np.array(adata.obs["state_info"])
@@ -338,6 +346,8 @@ def fate_map(
     fate_count: `bool`, optional (default: False)
         Used to determine the method for computing the fate potential of a state.
         If ture, just to count the number of possible fates; otherwise, use the Shannon entropy.
+    force_run: `bool`, optional (default: False)
+        Re-compute the fate map.
 
     Returns
     -------
@@ -427,12 +437,11 @@ def fate_map(
                         "map_backward": map_backward,
                         "method": method,
                     }
+                    logg.info(f"Results saved at adata.obs['fate_map_{source}_{fate}']")
 
                 temp_map = np.zeros(adata.shape[0]) + np.nan
                 temp_map[cell_id_t1] = fate_entropy
                 adata.uns[f"fate_potency_tmp"] = temp_map
-
-        logg.info(f"Results saved at adata.obs['fate_map_{source}_XXX']")
 
 
 def fate_potency(
@@ -508,30 +517,10 @@ def fate_bias(
         Method to obtain the fate probability map :math:`P_i(\mathcal{C})` towards a set
         of states annotated with fate :math:`\mathcal{C}`. Available options:
         {'sum', 'norm-sum'}. See :func:`.fate_map`.
-    selected_times: `list`, optional (default: all)
-        A list of time points to further restrict the cell states to plot.
-        The default choice is not to constrain the cell states to show.
     sum_fate_prob_thresh: `float`, optional (default: 0.05)
         The fate bias of a state is plotted only when it has a cumulative fate
         probability to the combined cluster (A+B) larger than this threshold,
         i.e., P(i->A)+P(i+>B) >  sum_fate_prob_thresh.
-    mask: `np.array`, optional (default: None)
-        A boolean array for available cell states. It should has the length as adata.shape[0].
-        Especially useful to constrain the states to show fate bias.
-    plot_target_state: `bool`, optional (default: True)
-        If true, highlight the target clusters as defined in selected_fates.
-    color_bar: `bool`, optional (default: True)
-        plot the color bar if True.
-    show_histogram: `bool`, optional (default: True)
-        If true, show the distribution of inferred fate probability.
-    target_transparency: `float`, optional (default: 0.2)
-        It controls the transparency of the plotted target cell states,
-        for visual effect. Range: [0,1].
-    figure_index: `str`, optional (default: '')
-        String index for annotate filename for saved figures. Used to distinuigh plots from different conditions.
-    pseudo_count: `float`, optional (default: 0)
-        Pseudo count to compute the fate bias. See above.
-    figure_title: `str`, optional (default: No title)
 
     Returns
     -------
@@ -593,7 +582,9 @@ def fate_bias(
         f"{source}_{mega_cluster_list[0]}*{mega_cluster_list[1]}"
     ] = {"map_backward": map_backward, "method": method}
 
-    logg.info(f"Results saved at adata.obs['fate_bias_{source}_fateA*fateB']")
+    logg.info(
+        f"Results saved at adata.obs['fate_bias_{source}_{mega_cluster_list[0]}*{mega_cluster_list[1]}']"
+    )
 
 
 def progenitor(
@@ -717,7 +708,7 @@ def progenitor(
             "method": method,
         }
         logg.info(
-            "Data saved at adata.obs[f'progenitor_{source}_{fate_name}'] and adata.obs[f'diff_trajectory_{source}_{fate_name}']"
+            f"Results saved at adata.obs[f'progenitor_{source}_{fate_name}'] and adata.obs[f'diff_trajectory_{source}_{fate_name}']"
         )
 
 
@@ -845,5 +836,5 @@ def iterative_differentiation(
                 }
                 adata.obs[f"diff_trajectory_{source}_{fate_key}"] = cumu_prob
                 logg.info(
-                    f"Data saved at adata.obs[f'diff_trajectory_{source}_{fate_key}']"
+                    f"Results saved at adata.obs[f'diff_trajectory_{source}_{fate_key}']"
                 )

@@ -56,6 +56,8 @@ def barcode_heatmap(
         Provide new names in substitution of names in selected_fates.
         For this to be effective, the new name list needs to have names
         in exact correspondence to those in the old list.
+    binarize: `bool`
+        Binarize the coarse-grained barcode count matrix, just for the purpose of plotting.
     log_transform: `bool`, optional (default: False)
         If true, perform a log transform. This is needed when the data
         matrix has entries varying by several order of magnitude.
@@ -196,7 +198,7 @@ def clones_on_manifold(
     color_list=["red", "blue", "purple", "green", "cyan", "black"],
     selected_times=None,
     title=True,
-    clone_markersize=5,
+    clone_markersize=12,
     clone_markeredgewidth=1,
     **kwargs,
 ):
@@ -210,7 +212,7 @@ def clones_on_manifold(
         List of selected clone ID's.
     clone_markersize: `int`, optional (default: 12)
         Clone marker size
-    clone_markeredgewidth: `int`, optional (default: 12)
+    clone_markeredgewidth: `int`, optional (default: 1)
         Edige size for clone marker
     color_list: `list`, optional (default: ['red','blue','purple','green','cyan','black'])
         The list of color that defines color at respective time points.
