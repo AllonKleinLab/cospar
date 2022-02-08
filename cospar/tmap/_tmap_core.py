@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import scipy.sparse as ssp
+from tqdm import tqdm
 
 from cospar.tmap import _utils as tmap_util
 
@@ -1209,7 +1210,7 @@ def infer_Tmap_from_HighVar(
     else:
         raise ValueError("No variable genes selected at t2")
 
-    common_gene = list(set(highvar_genes_t1).intersection(highvar_genes_t2))
+    common_gene = sorted(list(set(highvar_genes_t1).intersection(highvar_genes_t2)))
 
     logg.info(
         f"Highly varable gene number: {len(highvar_genes_t1)} (t1); {len(highvar_genes_t2)} (t2). Common set: {len(common_gene)}"
@@ -1227,17 +1228,18 @@ def infer_Tmap_from_HighVar(
     cell_fraction_per_gene = 1 / len(
         sel_marker_gene_list
     )  # fraction of cells as clonally related by this gene
-    for j, gene_id in enumerate(sel_marker_gene_list):
-        temp_t1 = adata.obs_vector(gene_id)[cell_id_array_t1]
+    cutoff_t1 = int(np.ceil(len(cell_id_array_t1) * cell_fraction_per_gene))
+    cutoff_t2 = int(np.ceil(len(cell_id_array_t2) * cell_fraction_per_gene))
+    gene_exp_matrix = adata[:, sel_marker_gene_list].X.A
+    for j in tqdm(range(gene_exp_matrix.shape[1])):
+        temp_t1 = gene_exp_matrix[:, j][cell_id_array_t1]
         temp_t1[cumu_sel_idx_t1] = 0  # set selected cell id to have zero expression
-        cutoff_t1 = int(np.ceil(len(cell_id_array_t1) * cell_fraction_per_gene))
         sel_id_t1 = np.argsort(temp_t1, kind="stable")[::-1][:cutoff_t1]
         clone_annot_gene[cell_id_array_t1[sel_id_t1], j] = weight
         cumu_sel_idx_t1[sel_id_t1] = True
 
-        temp_t2 = adata.obs_vector(gene_id)[cell_id_array_t2]
+        temp_t2 = gene_exp_matrix[:, j][cell_id_array_t2]
         temp_t2[cumu_sel_idx_t2] = 0  # set selected cell id to have zero expression
-        cutoff_t2 = int(np.ceil(len(cell_id_array_t2) * cell_fraction_per_gene))
         sel_id_t2 = np.argsort(temp_t2, kind="stable")[::-1][:cutoff_t2]
         clone_annot_gene[cell_id_array_t2[sel_id_t2], j] = weight
         cumu_sel_idx_t2[sel_id_t2] = True
