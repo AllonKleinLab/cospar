@@ -13,7 +13,7 @@ CoSpar, developed by `Wang et al. (2021) <https://www.biorxiv.org/content/10.110
 .. image:: https://user-images.githubusercontent.com/4595786/113746452-56e4cb00-96d4-11eb-8278-0aac0469ba9d.png
    :width: 1000px
    :align: center
-
+(copy right: Nature Biotechnology)
 
 Coherent sparse optimization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -29,6 +29,7 @@ CoSpar is formulated assuming that we have information on the same clones at mor
 .. image:: https://user-images.githubusercontent.com/4595786/113746670-93b0c200-96d4-11eb-89c0-d1e7d72383e7.png
    :width: 1000px
    :align: center
+(copy right: Nature Biotechnology)
 
 Below, we formalize the coherent sparse optimization by which CoSpar infers the transition map.
 
