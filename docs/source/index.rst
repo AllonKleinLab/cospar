@@ -55,6 +55,7 @@ Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthed
 
    about
    api
+   release_note
 
 
 .. toctree::
@@ -79,9 +80,6 @@ Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthed
    20210121_reprogramming_static_barcoding_v2
    20210121_lung_data_v2
    20210120_bifurcation_model_static_barcoding
-
-
-
 
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/cospar.svg

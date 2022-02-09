@@ -107,6 +107,7 @@ Plotting
    :toctree: .
 
    pl.embedding
+   pl.embedding_genes
    pl.gene_expression_on_manifold
    pl.gene_expression_heatmap
    settings.set_figure_params
