@@ -705,7 +705,7 @@ def infer_Tmap_from_state_info_alone(
     Infer transition map from state information alone.
 
     After initializing the clonal matrix as such that each cell has a unique barcode,
-    it runs :func:`.infer_Tmap_from_one_time_clones` to infer the transition map.
+    it runs :func:`.infer_Tmap_from_one_time_clones` to infer the transition map. Please see :func:`.infer_Tmap_from_one_time_clones` for the meaning of each parameter.
 
     Returns
     -------

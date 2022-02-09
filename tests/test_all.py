@@ -351,7 +351,7 @@ def test_Tmap_analysis(shared_datadir):
     ]
     renames = ["Neu", "Mon", "Meg-Ery-MBaE", "Lym-Dc"]
 
-    cs.pl.gene_expression_heat_map(
+    cs.pl.gene_expression_heatmap(
         adata,
         selected_genes=gene_list,
         selected_fates=selected_fates,

@@ -65,11 +65,15 @@ def barcode_heatmap(
         Figure width.
     fig_height: `float`, optional (default: 6)
         Figure height.
+    plot: `bool`
+        True: plot the result. False, suppress the plot.
+    pseudocount: `float`
+        Pseudocount for the heatmap (needed for ordering the map)
 
     Returns:
     --------
     The coarse-grained X_clone matrix and the selected clusters are returned at
-    adata.uns['barcode_heatmap']. The coarse-grained X_clone keeps all clone IDs.
+    adata.uns['barcode_heatmap']. The coarse-grained X_clone keeps all clones and maintains their ordering.
     """
 
     time_info = np.array(adata.obs["time_info"])
@@ -153,8 +157,17 @@ def barcode_heatmap(
 
 def clonal_fates_across_time(adata, selected_times, **kwargs):
     """
-    Returns:
-    clonal_fates_t1, clonal_fates_t2
+    Scatter plot for clonal fate number across time point
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+    selected_times: `list`, optional (default: None)
+        Time points to select the cell states.
+
+    Returns
+    -------
+    Results updated at adata.uns["clonal_fates_across_time"]
     """
     if len(selected_times) != 2:
         raise ValueError("selected_times must be a list with two values")
@@ -210,16 +223,16 @@ def clones_on_manifold(
     adata: :class:`~anndata.AnnData` object
     selected_clone_list: `list`
         List of selected clone ID's.
-    clone_markersize: `int`, optional (default: 12)
-        Clone marker size
-    clone_markeredgewidth: `int`, optional (default: 1)
-        Edige size for clone marker
     color_list: `list`, optional (default: ['red','blue','purple','green','cyan','black'])
         The list of color that defines color at respective time points.
     selected_times: `list`, optional (default: all)
         Select time points to show corresponding states. If set to be [], use all states.
     title: `bool`, optional (default: True)
         If ture, show the clone id as panel title.
+    clone_markersize: `int`, optional (default: 12)
+        Clone marker size
+    clone_markeredgewidth: `int`, optional (default: 1)
+        Edige size for clone marker
     """
 
     fig_width = settings.fig_width
@@ -295,30 +308,15 @@ def clonal_fate_bias(adata, show_histogram=True, FDR=0.05):
     """
     Plot clonal fate bias towards a cluster.
 
-    The clonal fate bias is -log(Q-value). We calculated a P-value that
-    that a clone is enriched (or depleted) in a fate, using Fisher-Exact
-    test (accounting for clone size). The P-value is then corrected to
-    give a Q-value by Benjamini-Hochberg procedure. The alternative
-    hypothesis options are: {'two-sided', 'greater', 'less'}.
-    The default is 'two-sided'.
+    The results should be pre-computed from :func:`cospar.tl.clonal_fate_bias`
 
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
-    selected_fate: `str`
-        The targeted fate cluster, from adata.obs['state_info'].
     show_histogram: `bool`, optional (default: True)
         If true, show the distribution of inferred fate probability.
     FDR: `float`, optional (default: 0.05)
         False-discovery rate after the Benjamini-Hochberg correction.
-    alternative: `str`, optional (default: 'two-sided')
-        Defines the alternative hypothesis. The following options are
-        available (default is ‘two-sided’): ‘two-sided’;
-        ‘less’: one-sided; ‘greater’: one-sided
-
-    Returns
-    -------
-    result: `pd.DataFrame`
     """
 
     if "clonal_fate_bias" not in adata.uns.keys():
@@ -381,6 +379,11 @@ def clonal_fate_bias(adata, show_histogram=True, FDR=0.05):
 
 
 def clonal_reports(adata, selected_times=None, **kwargs):
+    """
+    Report the statistics of the clonal data.
+
+    It includes the statistics for clone size , and the barcode number per cell.
+    """
 
     time_info = np.array(adata.obs["time_info"])
     sp_idx = hf.selecting_cells_by_time_points(time_info, selected_times)

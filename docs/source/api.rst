@@ -56,6 +56,7 @@ Analysis
    :toctree: .
 
    tl.clonal_fate_bias
+   tl.fate_biased_clones
    tl.fate_coupling
    tl.fate_hierarchy
    tl.fate_map
@@ -80,6 +81,8 @@ Plotting
    pl.clonal_fate_bias
    pl.fate_coupling
    pl.fate_hierarchy
+   pl.clonal_fates_across_time
+   pl.clonal_reports
 
 
 
@@ -105,7 +108,7 @@ Plotting
 
    pl.embedding
    pl.gene_expression_on_manifold
-   pl.gene_expression_heat_map
+   pl.gene_expression_heatmap
    settings.set_figure_params
 
 

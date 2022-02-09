@@ -23,7 +23,7 @@ from .. import logging as logg
 
 def clonal_fate_bias(adata, selected_fate="", alternative="two-sided"):
     """
-    Plot clonal fate bias towards a cluster.
+    Compute clonal fate bias towards a cluster.
 
     The clonal fate bias is -log(Q-value). We calculated a P-value that
     that a clone is enriched (or depleted) in a fate, using Fisher-Exact
@@ -37,10 +37,6 @@ def clonal_fate_bias(adata, selected_fate="", alternative="two-sided"):
     adata: :class:`~anndata.AnnData` object
     selected_fate: `str`
         The targeted fate cluster, from adata.obs['state_info'].
-    show_histogram: `bool`, optional (default: True)
-        If true, show the distribution of inferred fate probability.
-    FDR: `float`, optional (default: 0.05)
-        False-discovery rate after the Benjamini-Hochberg correction.
     alternative: `str`, optional (default: 'two-sided')
         Defines the alternative hypothesis. The following options are
         available (default is ‘two-sided’): ‘two-sided’;
@@ -151,6 +147,23 @@ def fate_biased_clones(
 ):
     """
     Find clones that significantly biased towards a given fate
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+    selected_fate: `str`
+        The targeted fate cluster, from adata.obs['state_info'].
+    fraction_threshold: float
+        The fraction of cells in the target fate cluster for a clone to be included.
+    FDR_threshold:
+        False discovery rate for identifying the fate biased clone.
+    persistent_clones: bool
+        True: find clones that are shared across time points.
+
+    Returns
+    -------
+    valid_clone_ids:
+        List of valid clone ids.
     """
     clonal_fate_bias(adata, selected_fate=selected_fate)
     result = adata.uns["clonal_fate_bias"]

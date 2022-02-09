@@ -1,27 +1,26 @@
 import os
-import time
 
 import numpy as np
-import pandas as pd
 import scipy.sparse as ssp
-import scipy.stats as stats
-import statsmodels.sandbox.stats.multicomp
-from ete3 import Tree
 from matplotlib import pyplot as plt
-from numpy.lib.twodim_base import tril_indices
-from scipy.cluster import hierarchy
 
-# from plotnine import *
-from sklearn.manifold import SpectralEmbedding
-
-from cospar import tool as tl
 from cospar.plotting import _utils as pl_util
 
 from .. import help_functions as hf
 from .. import logging as logg
 from .. import settings
+from ..help_functions import _docs
+from ..help_functions._docs import _doc_params
 
 
+@_doc_params(
+    selected_fates=_docs.selected_fates,
+    source=_docs.all_source,
+    color_bar=_docs.color_bar,
+    rename_fates=_docs.rename_fates,
+    color_map=_docs.color_map,
+    figure_index=_docs.figure_index,
+)
 def fate_coupling(
     adata,
     source="transition_map",
@@ -34,22 +33,17 @@ def fate_coupling(
     """
     Plot fate coupling determined by the transition map.
 
+    The results should be pre-computed from :func:`cospar.tl.fate_coupling`
+
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
         Assume to contain transition maps at adata.uns.
-    source: `str`, optional (default: 'transition_map')
-        Choices: {'clone', 'transition_map',
-        'intraclone_transition_map',...}. If set to be 'clone', use only the clonal
-        information. If set to be any of the precomputed transition map, use the
-        transition map to compute the fate coupling. The actual available
-        map depends on adata itself, which can be accessed at adata.uns['available_map']
-    color_bar: `bool`, optional (default: True)
-        Plot the color bar.
-    rename_fates: `list`, optional (default: [])
-        Provide new names in substitution of names in selected_fates.
-        For this to be effective, the new name list needs to have names
-        in exact correspondence to those in the old list.
+    {source}
+    {color_bar}
+    {rename_fates}
+    {color_map}
+    {figure_index}
 
     Returns
     -------
@@ -105,6 +99,11 @@ def fate_coupling(
     return ax
 
 
+@_doc_params(
+    source=_docs.all_source,
+    rename_fates=_docs.rename_fates,
+    color_map=_docs.color_map,
+)
 def fate_hierarchy(
     adata,
     source="transition_map",
@@ -114,20 +113,16 @@ def fate_hierarchy(
     """
     Plot fate coupling determined by the transition map.
 
+    The results should be pre-computed from :func:`cospar.tl.fate_hierarchy`.
+
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
         Assume to contain transition maps at adata.uns.
-    source: `str`, optional (default: 'transition_map')
-        Choices: {'clone', 'transition_map',
-        'intraclone_transition_map',...}. If set to be 'clone', use only the clonal
-        information. If set to be any of the precomputed transition map, use the
-        transition map to compute the fate coupling. The actual available
-        map depends on adata itself, which can be accessed at adata.uns['available_map']
-    rename_fates: `list`, optional (default: None)
-        Provide new names in substitution of names in selected_fates.
-        For this to be effective, the new name list needs to have names
-        in exact correspondence to those in the old list.
+    {source}
+    {rename_fates}
+    plot_history:
+        True: plot the history of iterations.
 
     Returns
     -------
@@ -136,10 +131,9 @@ def fate_hierarchy(
     """
 
     key_word = f"fate_hierarchy_{source}"
-
-    available_choices = hf.parse_output_choices(adata, key_word, where="uns")
-
-    parent_map = adata.uns[key_word]["parent_map"]
+    available_choices = hf.parse_output_choices(
+        adata, key_word, where="uns"
+    )  # it also performs checks
     node_mapping = adata.uns[key_word]["node_mapping"]
     history = adata.uns[key_word]["history"]
     fate_names = adata.uns[key_word]["fate_names"]
@@ -158,6 +152,19 @@ def fate_hierarchy(
         )
 
 
+@_doc_params(
+    selected_fates=_docs.selected_fates,
+    source=_docs.map_source,
+    selected_times=_docs.selected_times,
+    background=_docs.background,
+    show_histogram=_docs.show_histogram,
+    color_bar=_docs.color_bar,
+    rename_fates=_docs.rename_fates,
+    color_map=_docs.color_map,
+    mask=_docs.mask,
+    target_transparency=_docs.target_transparency,
+    figure_index=_docs.figure_index,
+)
 def fate_map(
     adata,
     selected_fates=None,
@@ -176,42 +183,26 @@ def fate_map(
     """
     Plot transition probability to given fate/ancestor clusters.
 
+    The results should be pre-computed from :func:`cospar.tl.fate_map`.
+
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
         Assume to contain transition maps at adata.uns.
-    selected_fates: `list`, optional (default: all fates)
-        List of cluster ids consistent with adata.obs['state_info'].
-        It allows a nested list, where we merge clusters within
-        each sub-list into a mega-fate cluster. If not set, plot all pre-computed
-        fate maps.
-    source: `str`, optional (default: 'transition_map')
-        The transition map to be used for plotting: {'transition_map',
-        'intraclone_transition_map',...}. The actual available
-        map depends on adata itself, which can be accessed at adata.uns['available_map']
-    selected_times: `list`, optional (default: all)
-        A list of time points to further restrict the cell states to plot.
-        The default choice is not to constrain the cell states to show.
-    background: `bool`, optional (default: True)
-        If true, plot all cell states (t1+t2) in grey as the background.
-    show_histogram: `bool`, optional (default: False)
-        If true, show the distribution of inferred fate probability.
-    plot_target_state: `bool`, optional (default: True)
-        If true, highlight the target clusters as defined in selected_fates.
-    color_bar: `bool`, optional (default: True)
-        plot the color bar if True.
-    target_transparency: `float`, optional (default: 0.2)
-        It controls the transparency of the plotted target cell states,
-        for visual effect. Range: [0,1].
-    figure_index: `str`, optional (default: '')
-        String index for annotate filename for saved figures. Used to distinuigh plots from different conditions.
-    mask: `np.array`, optional (default: None)
-        A boolean array for available cell states. It should has the length as adata.shape[0].
-        Especially useful to constrain the states to show fate bias.
-
-    Returns
-    -------
-    Fate map for each targeted fate cluster is updated at adata.obs[f'fate_map_{fate_name}']
+    {selected_fates}
+    {source}
+    {selected_times}
+    {background}
+    {show_histogram}
+    plot_target_state:
+        If True, plot target states.
+    {color_bar}
+    auto_color_scale:
+        True: automatically rescale the color range to match the value range.
+    {target_transparency}
+    {figure_index}
+    {mask}
+    {color_map}
     """
 
     key_word = f"fate_map_{source}"
@@ -286,6 +277,18 @@ def fate_map(
             )
 
 
+@_doc_params(
+    source=_docs.map_source,
+    selected_times=_docs.selected_times,
+    background=_docs.background,
+    show_histogram=_docs.show_histogram,
+    color_bar=_docs.color_bar,
+    rename_fates=_docs.rename_fates,
+    color_map=_docs.color_map,
+    mask=_docs.mask,
+    target_transparency=_docs.target_transparency,
+    figure_index=_docs.figure_index,
+)
 def fate_potency(
     adata,
     source="transition_map",
@@ -301,25 +304,22 @@ def fate_potency(
     """
     Plot fate potency.
 
+    The results should be pre-computed from :func:`cospar.tl.fate_potency`.
+
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
         Assume to contain transition maps at adata.uns.
-    source: `str`, optional (default: 'transition_map')
-        The transition map to be used for plotting: {'transition_map',
-        'intraclone_transition_map',...}. The actual available
-        map depends on adata itself, which can be accessed at adata.uns['available_map']
-    selected_times: `list`, optional (default: all)
-        A list of time points to further restrict the cell states to plot.
-        The default choice is not to constrain the cell states to show.
-    background: `bool`, optional (default: True)
-        If true, plot all cell states (t1+t2) in grey as the background.
-    show_histogram: `bool`, optional (default: False)
-        If true, show the distribution of inferred fate probability.
-    color_bar: `bool`, optional (default: True)
-        plot the color bar if True.
-    figure_index: `str`, optional (default: '')
-        String index for annotate filename for saved figures. Used to distinuigh plots from different conditions.
+    {source}
+    {selected_times}
+    {background}
+    {show_histogram}
+    {color_bar}
+    auto_color_scale:
+        True: automatically rescale the color range to match the value range.
+    {figure_index}
+    {mask}
+    {color_map}
     """
 
     key_word_0 = "fate_potency"
@@ -366,6 +366,19 @@ def fate_potency(
     )
 
 
+@_doc_params(
+    selected_fates=_docs.selected_fates,
+    source=_docs.map_source,
+    selected_times=_docs.selected_times,
+    background=_docs.background,
+    show_histogram=_docs.show_histogram,
+    color_bar=_docs.color_bar,
+    rename_fates=_docs.rename_fates,
+    color_map=_docs.color_map,
+    mask=_docs.mask,
+    target_transparency=_docs.target_transparency,
+    figure_index=_docs.figure_index,
+)
 def fate_bias(
     adata,
     selected_fates=None,
@@ -386,25 +399,30 @@ def fate_bias(
     """
     Plot fate bias.
 
+    The results should be pre-computed from :func:`cospar.tl.fate_bias`.
+
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
         Assume to contain transition maps at adata.uns.
-    source: `str`, optional (default: 'transition_map')
-        The transition map to be used for plotting: {'transition_map',
-        'intraclone_transition_map',...}. The actual available
-        map depends on adata itself, which can be accessed at adata.uns['available_map']
-    selected_times: `list`, optional (default: all)
-        A list of time points to further restrict the cell states to plot.
-        The default choice is not to constrain the cell states to show.
-    background: `bool`, optional (default: True)
-        If true, plot all cell states (t1+t2) in grey as the background.
-    show_histogram: `bool`, optional (default: False)
-        If true, show the distribution of inferred fate probability.
-    color_bar: `bool`, optional (default: True)
-        plot the color bar if True.
-    figure_index: `str`, optional (default: '')
-        String index for annotate filename for saved figures. Used to distinuigh plots from different conditions.
+    {selected_fates}
+    {source}
+    {selected_times}
+    {background}
+    {show_histogram}
+    plot_target_state:
+        If True, plot target states.
+    {color_bar}
+    auto_color_scale:
+        True: automatically rescale the color range to match the value range.
+    {target_transparency}
+    {figure_index}
+    horizontal: `bool`
+        If true, display figures horizontally.
+    {mask}
+    color_bar_title: `str`
+        Title for color bar.
+    {color_map}
     """
 
     key_word_0 = "fate_bias"
@@ -491,6 +509,19 @@ def fate_bias(
     )
 
 
+@_doc_params(
+    selected_fates=_docs.selected_fates,
+    source=_docs.map_source,
+    selected_times=_docs.selected_times,
+    background=_docs.background,
+    show_histogram=_docs.show_histogram,
+    color_bar=_docs.color_bar,
+    rename_fates=_docs.rename_fates,
+    color_map=_docs.color_map,
+    mask=_docs.mask,
+    target_transparency=_docs.target_transparency,
+    figure_index=_docs.figure_index,
+)
 def progenitor(
     adata,
     selected_fates=None,
@@ -503,6 +534,27 @@ def progenitor(
     figure_index="",
     mask=None,
 ):
+    """
+    Plot the progenitors of given fate clusters.
+
+    The results should be pre-computed from :func:`cospar.tl.progenitor`.
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+        Assume to contain transition maps at adata.uns.
+    {selected_fates}
+    {source}
+    {selected_times}
+    {background}
+    plot_target_state:
+        If True, plot target states.
+    auto_color_scale:
+        True: automatically rescale the color range to match the value range.
+    {target_transparency}
+    {figure_index}
+    {mask}
+    """
 
     key_word_0 = "progenitor"
     key_word = f"{key_word_0}_{source}"
@@ -573,13 +625,30 @@ def progenitor(
         )
 
 
+@_doc_params(
+    selected_fates=_docs.selected_fates,
+    source=_docs.map_source,
+    figure_index=_docs.figure_index,
+)
 def iterative_differentiation(
     adata,
     selected_fates=None,
     source="transition_map",
     figure_index="",
 ):
+    """
+    Plot the progenitors of given fates across time points
 
+    The results should be pre-computed from :func:`cospar.tl.iterative_differentiation`.
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+        Assume to contain transition maps at adata.uns.
+    {selected_fates}
+    {source}
+    {figure_index}
+    """
     key_word_0 = "iterative_diff"
     key_word = f"{key_word_0}_{source}"
     available_choices = hf.parse_output_choices(adata, key_word, where="uns")

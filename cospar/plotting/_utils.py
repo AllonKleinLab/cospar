@@ -44,7 +44,9 @@ def start_subplot_figure(n_subplots, n_columns=5, fig_width=14, row_height=3):
 
 def embedding_genes(adata, basis="X_emb", color=None, color_bar=True, **kwargs):
     """
-    A test embedding method. Works better with subplots
+    A test embedding method for plotting genes
+
+    Works better with subplots
     """
     if basis not in adata.obsm.keys():
         raise ValueError(f"basis={basis} is not among {adata.obsm.keys()}")
@@ -74,7 +76,9 @@ def embedding(
 ):
     """
     Scatter plot for user-specified embedding basis.
+
     We imported :func:`~scanpy.pl.embedding` for this purpose.
+
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
@@ -113,6 +117,7 @@ def customized_embedding(
 ):
     """
     Plot a vector on an embedding.
+
     Parameters
     ----------
     x: `np.array`
@@ -246,6 +251,7 @@ def plot_neighbor_joining(
 def custom_hierachical_ordering(order_ids, matrix, pseudo_count=0.00001):
     """
     A recursive algorithm to rank the clones.
+
     The matrix is fate-by-clone, and we order it in the clone dimension
     """
     if (len(order_ids) < 1) or (matrix.shape[1] < 2):
@@ -294,6 +300,7 @@ def heatmap(
 ):
     """
     Plot ordered heat map of non-square data_matrix matrix
+
     Parameters
     ----------
     data_matrix: `np.array`

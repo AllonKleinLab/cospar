@@ -39,10 +39,8 @@ def gene_expression_dynamics(
     """
     Plot gene trend along the inferred dynamic trajectory.
 
-    We assume that the dynamic trajecotry at given specification is already
-    available at adata.obs[f'traj_{fate_name}'], which can be created via
-    :func:`.iterative_differentiation` or
-    :func:`.progenitor`.
+    The results should be pre-computed from :func:`cospar.tl.progenitor` or
+    :func:`cospar.tl.iterative_differentiation`
 
     Using the states that belong to the trajectory, it computes the pseudo time
     for these states and shows expression dynamics of selected genes along
@@ -142,8 +140,8 @@ def gene_expression_dynamics(
             if traj_name not in adata.obs.keys():
                 logg.error(
                     f"The target fate trajectory for {fate_name} with {source} have not been inferred yet.\n"
-                    "Please infer the trajectory with first with cs.pl.progenitor, \n"
-                    "or cs.pl.iterative_differentiation."
+                    "Please infer the trajectory with first with cs.tl.progenitor, \n"
+                    "or cs.tl.iterative_differentiation."
                 )
 
             else:
@@ -272,7 +270,7 @@ def gene_expression_dynamics(
                 gplot.draw()
 
 
-def gene_expression_heat_map(
+def gene_expression_heatmap(
     adata,
     selected_genes=None,
     selected_fates=None,
@@ -319,6 +317,8 @@ def gene_expression_heat_map(
         Minimum value to show.
     vmax: `float`, optional (default: None)
         Maximum value to show.
+    figure_index:
+        A string for index the figure names.
 
     Returns
     -------

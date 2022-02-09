@@ -19,6 +19,8 @@ from cospar.tool import _utils as tl_util
 from .. import help_functions as hf
 from .. import logging as logg
 from .. import settings
+from ..help_functions import _docs
+from ..help_functions._docs import _doc_params
 
 
 def fate_hierarchy(
@@ -165,7 +167,7 @@ def fate_coupling(
     ignore_cell_number: bool = False,
 ):
     """
-    Plot fate coupling determined by the transition map.
+    Compute fate coupling determined by the transition map.
 
     We use the fate map :math:`P_i(\mathcal{C}_l)` towards a set of
     fate clusters :math:`\{\mathcal{C}_l, l=0,1,2...\}` to compute the
@@ -198,9 +200,10 @@ def fate_coupling(
         Method to obtain the fate probability map :math:`P_i(\mathcal{C})` towards a set
         of states annotated with fate :math:`\mathcal{C}`. Available options:
         {'sum', 'norm-sum'}. See :func:`.fate_map`.
-        Plot the color bar.
     method: `str`, optional (default: 'SW')
         Method to normalize the coupling matrix: {'SW', 'Weinreb'}.
+    silence:
+        Suppress information printing.
     ignore_cell_number:
         Ignore the cell number of a clone within a cluster. i.e., binarize a clone's
         contribution towards a cluster. This only works when 'source=X_clone'
@@ -303,7 +306,7 @@ def fate_map(
     force_run=False,
 ):
     """
-    Plot transition probability to given fate/ancestor clusters.
+    Compute transition probability to given fate/ancestor clusters.
 
     Given a transition map :math:`T_{ij}`, we explore build
     the fate map :math:`P_i(\mathcal{C})` towards a set of states annotated with
@@ -444,6 +447,14 @@ def fate_map(
                 adata.uns[f"fate_potency_tmp"] = temp_map
 
 
+@_doc_params(
+    selected_fates=_docs.selected_fates,
+    all_source=_docs.all_source,
+    map_source=_docs.map_source,
+    map_backward=_docs.map_backward,
+    selected_times=_docs.selected_times,
+    fate_method=_docs.fate_method,
+)
 def fate_potency(
     adata,
     selected_fates=None,
@@ -453,12 +464,24 @@ def fate_potency(
     fate_count=False,
 ):
     """
-    It quantifies how multi-potent a cell state is.
-
-    If fate_count=True, it just to count the number of possible fates; otherwise, use the Shannon entropy.
+    Quantify how multi-potent a cell state is.
 
     It runs :func:`.fate_map` to compute the fate potency. Please see all parameter definitions there.
+
+    Parameters
+    ----------
+    {selected_fates}
+    {map_source}
+    {map_backward}
+    {fate_method}
+    fate_count:
+        True: count the number of possible fates; otherwise, use the Shannon entropy.
+
+    Returns
+    -------
+    Results saved at adata.obs[f"fate_potency_{{source}}"].
     """
+
     fate_map(
         adata,
         selected_fates=selected_fates,
@@ -488,7 +511,7 @@ def fate_bias(
     pseudo_count=0,
 ):
     """
-    Plot fate bias to given two fate clusters (A, B).
+    Compute fate bias to given two fate clusters (A, B).
 
     Given a fate map :math:`P_i` towards two fate clusters
     :math:`\{\mathcal{A}, \mathcal{B}\}`, constructed according
@@ -630,9 +653,6 @@ def progenitor(
         Method to obtain the fate probability map :math:`P_i(\mathcal{C})` towards a set
         of states annotated with fate :math:`\mathcal{C}`. Available options:
         {'sum', 'norm-sum'}. See :func:`.fate_map`.
-    selected_times: `list`, optional (default: all)
-        A list of time points to further restrict the cell states to plot.
-        The default choice is not to constrain the cell states to show.
     bias_threshold_A: `float`, optional (default: 0), range: (0,1)
         The threshold for selecting ancestor population for fate A.
     bias_threshold_B: `float`, optional (default: 0), range: (0,1)
@@ -643,6 +663,12 @@ def progenitor(
     pseudo_count: `float`, optional (default: 0)
         Pseudo count to compute the fate bias. The bias = (Pa+c0)/(Pa+Pb+2*c0),
         where c0=pseudo_count*(maximum fate probability) is a rescaled pseudo count.
+    avoid_target_states:
+        If True, exclude target states for computing fate bias.
+
+    Returns
+    -------
+    Results saved at adata.obs[f'progenitor_{source}_{fate_name}'] and adata.obs[f'diff_trajectory_{source}_{fate_name}']"
     """
 
     state_info = np.array(adata.obs["state_info"])

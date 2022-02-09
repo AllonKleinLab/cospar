@@ -38,16 +38,12 @@ def differential_genes(
     ----------
     adata: :class:`~anndata.AnnData` object
         Need to contain gene expression matrix.
-    group_A_idx: `np.array`, optional (default: None)
+    cell_group_A: `np.array`, optional (default: None)
         A boolean array of the size adata.shape[0] for defining population A.
         If not specified, we set it to be adata.obs['cell_group_A'].
-    group_B_idx: `np.array`, optional (default: None)
+    cell_group_B: `np.array`, optional (default: None)
         A boolean array of the size adata.shape[0] for defining population B.
         If not specified, we set it to be adata.obs['cell_group_A'].
-    plot_groups: `bool`, optional (default: True)
-        If true, plot the selected ancestor states for A, B
-    savefig: `bool`, optional (default: False)
-        Save all plots.
     FDR_cutoff: `float`, optional (default: 0.05)
         Cut off for the corrected Pvalue of each gene. Only genes below this
         cutoff will be shown.
