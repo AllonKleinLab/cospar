@@ -8,7 +8,7 @@ dependencies:
   - pytest-cov
   - pytest-datadir
   - ipywidgets
-  - numpy>=1.19.4
+  - numpy<=1.21
   - scipy>=1.5.4
   - scikit-learn>=0.23.2
   - scanpy>=1.6.0
