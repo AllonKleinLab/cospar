@@ -753,3 +753,139 @@ def quantify_transition_peak_TPR_LinearDifferentiation(
         fig.savefig(f"{settings.figure_path}/progression_comparison_1.eps")
 
     return Tmap_right_ratio
+
+
+def quantify_transition_peak_TPR_BifurcationModel(
+    used_map,
+    x_t1,
+    x_t2,
+    dL=1,
+    relative_tolerance=3,
+    diff_sigma=0.5,
+    bifurcation=0,
+    display=1,
+    normalize=False,
+):
+    """
+    Quantify the True positive rate of a transition map for linear differentiation model.
+
+    Parameters
+    ----------
+    used_map:
+        Used tmap, in the form of numpy array or sparse matrix
+    x_t1:
+        List of initial cell positions
+    x_t2:
+        List of later cell positions
+    dL:
+        Unit progression in a single time step
+    relative_tolerance:
+        Accept a prediction to be true if its most likely predicted target state is within
+        relative_tolerance*diff_sigma of the expected target state.
+    diff_sigma:
+        Strength of differentiation noise.
+    bifurcation:
+        Differentiation location along the manifold where bifurcation begins. It is default to be 0, according to the output of bifurcation model.
+    display:
+        Show analysis figures if true.
+    normalize:
+        Normalize the transition map.
+
+    Returns
+    -------
+    T_map_ratio:
+        True positive rate of a transition map
+    """
+
+    if ssp.issparse(used_map):
+        used_map = used_map.A
+    diff_thresh = relative_tolerance * diff_sigma
+    total_correct_N = 0
+    total_N = 0
+    true_x = []
+    predicted_x = []
+    correct_idx = []
+    counter = 0
+
+    Nt1 = len(x_t1)
+    if normalize:
+        used_map = hf.sparse_rowwise_multiply(used_map, 1 / np.sum(used_map, 1))
+
+    for ini_id in range(Nt1):
+        true_temp_x = x_t1[ini_id][0] + dL  # progression(x_t1[ini_id],dL)
+        temp_map = used_map[ini_id]
+
+        # pdb.set_trace()
+        if (x_t1[ini_id][0] < bifurcation) and (true_temp_x < bifurcation):
+            total_N = total_N + 1
+            if np.sum(temp_map > 0):  # if it has non-zero elements
+                fate = -1
+                true_x.append([true_temp_x, fate])
+
+                idx = temp_map > 0.99 * np.max(temp_map)
+                # pdb.set_trace()
+                if np.sum(idx) > 1:
+                    temp_sel_idx = np.random.choice(np.nonzero(idx)[0], 1)[0]
+                    predicted_temp_x = x_t2[temp_sel_idx]
+                    # print(f"valid value 1: {predicted_temp_x}")
+                else:
+                    predicted_temp_x = x_t2[np.argsort(temp_map)[::-1][0]]
+                    # print(f"sorted value 1: {predicted_temp_x}")
+
+                predicted_x.append(predicted_temp_x)
+
+                condi_1 = abs(true_temp_x - predicted_temp_x[0]) < diff_thresh
+                condi_2 = fate == predicted_temp_x[1]
+                if condi_1 and condi_2:
+                    total_correct_N = total_correct_N + 1
+                    correct_idx.append(1)
+                else:
+                    correct_idx.append(0)
+
+                counter += 1
+
+        if x_t1[ini_id][0] > bifurcation:  # and (x_t1[ini_id][0]<L-10):
+            total_N = total_N + 1
+            if np.sum(temp_map > 0):  # if it has non-zero elements
+                fate = x_t1[ini_id][1]
+                true_x.append([true_temp_x, fate])
+
+                idx = temp_map > 0.99 * np.max(temp_map)
+                # pdb.set_trace()
+                if np.sum(idx) > 1:
+                    temp_sel_idx = np.random.choice(np.nonzero(idx)[0], 1)[0]
+                    predicted_temp_x = x_t2[temp_sel_idx]
+                    # print(f"valid value 2: {predicted_temp_x}")
+                else:
+                    predicted_temp_x = x_t2[np.argsort(temp_map)[::-1][0]]
+                    # print(f"sorted value 2: {predicted_temp_x}")
+
+                predicted_x.append(predicted_temp_x)
+                condi_1 = abs(true_temp_x - predicted_temp_x[0]) < diff_thresh
+                condi_2 = fate == predicted_temp_x[1]
+                if condi_1 and condi_2:
+                    total_correct_N = total_correct_N + 1
+                    correct_idx.append(1)
+                else:
+                    correct_idx.append(0)
+
+                counter += 1
+
+    T_map_ratio = total_correct_N / total_N
+
+    predicted_x = np.array(predicted_x)
+    true_x = np.array(true_x)
+
+    print(f"Total counter {counter}, expected {Nt1}")
+    print(f"Correct ratio (Tmap): {T_map_ratio}")
+    if display:
+        fig = plt.figure(figsize=(4, 3.5))
+        ax = plt.subplot(1, 1, 1)
+        ax.plot(predicted_x[:, 0], true_x[:, 0], ".r")
+        ax.set_xlabel("Predicted progression")
+        ax.set_ylabel("Actual progression")
+        plt.tight_layout()
+        plt.show()
+        fig.savefig(f"{settings.figure_path}/progression_comparison.eps")
+
+    return T_map_ratio
