@@ -381,6 +381,46 @@ def test_Tmap_analysis(shared_datadir):
     )
 
 
+def test_simulated_data():
+    print("---------- bifurcation model ------------")
+    L = 10
+    adata = cs.simulate.bifurcation_model(t1=2, M=20, L=L)
+    adata = cs.tmap.infer_Tmap_from_multitime_clones(
+        adata, smooth_array=[10, 10, 10], compute_new=True
+    )
+    Tmap = adata.uns["transition_map"]
+    state_info = adata.obs["state_info"]
+    clonal_cell_id_t1 = adata.uns["clonal_cell_id_t1"]
+    clonal_cell_id_t2 = adata.uns["clonal_cell_id_t2"]
+    correlation_cospar = (
+        cs.simulate.quantify_correlation_with_ground_truth_fate_bias_BifurcationModel(
+            Tmap, state_info, clonal_cell_id_t1, clonal_cell_id_t2
+        )
+    )
+    print(
+        f"Fate bias correlation from the predicted transition map: {correlation_cospar:.3f}"
+    )
+
+    print("---------------Linear differentiation---------------")
+    adata = cs.simulate.linear_differentiation_model(
+        Nt1=50, progeny_N=1, used_clone_N=10, always_simulate_data=True
+    )
+    adata = cs.tmap.infer_Tmap_from_multitime_clones(
+        adata, smooth_array=[10, 10, 10], compute_new=True
+    )
+    Tmap = adata.uns["transition_map"]
+    state_info = adata.obs["state_info"]
+    clonal_cell_id_t1 = adata.uns["clonal_cell_id_t1"]
+    clonal_cell_id_t2 = adata.uns["clonal_cell_id_t2"]
+
+    X_t1 = adata.obsm["X_orig"][clonal_cell_id_t1]
+    X_t2 = adata.obsm["X_orig"][clonal_cell_id_t2]
+    TPR_cospar = cs.simulate.quantify_transition_peak_TPR_LinearDifferentiation(
+        Tmap, X_t1, X_t2
+    )
+    print(f"True positive rate for the predicted transition map: {TPR_cospar:.3f}")
+
+
 def test_clean_up():
     print("---------Clean up")
     if Path(cs.settings.data_path).is_dir():
