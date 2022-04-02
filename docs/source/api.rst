@@ -128,10 +128,6 @@ Datasets
    datasets.reprogramming_Day0_3_28
    datasets.synthetic_bifurcation
 
-
-
-
-
 Help functions
 --------------
 
@@ -147,3 +143,15 @@ Help functions
    hf.update_data_description
    tl.get_normalized_covariance
    hf.get_X_clone_with_reference_ordering
+
+
+Simulations
+-----------
+
+.. autosummary::
+   :toctree: .
+
+   simulate.linear_differentiation_model
+   simulate.bifurcation_model
+   simulate.quantify_correlation_with_ground_truth_fate_bias_BifurcationModel
+   simulate.quantify_transition_peak_TPR_LinearDifferentiation

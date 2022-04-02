@@ -269,9 +269,10 @@ def bifurcation_model(
     always_simulate_data=0,
 ):
     """
+    Simulate bifurcation corrupted with clonal dispersion (See Fig. 3e)
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     progeny_N:
         Fold change of clone size after each generation. 2 means that it will double its clone size after one generation.
     t1:
@@ -296,7 +297,7 @@ def bifurcation_model(
     always_simulate_data:
         Simulate new data (do not load pre-saved datasets)
 
-    Returns:
+    Returns
     -------
     adata:
         An adata object with clonal matrix, time info etc. Ready to be plugged into CoSpar.
@@ -455,7 +456,9 @@ def linear_differentiation_model(
     used_clone_N=100,
 ):
     """
-    Parameters:
+    Simulate linear differentiation corrupted with barcode collision (See Fig. 3a)
+
+    Parameters
     ----------
     Nt1:
         Number of initial cell states. They are randomly sampled along the differentiation manifold. Default 400.
@@ -472,7 +475,7 @@ def linear_differentiation_model(
     always_simulate_data:
         Simulate new data (do not load pre-saved datasets)
 
-    Returns:
+    Returns
     -------
     adata:
         An adata object with clonal matrix, time info etc. Ready to be plugged into CoSpar.
@@ -632,7 +635,7 @@ def quantify_correlation_with_ground_truth_fate_bias_BifurcationModel(
     """
     Quantify the correlation of an inferred fate bias with the actual one, using a map from the Bifurcation Model.
 
-    Parameters:
+    Parameters
     ----------
     used_map:
         Used tmap
@@ -643,8 +646,8 @@ def quantify_correlation_with_ground_truth_fate_bias_BifurcationModel(
     cell_id_t2:
         List of later cell IDs
 
-    Returns:
-    --------
+    Returns
+    -------
     fate_bias_corr:
         Correlation between the predicted and actual fate bias
     """
@@ -688,7 +691,7 @@ def quantify_transition_peak_TPR_LinearDifferentiation(
     """
     Quantify the True positive rate of a transition map for linear differentiation model.
 
-    Parameters:
+    Parameters
     ----------
     used_map:
         Used tmap, in the form of numpy array, or sparse matrix
@@ -706,7 +709,7 @@ def quantify_transition_peak_TPR_LinearDifferentiation(
     display:
         Show analysis figures if true.
 
-    Returns:
+    Returns
     --------
     Tmap_right_ratio:
         True positive rate of a transition map
@@ -737,7 +740,6 @@ def quantify_transition_peak_TPR_LinearDifferentiation(
     Tmap_right_ratio = (
         1 - np.sum(abs(relative_x) > relative_tolerance * diff_sigma) / Nt1
     )
-    print(f"Correct ratio (Tmap): {Tmap_right_ratio}")
 
     if display:
         fig = plt.figure(figsize=(4, 3.5))

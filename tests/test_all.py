@@ -390,11 +390,11 @@ def test_simulated_data():
     )
     Tmap = adata.uns["transition_map"]
     state_info = adata.obs["state_info"]
-    clonal_cell_id_t1 = adata.uns["clonal_cell_id_t1"]
-    clonal_cell_id_t2 = adata.uns["clonal_cell_id_t2"]
+    cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
+    cell_id_t2 = adata.uns["Tmap_cell_id_t2"]
     correlation_cospar = (
         cs.simulate.quantify_correlation_with_ground_truth_fate_bias_BifurcationModel(
-            Tmap, state_info, clonal_cell_id_t1, clonal_cell_id_t2
+            Tmap, state_info, cell_id_t1, cell_id_t2
         )
     )
     print(
@@ -410,11 +410,11 @@ def test_simulated_data():
     )
     Tmap = adata.uns["transition_map"]
     state_info = adata.obs["state_info"]
-    clonal_cell_id_t1 = adata.uns["clonal_cell_id_t1"]
-    clonal_cell_id_t2 = adata.uns["clonal_cell_id_t2"]
+    cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
+    cell_id_t2 = adata.uns["Tmap_cell_id_t2"]
 
-    X_t1 = adata.obsm["X_orig"][clonal_cell_id_t1]
-    X_t2 = adata.obsm["X_orig"][clonal_cell_id_t2]
+    X_t1 = adata.obsm["X_orig"][cell_id_t1]
+    X_t2 = adata.obsm["X_orig"][cell_id_t2]
     TPR_cospar = cs.simulate.quantify_transition_peak_TPR_LinearDifferentiation(
         Tmap, X_t1, X_t2
     )
