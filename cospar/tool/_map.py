@@ -547,7 +547,7 @@ def fate_bias(
 
     Returns
     -------
-    Results updated at adata.obs[f'fate_bias_{fate_1}_{fate_2}']
+    Results updated at adata.obs[f'fate_bias_{source}_{fate_1}_{fate_2}']
     """
 
     state_annote = adata.obs["state_info"]
@@ -782,7 +782,7 @@ def iterative_differentiation(
 
     Returns
     -------
-    adata.obs[f'traj_{fate_name}']: `np.array`
+    adata.obs[f'traj_{source}_{fate_name}']: `np.array`
         The probability of each state to belong to a trajectory.
     """
 

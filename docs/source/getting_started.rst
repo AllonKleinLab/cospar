@@ -11,10 +11,19 @@ For better visualization you can change the matplotlib settings to our defaults 
 
     cs.settings.set_figure_params()
 
-If you want to adjust parameters for a particular plot, just pass the parameters into this function. The workflow of CoSpar is summarized by the following illustration:
+If you want to adjust parameters for a particular plot, just pass the parameters into this function.
+
+
+The workflow of CoSpar is summarized by the following illustration:
 
 
 .. image:: https://user-images.githubusercontent.com/4595786/145308761-a6532c6b-ac5b-4457-a00e-4a0f3972a360.png
+   :width: 1000px
+   :align: center
+
+Also, below is a summary of the main analyses after we infer the transition map, and its connection with the mathematical formulation in `Wang et al. Nat. Biotech. (2022) <https://www.nature.com/articles/s41587-022-01209-1>`_.
+
+.. image:: https://user-images.githubusercontent.com/4595786/161853386-04126382-6a9a-4817-b6a8-e5e950977357.jpg
    :width: 1000px
    :align: center
 
