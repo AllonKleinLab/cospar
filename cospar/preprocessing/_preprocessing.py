@@ -760,3 +760,9 @@ def filter_cells_with_many_barcodes(adata, max_barcodes=10):
     cell_idx = barcode_N > max_barcodes
     X_clone_0[cell_idx] = 0
     adata.obsm["X_clone"] = ssp.csr_matrix(X_clone_0)
+
+
+def filter_nonclonal_cells(adata):
+    sp_idx = adata.obsm["X_clone"].sum(1).A.flatten() > 0
+    logg.info(f"Original cell number {len(sp_idx)}; New cell number {np.sum(sp_idx)}")
+    return adata[sp_idx]
