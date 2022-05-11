@@ -1347,6 +1347,7 @@ def get_X_clone_with_reference_ordering(
     reference_cell_id=None,
     reference_clone_id=None,
     drop_duplicates=True,
+    count_value=None,
 ):
     """
     Build the X_clone matrix from data.
@@ -1365,6 +1366,8 @@ def get_X_clone_with_reference_ordering(
         This has to be provided to match the cell ordering in the adata object.
     reference_clone_id: `list`, optional (default: None)
         A list of uniuqe clone id. If provided, X_clone will be generated based on its barcode ordering.
+    count_value: `list`, optional (default: None)
+        A list of count values corresponding to clone_data_cell_id. If not set, it is default to 1.
 
     Returns
     -------
@@ -1377,15 +1380,29 @@ def get_X_clone_with_reference_ordering(
         reference_clone_id = list(set(clone_data_barcode_id))
     if reference_cell_id is None:
         reference_cell_id = list(set(clone_data_cell_id))
+    if count_value is None:
+        count_value = np.ones(len(clone_data_cell_id))
+
     reference_clone_id = np.array(reference_clone_id)
+    clone_map = {x: j for j, x in enumerate(reference_clone_id)}
     reference_cell_id = np.array(reference_cell_id)
+    cell_map = {x: j for j, x in enumerate(reference_cell_id)}
+    count_value = np.array(count_value)
+
+    df = pd.DataFrame(
+        {"cell_id": clone_data_cell_id, "clone_id": clone_data_barcode_id}
+    )
+    if reference_cell_id is not None:
+        df = df[(df["cell_id"].isin(reference_cell_id))]
+
+    if reference_clone_id is not None:
+        df = df[(df["clone_id"].isin(reference_clone_id))]
 
     if drop_duplicates:
-        df = pd.DataFrame(
-            {"cell_id": clone_data_cell_id, "clone_id": clone_data_barcode_id}
-        ).drop_duplicates()
-        clone_data_cell_id = df["cell_id"]
-        clone_data_barcode_id = df["clone_id"]
+        df = df.drop_duplicates()
+
+    clone_data_cell_id = df["cell_id"]
+    clone_data_barcode_id = df["clone_id"]
     clone_data_cell_id = np.array(clone_data_cell_id)
     clone_data_barcode_id = np.array(clone_data_barcode_id)
 
@@ -1393,15 +1410,9 @@ def get_X_clone_with_reference_ordering(
     X_clone_col = []
     X_clone_val = []
     for j in tqdm(range(len(clone_data_cell_id))):
-        cell_idx_temp = reference_cell_id == clone_data_cell_id[j]
-        if np.sum(cell_idx_temp) > 0:
-            # in our design, a cell may not be barcoded, but a barcoded
-            # cell must has a unique clone ID.
-            row_id = np.nonzero(cell_idx_temp)[0]
-            col_id = np.nonzero(reference_clone_id == clone_data_barcode_id[j])[0]
-            X_clone_row.append(row_id[0])
-            X_clone_col.append(col_id[0])
-            X_clone_val.append(1)
+        X_clone_row.append(cell_map[clone_data_cell_id[j]])
+        X_clone_col.append(clone_map[clone_data_barcode_id[j]])
+        X_clone_val.append(count_value[j])
 
     X_clone = ssp.coo_matrix(
         (X_clone_val, (X_clone_row, X_clone_col)),
