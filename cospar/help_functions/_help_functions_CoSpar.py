@@ -89,7 +89,7 @@ def sparse_var(E, axis=0):
     mean_gene = E.mean(axis=axis).A.squeeze()
     tmp = E.copy()
     tmp.data **= 2
-    return tmp.mean(axis=axis).A.squeeze() - mean_gene ** 2
+    return tmp.mean(axis=axis).A.squeeze() - mean_gene**2
 
 
 def mean_center(E, column_means=None):
@@ -138,8 +138,8 @@ def corr2_coeff(A, B):
     B_mB = B - B.mean(1)[:, None]
 
     # Sum of squares across rows
-    ssA = (A_mA ** 2).sum(1)
-    ssB = (B_mB ** 2).sum(1)
+    ssA = (A_mA**2).sum(1)
+    ssB = (B_mB**2).sum(1)
 
     # Finally get corr coeff
     return np.dot(A_mA, B_mB.T) / (np.sqrt(np.dot(ssA[:, None], ssB[None])) + resol)
@@ -375,7 +375,7 @@ def get_vscores(E, min_mean=0, nBins=50, fit_percentile=0.1, error_wt=1):
 
     tmp = E[:, gene_ix]
     tmp.data **= 2
-    var_gene = tmp.mean(axis=0).A.squeeze() - mu_gene ** 2
+    var_gene = tmp.mean(axis=0).A.squeeze() - mu_gene**2
     del tmp
     FF_gene = var_gene / mu_gene
 

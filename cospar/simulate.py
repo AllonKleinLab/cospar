@@ -31,7 +31,7 @@ def kernel(x, y_vec, smooth_sigma):
     for y in y_vec:
         d = abs(x - y)
 
-        temp.append(np.exp(-((d) ** 2) / (2 * (smooth_sigma ** 2))))
+        temp.append(np.exp(-((d) ** 2) / (2 * (smooth_sigma**2))))
 
     norm_Prob = np.array(temp) / np.sum(temp)
 
@@ -48,7 +48,7 @@ def kernel_matrix(x_vec, smooth_sigma):
 
 def kernel_matrix_v1(smooth_sigma, shortest_distance):
     shortest_distance = np.array(shortest_distance)
-    matrix_temp = np.exp(-((shortest_distance) ** 2) / (2 * (smooth_sigma ** 2)))
+    matrix_temp = np.exp(-((shortest_distance) ** 2) / (2 * (smooth_sigma**2)))
     norm_kernel = np.zeros(matrix_temp.shape)
     for j in range(matrix_temp.shape[0]):
         norm_kernel[j] = matrix_temp[j] / np.sum(matrix_temp[j])
