@@ -384,7 +384,7 @@ def heatmap(
         plt.xticks([])
     else:
         plt.xticks(
-            x_array + 0.4,
+            x_array,
             np.array(x_ticks)[order_x],
             rotation=90,
             ha="right",
@@ -394,7 +394,7 @@ def heatmap(
         plt.yticks([])
     else:
         plt.yticks(
-            y_array + 0.4,
+            y_array,
             np.array(y_ticks)[order_y],
             ha="right",
         )
