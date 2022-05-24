@@ -19,6 +19,7 @@ from cospar.tool import _utils as tl_util
 
 from .. import help_functions as hf
 from .. import logging as logg
+from .. import plotting as pl
 
 
 def clonal_fate_bias(adata, selected_fate="", alternative="two-sided"):
@@ -179,3 +180,54 @@ def fate_biased_clones(
         valid_clone_ids = list(set(valid_clone_ids).intersection(set(persistent_ids)))
 
     return valid_clone_ids
+
+
+def get_normalized_coarse_X_clone(adata, selected_fates):
+    """
+    We first normalize per cluster, then within each time point, normalize within the clone
+    """
+    cell_type_N = []
+    for x in selected_fates:
+        temp = np.sum(np.array(adata.obs["state_info"]) == x)
+        cell_type_N.append(temp)
+
+    pl.barcode_heatmap(
+        adata,
+        selected_fates=selected_fates,
+        color_bar=True,
+        log_transform=False,
+        fig_height=4,
+        fig_width=8,
+        binarize=False,
+        plot=False,
+    )
+
+    coarse_X_clone = adata.uns["barcode_heatmap"]["coarse_X_clone"]
+
+    # normalize cluster wise
+    sum_X = np.array(cell_type_N)
+    norm_X_cluster = coarse_X_clone / sum_X[:, np.newaxis]
+
+    # normalize clone wise within each time point
+    selected_fates = np.array(selected_fates)
+    time_info = adata.obs["time_info"]
+    X_list = []
+    new_fate_list = []
+    for t in sorted(list(set(time_info))):
+        adata_t = adata[time_info == t]
+        fates_t = list(set(adata_t.obs["state_info"]).intersection(selected_fates))
+        sel_idx = np.in1d(selected_fates, fates_t)
+        # print(f"time {t}; sel_idx {sel_idx}")
+        sum_t = norm_X_cluster[sel_idx].sum(0)
+        norm_X_cluster_clone_t = (
+            (norm_X_cluster[sel_idx].transpose()) / (sum_t[:, np.newaxis] + 10**-10)
+        ).transpose()
+        X_list.append(norm_X_cluster_clone_t)
+        new_fate_list += list(selected_fates[sel_idx])
+    norm_X_cluster_clone = np.vstack(X_list)
+    df_X_cluster = pd.DataFrame(
+        norm_X_cluster_clone,
+        columns=[f"clone {j}" for j in range(norm_X_cluster_clone.shape[1])],
+    )
+    df_X_cluster.index = new_fate_list
+    return df_X_cluster
