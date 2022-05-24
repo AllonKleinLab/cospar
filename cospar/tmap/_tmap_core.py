@@ -824,9 +824,16 @@ def refine_Tmap_through_joint_optimization(
     cell_id_array_t2 = adata.uns["Tmap_cell_id_t2"]
     data_des = adata.uns["data_des"][-1]
     data_path = settings.data_path
-    X_clone = adata.obsm["X_clone"]
-    if not ssp.issparse(X_clone):
-        X_clone = ssp.csr_matrix(X_clone)
+    X_clone_orig = adata.obsm["X_clone"]
+    if not ssp.issparse(X_clone_orig):
+        X_clone_orig = ssp.csr_matrix(X_clone_orig)
+
+    # split to X_clone with multi-time info and without
+    t1_clone = X_clone_orig[cell_id_array_t1].sum(0).A.flatten() > 0
+    t2_clone = X_clone_orig[cell_id_array_t2].sum(0).A.flatten() > 0
+    multi_time_idx = t1_clone & t2_clone
+    X_clone_multi = X_clone_orig[:, multi_time_idx]
+    X_clone = X_clone_orig[:, ~multi_time_idx]
 
     time_info = np.array(adata.obs["time_info"])
     time_index_t1 = time_info == (time_info[cell_id_array_t1[0]])
@@ -968,12 +975,20 @@ def refine_Tmap_through_joint_optimization(
                 break
 
         ########### end: update clones
-        cell_id_array_t1_new = np.nonzero((X_clone_new.sum(1) > 0) & (time_index_t1))[0]
-        cell_id_array_t2_new = np.nonzero((X_clone_new.sum(1) > 0) & (time_index_t2))[0]
-
-        adata.obsm["X_clone"] = ssp.csr_matrix(X_clone_new) * (
+        X_clone_v1 = ssp.csr_matrix(X_clone_new) * (
             clone_mapping_sort.T
         )  # convert back to the original clone structure
+        from scipy.sparse import hstack
+
+        X_clone_v2 = hstack((X_clone_multi.astype(int), X_clone_v1))
+        cell_id_array_t1_new = np.nonzero(
+            (X_clone_v2.sum(1).A.flatten() > 0) & (time_index_t1)
+        )[0]
+        cell_id_array_t2_new = np.nonzero(
+            (X_clone_v2.sum(1).A.flatten() > 0) & (time_index_t2)
+        )[0]
+
+        adata.obsm["X_clone"] = X_clone_v2
         adata.uns["multiTime_cell_id_t1"] = [
             cell_id_array_t1_new
         ]  # For CoSpar, clonally-related states
