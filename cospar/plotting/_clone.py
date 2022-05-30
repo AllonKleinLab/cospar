@@ -121,7 +121,7 @@ def barcode_heatmap(
                 np.arange(coarse_X_clone.shape[0]), coarse_X_clone
             )
             adata.uns["barcode_heatmap"] = {
-                "coarse_X_clone": coarse_X_clone_new,
+                "coarse_X_clone": coarse_X_clone,
                 "fate_names": rename_fates,
             }
             logg.info("Data saved at adata.uns['barcode_heatmap']")

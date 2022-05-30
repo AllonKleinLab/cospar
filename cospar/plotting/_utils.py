@@ -387,7 +387,6 @@ def heatmap(
             x_array,
             np.array(x_ticks)[order_x],
             rotation=90,
-            ha="right",
         )
 
     if y_ticks is None:
@@ -396,7 +395,6 @@ def heatmap(
         plt.yticks(
             y_array,
             np.array(y_ticks)[order_y],
-            ha="right",
         )
 
     if x_label is not None:
