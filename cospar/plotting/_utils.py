@@ -513,7 +513,8 @@ def fate_map_embedding(
     if order_method == "fate_bias":
         new_idx = np.argsort(abs(fate_map_temp - 0.5))
     else:
-        new_idx = np.arange(len(fate_map_temp))
+        # new_idx = np.arange(len(fate_map_temp))
+        new_idx = np.argsort(abs(fate_map_temp))
 
     customized_embedding(
         x_emb[cell_id_t1][sp_idx][new_idx],
