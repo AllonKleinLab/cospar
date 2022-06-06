@@ -234,6 +234,18 @@ def get_normalized_coarse_X_clone(adata, selected_fates):
     )
     df_X_cluster.index = new_fate_list
 
+    return df_X_cluster
+
+
+def clonal_trajectory(adata, selected_fates):
+    """
+    Assign each cell a fate choice that belongs to its clone, and the
+    clonal fate choice is determined by the coarse-grained and normalized
+    barcode count matrix according to get_normalized_coarse_X_clone.
+    The output is stored at adata.obs[f"clonal_traj_{sel_fates[j]}"]
+    """
+
+    df_X_cluster = get_normalized_coarse_X_clone(adata, selected_fates)
     coarse_X_clone = df_X_cluster.to_numpy()
     X_clone = adata.obsm["X_clone"].A
     fate_map = np.zeros((adata.shape[0], coarse_X_clone.shape[0]))
@@ -243,22 +255,20 @@ def get_normalized_coarse_X_clone(adata, selected_fates):
         sel_ids = np.nonzero(X_clone[:, j] > 0)[0]
         cell_id_list += list(sel_ids)
         for i in sel_ids:
-            fate_list.append(list(coarse_X_clone[:, j]))
+            fate_list.append(
+                list(coarse_X_clone[:, j])
+            )  # fate choice of corresponding cells in the selected cell list
 
     fate_map[cell_id_list, :] = np.array(fate_list)
     sel_fates = list(df_X_cluster.index)
     for j, x in enumerate(fate_map.transpose()):
         adata.obs[f"clonal_traj_{sel_fates[j]}"] = x
-    return df_X_cluster
+        logg.info(f'Results saved at adata.obs[f"clonal_traj_{sel_fates[j]}"]')
 
 
 def get_normalized_coarse_X_clone_v1(adata, selected_fates):
     """
-    We first normalize per cclone within a time point, then per cluster.
-    In this case, the normalized coarse_X_clone matrix sums to 1 for each cluster, thereby directly
-    highlighting which cell clone is more preferred for a specific cluster. Note that the cluster-cluster
-    correlation is not sensitive to the cluster normalization. So, the only useful normalization is the
-    initial clone normalization.
+    We first normalize per clone within a time point, then per cluster.
     """
 
     pl.barcode_heatmap(
@@ -302,19 +312,4 @@ def get_normalized_coarse_X_clone_v1(adata, selected_fates):
     )
     df_X_cluster.index = new_fate_list
 
-    coarse_X_clone = df_X_cluster.to_numpy()
-    X_clone = adata.obsm["X_clone"].A
-    fate_map = np.zeros((adata.shape[0], coarse_X_clone.shape[0]))
-    cell_id_list = []
-    fate_list = []
-    for j in np.arange(coarse_X_clone.shape[1]):
-        sel_ids = np.nonzero(X_clone[:, j] > 0)[0]
-        cell_id_list += list(sel_ids)
-        for i in sel_ids:
-            fate_list.append(list(coarse_X_clone[:, j]))
-
-    fate_map[cell_id_list, :] = np.array(fate_list)
-    sel_fates = list(df_X_cluster.index)
-    for j, x in enumerate(fate_map.transpose()):
-        adata.obs[f"clonal_traj_{sel_fates[j]}"] = x
     return df_X_cluster
