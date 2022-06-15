@@ -15,6 +15,7 @@ Dynamic inference based on single-cell state measurement alone requires serious 
 
 See `<https://cospar.readthedocs.io>`_ for documentation and tutorials.
 
+Also, checkout this `video <https://www.youtube.com/watch?v=HrDQpW3kJFo>`_ about CoSpar!
 
 Reference
 ---------

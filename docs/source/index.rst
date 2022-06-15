@@ -22,6 +22,9 @@ CoSpar's key applications
 - predict genes whose expression correlates with future fate outcome.
 - generate a putative fate hierarchy, ordering fates by their lineage distances.
 
+Recorded Talks
+^^^^^^^^^^^^^^
+- `Jun 1: Single-Cell Data Science 2022 <https://singlecell2022.hku.hk/>`_. Talk video is `here <https://youtu.be/HrDQpW3kJFo>`_.
 
 .. Upcoming talks
 .. ^^^^^^^^^^^^^^
