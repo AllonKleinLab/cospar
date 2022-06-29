@@ -12,6 +12,9 @@ from .. import settings
 from ..help_functions import _docs
 from ..help_functions._docs import _doc_params
 
+color_map_reds = pl_util.darken_cmap(plt.cm.Reds, scale_factor=0.9)
+color_map_coolwarm = pl_util.darken_cmap(plt.cm.coolwarm, scale_factor=1)
+
 
 @_doc_params(
     selected_fates=_docs.selected_fates,
@@ -26,7 +29,7 @@ def fate_coupling(
     source="transition_map",
     color_bar=True,
     rename_fates=None,
-    color_map=plt.cm.Reds,
+    color_map=color_map_reds,
     figure_index="",
     **kwargs,
 ):
@@ -178,7 +181,7 @@ def fate_map(
     target_transparency=0.2,
     figure_index="",
     mask=None,
-    color_map=plt.cm.Reds,
+    color_map=color_map_reds,
 ):
     """
     Plot transition probability to given fate/ancestor clusters.
@@ -299,7 +302,7 @@ def fate_potency(
     color_bar=True,
     figure_index="",
     mask=None,
-    color_map=plt.cm.Reds,
+    color_map=color_map_reds,
 ):
     """
     Plot fate potency.
@@ -394,7 +397,7 @@ def fate_bias(
     horizontal=False,
     mask=None,
     color_bar_title=None,
-    color_map=plt.cm.bwr,
+    color_map=color_map_coolwarm,
 ):
     """
     Plot fate bias.
@@ -818,7 +821,7 @@ def single_cell_transition(
                         ax0.set_title(f"ID (t1): {target_cell_ID}")
 
             # if color_bar:
-            #     Clb=fig.colorbar(plt.cm.ScalarMappable(cmap=plt.cm.Reds), ax=ax0,label='Probability')
+            #     Clb=fig.colorbar(plt.cm.ScalarMappable(cmap=color_map_reds), ax=ax0,label='Probability')
 
             plt.tight_layout()
             if savefig:
