@@ -35,6 +35,8 @@ def barcode_heatmap(
     figure_index="",
     plot=True,
     pseudocount=10 ** (-10),
+    order_map_x=True,
+    order_map_y=True,
     **kwargs,
 ):
     """
@@ -69,6 +71,10 @@ def barcode_heatmap(
         True: plot the result. False, suppress the plot.
     pseudocount: `float`
         Pseudocount for the heatmap (needed for ordering the map)
+    order_map_x: `bool`
+        Whether to re-order the x coordinate of the matrix or not
+    order_map_y: `bool`
+        Whether to re-order the y coordinate of the matrix or not
 
     Returns:
     --------
@@ -133,8 +139,8 @@ def barcode_heatmap(
                 clone_idx = final_matrix.sum(0) > 0
                 ax = pl_util.heatmap(
                     final_matrix[:, clone_idx].T + pseudocount,
-                    order_map_x=False,
-                    order_map_y=False,
+                    order_map_x=order_map_x,
+                    order_map_y=order_map_y,
                     color_bar_label="Barcode count",
                     log_transform=log_transform,
                     fig_width=fig_width,

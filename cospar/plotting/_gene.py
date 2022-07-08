@@ -283,6 +283,9 @@ def gene_expression_heatmap(
     vmin=None,
     vmax=None,
     figure_index="",
+    order_map_x=True,
+    order_map_y=True,
+    **kwargs,
 ):
     """
     Plot heatmap of gene expression within given clusters.
@@ -297,10 +300,11 @@ def gene_expression_heatmap(
         It allows a nested structure. If so, we merge clusters within
         each sub-list into a mega-fate cluster.
     method: `str`, optional (default: 'relative')
-        Method to normalize gene expression. Options: {'relative','zscore'}.
+        Method to normalize gene expression. Options: {'relative','zscore',f'relative_{j}'}.
         'relative': given coarse-grained gene expression
         in given clusters, normalize the expression across clusters to be 1;
         'zscore': given coarse-grained gene expression in given clusters, compute its zscore.
+        f'relative_{j}': use j-th row for normalization
     rename_fates: `list`, optional (default: None)
         Provide new names in substitution of names in selected_fates.
         For this to be effective, the new name list needs to have names
@@ -319,16 +323,25 @@ def gene_expression_heatmap(
         Maximum value to show.
     figure_index:
         A string for index the figure names.
+    order_map_x: `bool`
+        Whether to re-order the x coordinate of the matrix or not
+    order_map_y: `bool`
+        Whether to re-order the y coordinate of the matrix or not
 
     Returns
     -------
     gene_expression_matrix: `np.array`
     """
 
-    if method not in ["relative", "zscore"]:
+    if (method not in ["relative", "zscore"]) and (not method.startswith('relative_')):
         logg.warn("method not in ['relative','zscore']; set it to be 'relative'")
         method = "relative"
 
+    if method.startswith('relative_'):
+        # assuming method=f'relative_{j}'
+        rela_idx=int(method.split('relative_')[1])
+        logg.info(f'Use {rela_idx} row for normalization')
+            
     gene_list = selected_genes
     state_info = np.array(adata.obs["state_info"])
     (
@@ -370,8 +383,11 @@ def gene_expression_heatmap(
         if method == "zscore":
             z_score = stats.zscore(temp_vector)
             gene_expression_matrix[:, k] = z_score
-        else:
+        elif method== "relative":
             temp_vector = (temp_vector + resol) / (resol + np.sum(temp_vector))
+            gene_expression_matrix[:, k] = temp_vector
+        else:
+            temp_vector = (temp_vector + resol) / (resol + temp_vector[rela_idx])
             gene_expression_matrix[:, k] = temp_vector
 
     if (rename_fates is None) or (len(rename_fates) != len(mega_cluster_list)):
@@ -390,6 +406,9 @@ def gene_expression_heatmap(
             vmin=vmin,
             vmax=vmax,
             color_bar_label=color_bar_label,
+            order_map_x=order_map_x,
+            order_map_y=order_map_y,
+            **kwargs,
         )
     else:
         ax = pl_util.heatmap(
@@ -404,6 +423,9 @@ def gene_expression_heatmap(
             vmin=vmin,
             vmax=vmax,
             color_bar_label=color_bar_label,
+            order_map_x=order_map_x,
+            order_map_y=order_map_y,
+            **kwargs,
         )
 
     plt.tight_layout()
