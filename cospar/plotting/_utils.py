@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import scipy.sparse as ssp
 import scipy.stats as stats
 import statsmodels.sandbox.stats.multicomp
@@ -579,3 +580,16 @@ def jitter(
         linewidths=linewidths,
         **kwargs,
     )
+
+
+def plot_one_cluster(adata,cluster_name=None,cluster_obs_key=None,basis='X_umap'):
+    df_plot=pd.DataFrame({'cluster':adata.obs[cluster_obs_key],
+                              'x':adata.obsm[basis][:,0],
+                              'y':adata.obsm[basis][:,1]})
+
+
+    df_plot_tmp_1=df_plot[df_plot['cluster']!=cluster_name]
+    df_plot_tmp_1.loc[:,'cluster']='others'
+    df_map_v2=pd.concat([df_plot_tmp_1,df_plot[df_plot['cluster']==cluster_name]])
+    g=sns.relplot(kind='scatter',data=df_map_v2,x='x',y='y',hue='cluster',s=5)
+    g.ax.axis('off');
