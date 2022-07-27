@@ -371,6 +371,24 @@ def remove_multiclone_cell(
     return removed_clones
 
 
+def remove_multicell_clone(adata, clone_size_threshold=3):
+    """
+    clones with clone_size >= clone_size_threshold will be removed from the X_clone.
+    """
+    df_clone = clone_statistics(adata)
+    clone_idx = df_clone["cell_number"] < clone_size_threshold
+    logg.info(f"Removed clone fraction {1-clone_idx.mean():.2f}")
+
+    sel_clone_ids = df_clone[clone_idx]["clone_id"].to_list()
+    X_clone_new = adata.obsm["X_clone"][:, sel_clone_ids]
+
+    adata.obsm["X_clone_old"] = adata.obsm["X_clone"]
+    adata.uns["clone_id"] = np.array(adata.uns["clone_id"])[sel_clone_ids]
+    adata.obsm["X_clone"] = ssp.csr_matrix(X_clone_new)
+    logg.info("Updated X_clone")
+    logg.info(f"Check removed clones with adata.obsm['X_clone_old']")
+
+
 def clone_statistics(adata):
     """
     Extract the number of clones and clonal cells for each time point
