@@ -35,8 +35,8 @@ def barcode_heatmap(
     figure_index="",
     plot=True,
     pseudocount=10 ** (-10),
-    order_map_x=True,
-    order_map_y=True,
+    order_map_x=False,
+    order_map_y=False,
     **kwargs,
 ):
     """
