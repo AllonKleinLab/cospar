@@ -182,42 +182,44 @@ def fate_biased_clones(
 
     return valid_clone_ids
 
-def get_coarse_grained_X_clone_for_clone_assignment(adata, 
-                                                    cluster_key='leiden'):
+
+def get_coarse_grained_X_clone_for_clone_assignment(adata, cluster_key="leiden"):
     """
     This is used in the context of clonal data demultiplexing, like in the multi-seq protocol, where
     we each cell is labeled by one (or several) hash tag, and the barcoding process is noisy. We can look
     at the clusters at the barcode space, and we can assume that, if a cluster is clearly distinct, we
-    simply assume that it belongs to a unique clone. 
+    simply assume that it belongs to a unique clone.
     """
     cell_type_N = []
-    selected_fates=list(set(adata.obs[cluster_key]))
+    selected_fates = list(set(adata.obs[cluster_key]))
     for x in selected_fates:
         temp = np.sum(np.array(adata.obs[cluster_key]) == x)
         cell_type_N.append(temp)
-        
-    df_data=pd.DataFrame(adata.obsm['X_clone'].A)
-    df_data['cluster']=list(adata.obs[cluster_key])
-    df_X_cluster_0=df_data.groupby('cluster').sum()
-    
+
+    df_data = pd.DataFrame(adata.obsm["X_clone"].A)
+    df_data["cluster"] = list(adata.obs[cluster_key])
+    df_X_cluster_0 = df_data.groupby("cluster").sum()
+
     coarse_X_clone = df_X_cluster_0.to_numpy()
 
     # normalize cluster wise
-    sum_X = 10**(-10)+np.array(cell_type_N) # we use the cells with/without clonal information
+    sum_X = 10 ** (-10) + np.array(
+        cell_type_N
+    )  # we use the cells with/without clonal information
     norm_X_cluster = coarse_X_clone / sum_X[:, np.newaxis]
 
-    # # normalize clone wise 
+    # # normalize clone wise
     # sum_X_1 = 10**(-10)+norm_X_cluster.sum(0)
     # norm_X_cluster_clone=norm_X_cluster/sum_X_1[np.newaxis,:]
-    
+
     # if normalize_per_cluster:
     #     # Finally, normalize cluster wise, as we are interested where each cluster comes from
-    #     # The risk here is that if a cluster is uniquely labled by only one clone, but the number 
-    #     # of clonal cells there is very small, it could lead to errors. 
-    print('only normlaize per cluster')
-    sum_X_2 = 10**(-10)+norm_X_cluster.sum(1)
-    norm_X_cluster_clone=norm_X_cluster/sum_X_2[:,np.newaxis]
-    
+    #     # The risk here is that if a cluster is uniquely labled by only one clone, but the number
+    #     # of clonal cells there is very small, it could lead to errors.
+    print("only normlaize per cluster")
+    sum_X_2 = 10 ** (-10) + norm_X_cluster.sum(1)
+    norm_X_cluster_clone = norm_X_cluster / sum_X_2[:, np.newaxis]
+
     df_X_cluster = pd.DataFrame(
         norm_X_cluster_clone,
         columns=[f"clone_{j}" for j in range(norm_X_cluster_clone.shape[1])],
@@ -225,6 +227,7 @@ def get_coarse_grained_X_clone_for_clone_assignment(adata,
     df_X_cluster.index = df_X_cluster_0.index
 
     return df_X_cluster
+
 
 def get_normalized_coarse_X_clone(adata, selected_fates):
     """
@@ -431,6 +434,12 @@ def clone_statistics(adata):
         .query("count>0")
     )
 
+    df_cell = (
+        df.groupby("time_info")
+        .agg(cell_N=("cell_id", lambda x: len(set(x))))
+        .assign(clonal_cell_fraction=lambda x: x["cell_N"] / x["cell_N"].sum())
+    )
+
     df = df.groupby("clone_id").agg(
         cell_number=("cell_id", "count"),
         time_points=("time_info", lambda x: ",".join(list(set(x)))),
@@ -443,11 +452,6 @@ def clone_statistics(adata):
         .assign(clone_fraction=lambda x: x["clone_N"] / x["clone_N"].sum())
     )
 
-    df_cell = (
-        df.groupby("time_points")
-        .agg(cell_N=("cell_number", "sum"))
-        .assign(cell_fraction=lambda x: x["cell_N"] / x["cell_N"].sum())
-    )
     print(df_clone)
     print("-----------")
     print(df_cell)
