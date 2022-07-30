@@ -50,7 +50,7 @@ def get_normalized_covariance(data, method="Weinreb"):
     Normalized covariance matrix.
     """
 
-    if method not in ["Weinreb", "SW"]:
+    if method not in ["Weinreb", "SW", "Jaccard"]:
         logg.warn("method not among [Weinreb, SW]; set method=SW")
         method = "SW"
 
@@ -60,7 +60,7 @@ def get_normalized_covariance(data, method="Weinreb"):
         X, Y = np.meshgrid(mm, mm)
         cc = cc / X / Y
         return cc  # /np.max(cc)
-    else:
+    elif method == "SW":
         resol = 10 ** (-10)
 
         # No normalization performs better.  Not all cell states contribute equally to lineage coupling
@@ -74,6 +74,16 @@ def get_normalized_covariance(data, method="Weinreb"):
             for k in range(len(diag_temp)):
                 X[j, k] = X[j, k] / (diag_temp[j] * diag_temp[k])
         return X  # /np.max(X)
+
+    elif method == "Jaccard":
+        from scipy.spatial import distance
+
+        data = np.array(data.T) > 0
+        X = np.zeros((data.shape[0], data.shape[0]))
+        for j, x in enumerate(data):
+            for k, y in enumerate(data):
+                X[j, k] = distance.jaccard(x, y)
+        return 1 - X
 
 
 def convert_to_tree(parent_map, celltype_names):
