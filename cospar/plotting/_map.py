@@ -31,6 +31,7 @@ def fate_coupling(
     rename_fates=None,
     color_map=color_map_reds,
     figure_index="",
+    color_bar_label="Fate coupling",
     **kwargs,
 ):
     """
@@ -80,7 +81,7 @@ def fate_coupling(
     ) / 2
     ax = pl_util.heatmap(
         X_coupling,
-        color_bar_label=f"Fate coupling",
+        color_bar_label=color_bar_label,
         color_bar=color_bar,
         fig_width=fig_width,
         fig_height=fig_height,

@@ -134,14 +134,16 @@ def barcode_heatmap(
             if plot:
                 if binarize:
                     final_matrix = coarse_X_clone_new > 0
+                    color_bar_label = "Binarized barcode count"
                 else:
                     final_matrix = coarse_X_clone_new
+                    color_bar_label = "Barcode count"
                 clone_idx = final_matrix.sum(0) > 0
                 ax = pl_util.heatmap(
                     final_matrix[:, clone_idx].T + pseudocount,
                     order_map_x=order_map_x,
                     order_map_y=order_map_y,
-                    color_bar_label="Barcode count",
+                    color_bar_label=color_bar_label,
                     log_transform=log_transform,
                     fig_width=fig_width,
                     fig_height=fig_height,
