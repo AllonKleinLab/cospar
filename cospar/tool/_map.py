@@ -230,7 +230,6 @@ def fate_coupling(
         X_coupling = _utils.get_normalized_covariance(coarse_X_clone.T, method=method)
     else:
         cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
-        state_annote = adata.obs["state_info"]
         sp_idx = hf.selecting_cells_by_time_points(
             time_info[cell_id_t1], selected_times
         )

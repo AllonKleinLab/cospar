@@ -333,15 +333,15 @@ def gene_expression_heatmap(
     gene_expression_matrix: `np.array`
     """
 
-    if (method not in ["relative", "zscore"]) and (not method.startswith('relative_')):
+    if (method not in ["relative", "zscore"]) and (not method.startswith("relative_")):
         logg.warn("method not in ['relative','zscore']; set it to be 'relative'")
         method = "relative"
 
-    if method.startswith('relative_'):
+    if method.startswith("relative_"):
         # assuming method=f'relative_{j}'
-        rela_idx=int(method.split('relative_')[1])
-        logg.info(f'Use {rela_idx} row for normalization')
-            
+        rela_idx = int(method.split("relative_")[1])
+        logg.info(f"Use {rela_idx} row for normalization")
+
     gene_list = selected_genes
     state_info = np.array(adata.obs["state_info"])
     (
@@ -383,7 +383,7 @@ def gene_expression_heatmap(
         if method == "zscore":
             z_score = stats.zscore(temp_vector)
             gene_expression_matrix[:, k] = z_score
-        elif method== "relative":
+        elif method == "relative":
             temp_vector = (temp_vector + resol) / (resol + np.sum(temp_vector))
             gene_expression_matrix[:, k] = temp_vector
         else:
