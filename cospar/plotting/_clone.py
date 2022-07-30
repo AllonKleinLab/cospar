@@ -28,6 +28,7 @@ def barcode_heatmap(
     selected_fates=None,
     color_bar=True,
     rename_fates=None,
+    normalize=False,
     binarize=False,
     log_transform=False,
     fig_width=4,
@@ -58,6 +59,8 @@ def barcode_heatmap(
         Provide new names in substitution of names in selected_fates.
         For this to be effective, the new name list needs to have names
         in exact correspondence to those in the old list.
+    normalize:
+        To perform cluster-wise then clone-wise normalization
     binarize: `bool`
         Binarize the coarse-grained barcode count matrix, just for the purpose of plotting.
     log_transform: `bool`, optional (default: False)
@@ -82,85 +85,73 @@ def barcode_heatmap(
     adata.uns['barcode_heatmap']. The coarse-grained X_clone keeps all clones and maintains their ordering.
     """
 
-    time_info = np.array(adata.obs["time_info"])
-    if selected_times is not None:
-        if type(selected_times) is not list:
-            selected_times = [selected_times]
-    sp_idx = hf.selecting_cells_by_time_points(time_info, selected_times)
-    X_clone_0 = adata[sp_idx].obsm["X_clone"]
-    # X_clone = X_clone_0[:, clone_idx]
-    state_annote = adata[sp_idx].obs["state_info"]
+    data_des = adata.uns["data_des"][-1]
+    data_des = f"{data_des}_clonal"
+    figure_path = settings.figure_path
 
-    if np.sum(sp_idx) == 0:
-        logg.error("No cells selected. Computation aborted!")
+    if not normalize:
+        coarse_X_clone, mega_cluster_list = tl.coarse_grain_clone_over_cell_clusters(
+            adata, selected_times=selected_times, selected_fates=selected_fates
+        )
     else:
-        (
-            mega_cluster_list,
-            __,
-            __,
-            sel_index_list,
-        ) = hf.analyze_selected_fates(state_annote, selected_fates)
-        if len(mega_cluster_list) == 0:
-            logg.error("No cells selected. Computation aborted!")
+        df_Xclone = tl.get_normalized_coarse_X_clone(adata, selected_fates)
+        coarse_X_clone = df_Xclone.to_numpy()
+        mega_cluster_list = df_Xclone.index
+
+    if rename_fates is None:
+        rename_fates = mega_cluster_list
+
+    if len(rename_fates) != len(mega_cluster_list):
+        logg.warn(
+            "rename_fates does not have the same length as selected_fates, thus not used."
+        )
+        rename_fates = mega_cluster_list
+
+    if "x_ticks" not in kwargs.keys():
+        kwargs["x_ticks"] = rename_fates
+
+    coarse_X_clone_new = pl_util.custom_hierachical_ordering(
+        np.arange(coarse_X_clone.shape[0]), coarse_X_clone
+    )
+    adata.uns["barcode_heatmap"] = {
+        "coarse_X_clone": coarse_X_clone,
+        "fate_names": rename_fates,
+    }
+    logg.info("Data saved at adata.uns['barcode_heatmap']")
+    if plot:
+        if binarize:
+            final_matrix = coarse_X_clone_new > 0
+            color_bar_label = "Binarized barcode count"
         else:
-            data_des = adata.uns["data_des"][-1]
-            data_des = f"{data_des}_clonal"
-            figure_path = settings.figure_path
+            final_matrix = coarse_X_clone_new
+            color_bar_label = "Barcode count"
 
-            coarse_X_clone = np.zeros((len(mega_cluster_list), X_clone_0.shape[1]))
-            for j, idx in enumerate(sel_index_list):
-                coarse_X_clone[j, :] = X_clone_0[idx].sum(0)
+        if normalize:
+            color_bar_label += " (normalized)"
 
-            if rename_fates is None:
-                rename_fates = mega_cluster_list
+        clone_idx = final_matrix.sum(0) > 0
+        ax = pl_util.heatmap(
+            final_matrix[:, clone_idx].T + pseudocount,
+            order_map_x=order_map_x,
+            order_map_y=order_map_y,
+            color_bar_label=color_bar_label,
+            log_transform=log_transform,
+            fig_width=fig_width,
+            fig_height=fig_height,
+            color_bar=color_bar,
+            **kwargs,
+        )
 
-            if len(rename_fates) != len(mega_cluster_list):
-                logg.warn(
-                    "rename_fates does not have the same length as selected_fates, thus not used."
-                )
-                rename_fates = mega_cluster_list
-
-            if "x_ticks" not in kwargs.keys():
-                kwargs["x_ticks"] = rename_fates
-
-            coarse_X_clone_new = pl_util.custom_hierachical_ordering(
-                np.arange(coarse_X_clone.shape[0]), coarse_X_clone
+        plt.tight_layout()
+        if figure_index != "":
+            figure_index == f"_{figure_index}"
+        plt.savefig(
+            os.path.join(
+                figure_path,
+                f"{data_des}_barcode_heatmap{figure_index}.{settings.file_format_figs}",
             )
-            adata.uns["barcode_heatmap"] = {
-                "coarse_X_clone": coarse_X_clone,
-                "fate_names": rename_fates,
-            }
-            logg.info("Data saved at adata.uns['barcode_heatmap']")
-            if plot:
-                if binarize:
-                    final_matrix = coarse_X_clone_new > 0
-                    color_bar_label = "Binarized barcode count"
-                else:
-                    final_matrix = coarse_X_clone_new
-                    color_bar_label = "Barcode count"
-                clone_idx = final_matrix.sum(0) > 0
-                ax = pl_util.heatmap(
-                    final_matrix[:, clone_idx].T + pseudocount,
-                    order_map_x=order_map_x,
-                    order_map_y=order_map_y,
-                    color_bar_label=color_bar_label,
-                    log_transform=log_transform,
-                    fig_width=fig_width,
-                    fig_height=fig_height,
-                    color_bar=color_bar,
-                    **kwargs,
-                )
-
-                plt.tight_layout()
-                if figure_index != "":
-                    figure_index == f"_{figure_index}"
-                plt.savefig(
-                    os.path.join(
-                        figure_path,
-                        f"{data_des}_barcode_heatmap{figure_index}.{settings.file_format_figs}",
-                    )
-                )
-                return ax
+        )
+        return ax
 
 
 def clonal_fates_across_time(adata, selected_times, **kwargs):

@@ -14,7 +14,7 @@ from scipy.cluster import hierarchy
 # from plotnine import *
 from sklearn.manifold import SpectralEmbedding
 
-from cospar.tool import _utils as tl_util
+from cospar.tool import _clone, _utils
 
 from .. import help_functions as hf
 from .. import logging as logg
@@ -144,7 +144,7 @@ def fate_hierarchy(
         node_mapping[key] = [fate_names[xx] for xx in value]
 
     history = (X_history, merged_pairs_history, node_names_history)
-    t = tl_util.convert_to_tree(parent_map, fate_names)
+    t = _utils.convert_to_tree(parent_map, fate_names)
 
     adata.uns[f"fate_hierarchy_{source}"] = {
         "parent_map": parent_map,
@@ -222,38 +222,12 @@ def fate_coupling(
     if source not in choices:
         raise ValueError(f"source should be among {choices}")
     elif source == "X_clone":
-        sp_idx = hf.selecting_cells_by_time_points(time_info, selected_times)
-        if np.sum(sp_idx) == 0:
-            raise ValueError("No cells selected. Please change selected_times")
-
-        else:
-            # aggregrate cell states
-            clone_annot = adata[sp_idx].obsm["X_clone"]
-            state_annote = adata[sp_idx].obs["state_info"]
-            (
-                mega_cluster_list,
-                __,
-                __,
-                sel_index_list,
-            ) = hf.analyze_selected_fates(state_annote, selected_fates)
-            if len(mega_cluster_list) == 0:
-                raise ValueError("No cells selected. Computation aborted!")
-
-            else:
-                # coarse-grain the clonal matrix
-                coarse_clone_annot = np.zeros(
-                    (len(mega_cluster_list), clone_annot.shape[1])
-                )
-                for j, idx in enumerate(sel_index_list):
-                    if ignore_cell_number:
-                        coarse_clone_annot[j, :] = clone_annot[idx].sum(0) > 0
-                    else:
-                        coarse_clone_annot[j, :] = clone_annot[idx].sum(0)
-
-                fate_idx = coarse_clone_annot.sum(1) > 0
-                X_coupling = tl_util.get_normalized_covariance(
-                    coarse_clone_annot[fate_idx].T, method=method
-                )
+        coarse_X_clone, fate_names = _clone.coarse_grain_clone_over_cell_clusters(
+            adata, selected_times=selected_times, selected_fates=selected_fates
+        )
+        if ignore_cell_number:
+            coarse_X_clone = (coarse_X_clone > 0).astype(int)
+        X_coupling = _utils.get_normalized_covariance(coarse_X_clone.T, method=method)
     else:
         cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
         state_annote = adata.obs["state_info"]
@@ -269,7 +243,7 @@ def fate_coupling(
             __,
             __,
             __,
-        ) = tl_util.compute_fate_probability_map(
+        ) = _utils.compute_fate_probability_map(
             adata,
             selected_fates=selected_fates,
             used_Tmap=source,
@@ -281,15 +255,19 @@ def fate_coupling(
             raise ValueError("No cells selected. Computation aborted!")
 
         else:
-            X_coupling = tl_util.get_normalized_covariance(
+            X_coupling = _utils.get_normalized_covariance(
                 fate_map[sp_idx][:, fate_idx], method=method
             )
 
-    if np.sum(~fate_idx) > 0:
-        logg.warn(f"{mega_cluster_list[~fate_idx]} are ignored due to lack of cells")
+        if np.sum(~fate_idx) > 0:
+            logg.warn(
+                f"{mega_cluster_list[~fate_idx]} are ignored due to lack of cells"
+            )
+        fate_names = mega_cluster_list[fate_idx]
+
     adata.uns[f"fate_coupling_{source}"] = {
         "X_coupling": X_coupling,
-        "fate_names": mega_cluster_list[fate_idx],
+        "fate_names": fate_names,
     }
 
     if not silence:
@@ -412,7 +390,7 @@ def fate_map(
                 valid_fate_list,
                 sel_index_list,
                 fate_entropy,
-            ) = tl_util.compute_fate_probability_map(
+            ) = _utils.compute_fate_probability_map(
                 adata,
                 selected_fates=selected_fates,
                 used_Tmap=source,
@@ -832,7 +810,7 @@ def iterative_differentiation(
                 # used_map=hf.sparse_column_multiply(used_map,1/(resol+used_map.sum(0)))
                 for j, t_0 in enumerate(sort_time_info[1:]):
                     prob_1r_full = np.zeros(adata.shape[0])
-                    prob_1r_full[cell_id_t1] = tl_util.mapout_trajectories(
+                    prob_1r_full[cell_id_t1] = _utils.mapout_trajectories(
                         used_map,
                         prob_array[j],
                         threshold=map_threshold,

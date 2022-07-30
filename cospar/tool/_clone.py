@@ -229,6 +229,56 @@ def get_coarse_grained_X_clone_for_clone_assignment(adata, cluster_key="leiden")
     return df_X_cluster
 
 
+def coarse_grain_clone_over_cell_clusters(
+    adata,
+    selected_times=None,
+    selected_fates=None,
+):
+    """
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData` object
+    selected_times: `list`, optional (default: None)
+        Time points to select the cell states.
+    selected_fates: `list`, optional (default: all)
+        List of fate clusters to use. If set to be [], use all.
+
+    Returns:
+    --------
+    coarse_X_clone:
+        The coarse-grained X_clone matrix
+
+    mega_cluster_list:
+         The updated cluster name list
+    """
+
+    time_info = np.array(adata.obs["time_info"])
+    if selected_times is not None:
+        if type(selected_times) is not list:
+            selected_times = [selected_times]
+    sp_idx = hf.selecting_cells_by_time_points(time_info, selected_times)
+    X_clone_0 = adata[sp_idx].obsm["X_clone"]
+    state_annote = adata[sp_idx].obs["state_info"]
+
+    if np.sum(sp_idx) == 0:
+        logg.error("No cells selected. Computation aborted!")
+    else:
+        (
+            mega_cluster_list,
+            __,
+            __,
+            sel_index_list,
+        ) = hf.analyze_selected_fates(state_annote, selected_fates)
+        if len(mega_cluster_list) == 0:
+            logg.error("No cells selected. Computation aborted!")
+        else:
+            coarse_X_clone = np.zeros((len(mega_cluster_list), X_clone_0.shape[1]))
+            for j, idx in enumerate(sel_index_list):
+                coarse_X_clone[j, :] = X_clone_0[idx].sum(0)
+
+        return coarse_X_clone, mega_cluster_list
+
+
 def get_normalized_coarse_X_clone(adata, selected_fates):
     """
     We first normalize per cluster, then within each time point, normalize within the clone.
@@ -236,23 +286,15 @@ def get_normalized_coarse_X_clone(adata, selected_fates):
     highlighting which cell type is more preferred by a clone. Note that the cluster-cluster correlation
     will be affected by both the cluster and clone normalization.
     """
+
+    coarse_X_clone, selected_fates = coarse_grain_clone_over_cell_clusters(
+        adata, selected_fates=selected_fates
+    )
+
     cell_type_N = []
     for x in selected_fates:
         temp = np.sum(np.array(adata.obs["state_info"]) == x)
         cell_type_N.append(temp)
-
-    pl.barcode_heatmap(
-        adata,
-        selected_fates=selected_fates,
-        color_bar=True,
-        log_transform=False,
-        fig_height=4,
-        fig_width=8,
-        binarize=False,
-        plot=False,
-    )
-
-    coarse_X_clone = adata.uns["barcode_heatmap"]["coarse_X_clone"]
 
     # normalize cluster wise
     sum_X = np.array(cell_type_N)
