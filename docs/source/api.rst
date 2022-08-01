@@ -83,6 +83,7 @@ Plotting
    pl.fate_hierarchy
    pl.clonal_fates_across_time
    pl.clonal_reports
+   pl.visualize_tree
 
 
 
