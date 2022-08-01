@@ -596,3 +596,95 @@ def plot_one_cluster(adata, cluster_name=None, cluster_obs_key=None, basis="X_um
     df_map_v2 = pd.concat([df_plot_tmp_1, df_plot[df_plot["cluster"] == cluster_name]])
     g = sns.relplot(kind="scatter", data=df_map_v2, x="x", y="y", hue="cluster", s=5)
     g.ax.axis("off")
+
+
+def visualize_tree(
+    input_tree,
+    color_coding: dict = None,
+    mode="r",
+    width=60,
+    height=60,
+    dpi=300,
+    data_des="tree",
+    figure_path=".",
+):
+    """
+    Visualize a tree structured in ete3 style.
+
+    We provide the option to color code the leaf of the tree. For example, if the leaf nodes represent single cells,
+    and some are more similar than others according to other information, we may impose the same color for these similar cells.
+    Then, visualization with this color setting will allow us see how the tree structure recaptulate the similarity of these cells. If so, similar colors tend to cluster together.
+
+    This function will require a full installation of the ete3 packages (which are not part of the default cospar installation), including ete3, ete_toolchain, PyQt5, QtPy. Please run the following to install.
+
+    ```bash
+    conda install -c etetoolkit ete3 ete_toolchain
+    pip install PyQt5
+    pip install QtPy
+    ```
+
+    Parameters
+    ----------
+    input_tree:
+        A tree stored in ete3 style. This can be the output from running `cs.tl.fate_hierarchy(adata, source="X_clone")`, where the resulting tree will be stored at my_tree = adata.uns["fate_hierarchy_X_clone"]["tree"].
+    color_coding:
+        A dictionary for mapping the leaf names to a specific color. An example color_coding will be {'node_1':"#e5f5f9",'node_2':"#99d8c9",...}. 'node_1' and 'node_2' will be the leaf node names.
+    mode:
+        The mode of plotting. {'r', 'c'}. 'c' is the circular mode, and 'r' is the rectangular mode.
+    width:
+        Width of the tree plot.
+    height:
+        Height of the tree plot.
+    dpi:
+        Resolution of the tree plot.
+    data_des:
+        Label for saving the figure, i.e., figure name.
+    figure_path:
+        Figure directory.
+    """
+
+    from ete3 import AttrFace, NodeStyle, Tree, TreeStyle, faces
+    from IPython.display import Image, display
+
+    def layout(node):
+        if node.is_leaf():
+            N = AttrFace("name", fsize=5)
+            faces.add_face_to_node(N, node, 100, position="aligned")
+            # pass
+
+    if color_coding is not None:
+        print("coding")
+        for n in input_tree.traverse():
+            nst1 = NodeStyle(size=1, fgcolor="#f0f0f0")
+            n.set_style(nst1)
+
+        for n in input_tree:
+            for key, value in color_coding.items():
+                if n.name.startswith(key):
+                    nst1 = NodeStyle(size=1)
+                    nst1["bgcolor"] = value
+                    n.set_style(nst1)
+
+    ts = TreeStyle()
+    ts.layout_fn = layout
+    ts.show_leaf_name = False
+    ts.mode = mode
+    # ts.extra_branch_line_color = "red"
+    # ts.extra_branch_line_type = 0
+    input_tree.render(
+        os.path.join(figure_path, f"{data_des}.pdf"),
+        tree_style=ts,
+        w=width,
+        h=height,
+        units="mm",
+    )
+    input_tree.render(
+        os.path.join(figure_path, f"{data_des}.png"),
+        tree_style=ts,
+        w=width,
+        h=height,
+        dpi=dpi,
+        units="mm",
+    )
+
+    display(Image(filename=os.path.join(figure_path, f"{data_des}.png")))
