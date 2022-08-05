@@ -38,6 +38,10 @@ def barcode_heatmap(
     pseudocount=10 ** (-10),
     order_map_x=False,
     order_map_y=False,
+    fate_normalize_source="X_clone",
+    select_clones_with_fates: list = None,
+    select_clones_without_fates: list = None,
+    select_clones_mode: str = "or",
     **kwargs,
 ):
     """
@@ -78,6 +82,14 @@ def barcode_heatmap(
         Whether to re-order the x coordinate of the matrix or not
     order_map_y: `bool`
         Whether to re-order the y coordinate of the matrix or not
+    fate_normalize_source:
+        Source for cluster-wise normalization: {'X_clone','state_info'}. 'X_clone': directly row-normalize coarse_X_clone; 'state_info': compute each cluster size directly, and then normalize coarse_X_clone. The latter method is useful if we have single-cell resolution for each fate.
+    select_clones_with_fates: list = None,
+        Select clones that labels fates from this list.
+    select_clones_without_fates: list = None,
+        Exclude clones that labels fates from this list.
+    select_clones_mode: str = {'or','and'}
+        Logic rule for selection.
 
     Returns:
     --------
@@ -89,14 +101,17 @@ def barcode_heatmap(
     data_des = f"{data_des}_clonal"
     figure_path = settings.figure_path
 
-    if not normalize:
-        coarse_X_clone, mega_cluster_list = tl.coarse_grain_clone_over_cell_clusters(
-            adata, selected_times=selected_times, selected_fates=selected_fates
-        )
-    else:
-        df_Xclone = tl.get_normalized_coarse_X_clone(adata, selected_fates)
-        coarse_X_clone = df_Xclone.to_numpy()
-        mega_cluster_list = df_Xclone.index
+    coarse_X_clone, mega_cluster_list = tl.coarse_grain_clone_over_cell_clusters(
+        adata,
+        selected_times=selected_times,
+        selected_fates=selected_fates,
+        normalize=normalize,
+        fate_normalize_source=fate_normalize_source,
+        select_clones_with_fates=select_clones_with_fates,
+        select_clones_without_fates=select_clones_without_fates,
+        select_clones_mode=select_clones_mode,
+        **kwargs,
+    )
 
     if rename_fates is None:
         rename_fates = mega_cluster_list
@@ -141,6 +156,7 @@ def barcode_heatmap(
             color_bar=color_bar,
             **kwargs,
         )
+        plt.title(f"{np.sum(clone_idx)} clones")
 
         plt.tight_layout()
         if figure_index != "":

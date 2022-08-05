@@ -233,8 +233,18 @@ def coarse_grain_clone_over_cell_clusters(
     adata,
     selected_times=None,
     selected_fates=None,
+    normalize=False,
+    fate_normalize_source="X_clone",
+    pseudocount=10 ** (-10),
+    select_clones_with_fates: list = None,
+    select_clones_without_fates: list = None,
+    select_clones_mode: str = "or",
 ):
     """
+    Compute the coarse-grained X_clone matrix over specified fates and
+    time points, with the option to also normalize the resulting matrix
+    first cluster-wise then clone-wise.
+
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
@@ -242,6 +252,16 @@ def coarse_grain_clone_over_cell_clusters(
         Time points to select the cell states.
     selected_fates: `list`, optional (default: all)
         List of fate clusters to use. If set to be [], use all.
+    normalize:
+        To perform cluster-wise, then clone-wise normalization
+    fate_normalize_source:
+        Source for cluster-wise normalization: {'X_clone','state_info'}. 'X_clone': directly row-normalize coarse_X_clone; 'state_info': compute each cluster size directly, and then normalize coarse_X_clone. The latter method is useful if we have single-cell resolution for each fate.
+    select_clones_with_fates: list = None,
+        Select clones that labels fates from this list.
+    select_clones_without_fates: list = None,
+        Exclude clones that labels fates from this list.
+    select_clones_mode: str = {'or','and'}
+        Logic rule for selection.
 
     Returns:
     --------
@@ -260,13 +280,16 @@ def coarse_grain_clone_over_cell_clusters(
     X_clone_0 = adata[sp_idx].obsm["X_clone"]
     state_annote = adata[sp_idx].obs["state_info"]
 
+    if fate_normalize_source not in ["X_clone", "state_info"]:
+        raise ValueError("fate_normalize_source not in ['X_clone','state_info']")
+
     if np.sum(sp_idx) == 0:
         logg.error("No cells selected. Computation aborted!")
     else:
         (
             mega_cluster_list,
-            __,
-            __,
+            valid_fate_list,
+            fate_array_flat,
             sel_index_list,
         ) = hf.analyze_selected_fates(state_annote, selected_fates)
         if len(mega_cluster_list) == 0:
@@ -276,65 +299,197 @@ def coarse_grain_clone_over_cell_clusters(
             for j, idx in enumerate(sel_index_list):
                 coarse_X_clone[j, :] = X_clone_0[idx].sum(0)
 
+        # map original fate name to mega_cluster name
+        name_map = {
+            list(set(state_annote.to_numpy()[x]))[0]: mega_cluster_list[j]
+            for j, x in enumerate(sel_index_list)
+        }
+
+        # perform cluster-wise, then clone-wise normalization
+        if normalize:
+            # normalize cluster wise
+            if fate_normalize_source == "state_info":
+                logg.info("normalize by state_info (in case clonal data is sparse)")
+                cell_type_N = np.array([np.sum(x) for x in sel_index_list])
+                norm_X_cluster = coarse_X_clone / cell_type_N[:, np.newaxis]
+            elif fate_normalize_source == "X_clone":
+                logg.info("normalize by X_clone")
+                norm_X_cluster = coarse_X_clone / (
+                    coarse_X_clone.sum(1)[:, np.newaxis] + pseudocount
+                )
+
+            # normalize clone wise within each time point
+            # first check if each cluster has only a single time point
+            df_time_state = (
+                pd.DataFrame(
+                    {
+                        "state_info": adata.obs["state_info"].to_list(),
+                        "time_info": adata.obs["time_info"].to_list(),
+                    }
+                )
+                .groupby(["state_info", "time_info"])
+                .count()
+                .reset_index()
+            )
+            df_time_state = df_time_state[
+                df_time_state["state_info"].isin(fate_array_flat)
+            ]
+            df_time_state["mega_state"] = df_time_state["state_info"].map(name_map)
+
+            each_cluster_has_unique_time = (
+                df_time_state.groupby("state_info")["time_info"].count().to_numpy() == 1
+            ).all()
+            if each_cluster_has_unique_time:
+                # each cluster has a single time point. normalize by time_info
+                logg.info(
+                    "each selected cluster has a unique time point. Normalize per time point"
+                )
+                X_list = []
+                new_fate_list = []
+                for t in sorted(df_time_state.time_info.unique()):
+                    fates_t = df_time_state[df_time_state["time_info"] == t][
+                        "mega_state"
+                    ].unique()
+                    sel_idx = np.in1d(mega_cluster_list, fates_t)
+
+                    norm_X_cluster_clone_t = norm_X_cluster[sel_idx] / (
+                        norm_X_cluster[sel_idx].sum(0)[np.newaxis, :] + pseudocount
+                    )  # normalize by columns (i.e. clones)
+
+                    X_list.append(norm_X_cluster_clone_t)
+                    new_fate_list += list(mega_cluster_list[sel_idx])
+                norm_X_cluster_clone = np.vstack(X_list)
+
+                # re-order the matrix
+                df_X_cluster = pd.DataFrame(norm_X_cluster_clone, index=new_fate_list)
+                coarse_X_clone = df_X_cluster.loc[mega_cluster_list].to_numpy()
+
+            else:
+                logg.info(
+                    "each cluster do not have a unique time point. Simply column-normalize the matrix"
+                )
+                norm_X_cluster_clone = norm_X_cluster / (
+                    norm_X_cluster.sum(0)[np.newaxis, :] + pseudocount
+                )  # normalize by columns (i.e. clones)
+
+                coarse_X_clone = norm_X_cluster_clone
+
+        if (select_clones_with_fates is not None) or (
+            select_clones_without_fates is not None
+        ):
+            fate_names = np.array(mega_cluster_list)
+            if select_clones_mode == "and":
+                valid_clone_idx = np.ones(coarse_X_clone.shape[1]).astype(bool)
+                if select_clones_with_fates is not None:
+                    for x_name in select_clones_with_fates:
+                        valid_clone_idx_tmp = (
+                            coarse_X_clone[fate_names == name_map[x_name]].sum(0) > 0
+                        )
+                        valid_clone_idx = valid_clone_idx & valid_clone_idx_tmp
+
+                if select_clones_without_fates is not None:
+                    for x_name in select_clones_without_fates:
+                        valid_clone_idx_tmp = (
+                            coarse_X_clone[fate_names == name_map[x_name]].sum(0) > 0
+                        )
+                        valid_clone_idx = valid_clone_idx & ~valid_clone_idx_tmp
+            elif select_clones_mode == "or":
+                valid_clone_idx = np.zeros(coarse_X_clone.shape[1]).astype(bool)
+                if select_clones_with_fates is not None:
+                    for x_name in select_clones_with_fates:
+                        valid_clone_idx_tmp = (
+                            coarse_X_clone[fate_names == name_map[x_name]].sum(0) > 0
+                        )
+                        valid_clone_idx = valid_clone_idx | valid_clone_idx_tmp
+
+                if select_clones_without_fates is not None:
+                    for x_name in select_clones_without_fates:
+                        valid_clone_idx_tmp = (
+                            coarse_X_clone[fate_names == name_map[x_name]].sum(0) > 0
+                        )
+                        valid_clone_idx = valid_clone_idx | ~valid_clone_idx_tmp
+
+            coarse_X_clone = coarse_X_clone[:, valid_clone_idx]
+
         return coarse_X_clone, mega_cluster_list
 
 
-def get_normalized_coarse_X_clone(adata, selected_fates):
+def get_normalized_coarse_X_clone(
+    adata,
+    selected_fates,
+    fate_normalize_source="X_clone",
+    pseudocount=10 ** (-10),
+    select_clones_with_fates: list = None,
+    select_clones_without_fates: list = None,
+    select_clones_mode: str = "or",
+):
     """
     We first normalize per cluster, then within each time point, normalize within the clone.
     In this case, the normalized coarse_X_clone matrix sums to 1 for each clone, thereby directly
     highlighting which cell type is more preferred by a clone. Note that the cluster-cluster correlation
     will be affected by both the cluster and clone normalization.
+
+    Parameters
+    ----------
+    adata:
+        adata object
+    selected_fates:
+        Selected cell clusters to perform coarse-graining
+    fate_normalize_source:
+        Source for cluster-wise normalization: {'X_clone','state_info'}. 'X_clone': directly row-normalize coarse_X_clone; 'state_info': compute each cluster size directly, and then normalize coarse_X_clone. The latter method is useful if we have single-cell resolution for each fate.
     """
 
-    coarse_X_clone, selected_fates = coarse_grain_clone_over_cell_clusters(
-        adata, selected_fates=selected_fates
+    if fate_normalize_source not in ["X_clone", "state_info"]:
+        raise ValueError(
+            "fate_normalize_source must come from {'X_clone', 'state_info'"
+        )
+
+    coarse_X_clone, mega_cluster_list = coarse_grain_clone_over_cell_clusters(
+        adata,
+        selected_fates=selected_fates,
+        normalize=True,
+        fate_normalize_source=fate_normalize_source,
+        pseudocount=pseudocount,
+        select_clones_with_fates=select_clones_with_fates,
+        select_clones_without_fates=select_clones_without_fates,
+        select_clones_mode=select_clones_mode,
     )
 
-    cell_type_N = []
-    for x in selected_fates:
-        temp = np.sum(np.array(adata.obs["state_info"]) == x)
-        cell_type_N.append(temp)
-
-    # normalize cluster wise
-    sum_X = np.array(cell_type_N)
-    norm_X_cluster = coarse_X_clone / sum_X[:, np.newaxis]
-
-    # normalize clone wise within each time point
-    selected_fates = np.array(selected_fates)
-    time_info = adata.obs["time_info"]
-    X_list = []
-    new_fate_list = []
-    for t in sorted(list(set(time_info))):
-        adata_t = adata[time_info == t]
-        fates_t = list(set(adata_t.obs["state_info"]).intersection(selected_fates))
-        sel_idx = np.in1d(selected_fates, fates_t)
-        # print(f"time {t}; sel_idx {sel_idx}")
-        sum_t = norm_X_cluster[sel_idx].sum(0)
-        norm_X_cluster_clone_t = (
-            (norm_X_cluster[sel_idx].transpose()) / (sum_t[:, np.newaxis] + 10**-10)
-        ).transpose()
-        X_list.append(norm_X_cluster_clone_t)
-        new_fate_list += list(selected_fates[sel_idx])
-    norm_X_cluster_clone = np.vstack(X_list)
     df_X_cluster = pd.DataFrame(
-        norm_X_cluster_clone,
-        columns=[f"clone_{j}" for j in range(norm_X_cluster_clone.shape[1])],
+        coarse_X_clone,
+        columns=[f"clone_{j}" for j in range(coarse_X_clone.shape[1])],
+        index=mega_cluster_list,
     )
-    df_X_cluster.index = new_fate_list
 
     return df_X_cluster
 
 
-def clonal_trajectory(adata, selected_fates):
+def clonal_trajectory(
+    adata,
+    selected_fates,
+    fate_normalize_source="X_clone",
+    select_clones_with_fates: list = None,
+    select_clones_without_fates: list = None,
+    select_clones_mode: str = "or",
+    **kwargs,
+):
     """
     Assign each cell a fate choice that belongs to its clone, and the
     clonal fate choice is determined by the coarse-grained and normalized
-    barcode count matrix according to get_normalized_coarse_X_clone.
+    barcode count matrix according to coarse_grain_clone_over_cell_clusters.
     The output is stored at adata.obs[f"clonal_traj_{sel_fates[j]}"]
     """
 
-    df_X_cluster = get_normalized_coarse_X_clone(adata, selected_fates)
+    df_X_cluster = coarse_grain_clone_over_cell_clusters(
+        adata,
+        selected_fates,
+        normalize=True,
+        fate_normalize_source=fate_normalize_source,
+        select_clones_with_fates=select_clones_with_fates,
+        select_clones_without_fates=select_clones_without_fates,
+        select_clones_mode=select_clones_mode,
+        **kwargs,
+    )
     coarse_X_clone = df_X_cluster.to_numpy()
     X_clone = adata.obsm["X_clone"].A
     fate_map = np.zeros((adata.shape[0], coarse_X_clone.shape[0]))
@@ -353,55 +508,6 @@ def clonal_trajectory(adata, selected_fates):
     for j, x in enumerate(fate_map.transpose()):
         adata.obs[f"clonal_traj_{sel_fates[j]}"] = x
         logg.info(f'Results saved at adata.obs[f"clonal_traj_{sel_fates[j]}"]')
-
-
-def get_normalized_coarse_X_clone_v1(adata, selected_fates):
-    """
-    We first normalize per clone within a time point, then per cluster.
-    """
-
-    pl.barcode_heatmap(
-        adata,
-        selected_fates=selected_fates,
-        color_bar=True,
-        log_transform=False,
-        fig_height=4,
-        fig_width=8,
-        binarize=False,
-        plot=False,
-    )
-
-    coarse_X_clone = adata.uns["barcode_heatmap"]["coarse_X_clone"]
-
-    # normalize clone wise within each time point
-    selected_fates = np.array(selected_fates)
-    time_info = adata.obs["time_info"]
-    X_list = []
-    new_fate_list = []
-    for t in sorted(list(set(time_info))):
-        adata_t = adata[time_info == t]
-        fates_t = list(set(adata_t.obs["state_info"]).intersection(selected_fates))
-        sel_idx = np.in1d(selected_fates, fates_t)
-        # print(f"time {t}; sel_idx {sel_idx}")
-        sum_t = coarse_X_clone[sel_idx].sum(0)
-        norm_X_clone_t = (
-            (coarse_X_clone[sel_idx].transpose()) / (sum_t[:, np.newaxis] + 10**-10)
-        ).transpose()
-        X_list.append(norm_X_clone_t)
-        new_fate_list += list(selected_fates[sel_idx])
-    norm_X_clone = np.vstack(X_list)
-
-    # normalize cluster wise
-    sum_X = norm_X_clone.sum(1)
-    norm_X_cluster_clone = norm_X_clone / sum_X[:, np.newaxis]
-
-    df_X_cluster = pd.DataFrame(
-        norm_X_cluster_clone,
-        columns=[f"clone {j}" for j in range(norm_X_cluster_clone.shape[1])],
-    )
-    df_X_cluster.index = new_fate_list
-
-    return df_X_cluster
 
 
 def add_clone_id_for_each_cell(adata):
@@ -519,7 +625,16 @@ def clone_statistics(adata):
 
 
 def computer_sister_cell_distance(
-    adata, selected_time=None, method="2D", key="X_emb", neighbor_number=10
+    adata,
+    selected_time=None,
+    method="2D",
+    key="X_emb",
+    neighbor_number=10,
+    title=None,
+    color_random="#a6bddb",
+    color_data="#fdbb84",
+    plot_random_mean=True,
+    plot_random_mean_height=0.5,
 ):
     """
     Parameters
@@ -559,34 +674,86 @@ def computer_sister_cell_distance(
     else:
         raise ValueError("method should be among {'2D' or 'high'}")
 
-    t1_clone_size = adata_t1.obsm["X_clone"].A.sum(0)
-    selected_clone_idx = np.nonzero(t1_clone_size >= 2)[0]
-    distance_list = []
-    for x in selected_clone_idx:
-        ids_all = np.nonzero(adata_t1.obsm["X_clone"][:, x].A.flatten() > 0)[0]
-        distance_tmp = []
-        for i in range(len(ids_all)):
-            for j in range(i + 1, len(ids_all)):
-                dis = norm_distance[ids_all[i], ids_all[j]]
-                distance_tmp.append(dis)
-        distance_list.append(np.mean(distance_tmp))
+    X_clone = (adata_t1.obsm["X_clone"].A.copy() > 0).astype(int)
+    logg.info(np.sum(X_clone.sum(0) >= 2), " clones with >=2 cells selected")
 
+    def get_distance(X_clone):
+        t1_clone_size = (X_clone).sum(0)
+        selected_clone_idx = np.nonzero(t1_clone_size >= 2)[0]
+        distance_list = []
+        for x in selected_clone_idx:
+            ids_all = np.nonzero(X_clone[:, x] > 0)[0]
+            distance_tmp = []
+            for i in range(len(ids_all)):
+                distance_tmp.append(
+                    [
+                        norm_distance[ids_all[i], ids_all[j]]
+                        for j in range(len(ids_all))
+                        if j != i
+                    ]
+                )
+            distance_list.append(np.array(distance_tmp).min(axis=1).mean())
+        return distance_list, selected_clone_idx
+
+    distance_list, selected_clone_idx = get_distance(X_clone)
+
+    random_dis = []
+    random_dis_mean = []
+    for _ in range(1000):
+        np.random.shuffle(X_clone)
+        temp, __ = get_distance(X_clone)
+        random_dis += temp
+        random_dis_mean.append(np.mean(temp))
+
+    # random_dis = norm_distance[np.triu(np.ones(norm_distance.shape), k=1).astype(bool)]
     df_distance = pd.DataFrame(
         {
             "clone_id": selected_clone_idx,
             "clone_distance": distance_list,
-            "random_distance": np.random.choice(
-                norm_distance.flatten(), len(distance_list)
-            ),
+            "random_distance": np.random.choice(random_dis, len(selected_clone_idx)),
         }
     )
 
-    fig, ax = plt.subplots()
-    ax = sns.histplot(df_distance["clone_distance"], bins=20)
-    ax.set_xlabel("Sister cell distance")
-    x = np.mean(norm_distance.flatten())
-    plt.plot([x, x], [0, 12], "-r")
-    # ax.text(x,10, 'mean random dist',fontsize=15,color='r')
+    fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+    ax = sns.histplot(
+        random_dis,
+        label="random",
+        bins=20,
+        stat="density",
+        color=color_random,
+        ax=axs[0],
+    )
+    ax = sns.histplot(
+        data=df_distance,
+        x="clone_distance",
+        label="data",
+        bins=20,
+        stat="density",
+        ax=axs[0],
+        color=color_data,
+    )
+    ax.legend()
+    ax.set_xlabel("Sister-cell distance")
+    x = np.mean(random_dis)
+    if plot_random_mean:
+        ax.plot([x, x], [0, plot_random_mean_height], "-r")
     below_random = np.mean(df_distance["clone_distance"] < x)
-    ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
+    if title is None:
+        ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
+    else:
+        ax.set_title(title)
+
+    ax = sns.histplot(
+        random_dis_mean, bins=20, stat="density", ax=axs[1], label="random"
+    )
+    x = np.mean(distance_list)
+    axs[1].plot([x, x], [0, plot_random_mean_height], "-r", label="data")
+    ax.legend()
+    ax.set_xlabel("Average sister-cell distance")
+    below_random = np.mean(random_dis_mean < x)
+    if title is None:
+        ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
+    else:
+        ax.set_title(title)
+    plt.tight_layout()
     return df_distance

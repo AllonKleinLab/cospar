@@ -163,8 +163,14 @@ def fate_coupling(
     selected_times=None,
     fate_map_method="sum",
     method="SW",
+    normalize=True,
     silence=False,
     ignore_cell_number: bool = False,
+    fate_normalize_source="X_clone",
+    select_clones_with_fates: list = None,
+    select_clones_without_fates: list = None,
+    select_clones_mode: str = "or",
+    **kwargs,
 ):
     """
     Compute fate coupling determined by the transition map.
@@ -201,7 +207,10 @@ def fate_coupling(
         of states annotated with fate :math:`\mathcal{C}`. Available options:
         {'sum', 'norm-sum'}. See :func:`.fate_map`.
     method: `str`, optional (default: 'SW')
-        Method to normalize the coupling matrix: {'SW', 'Weinreb'}.
+        Method to normalize the coupling matrix: {'SW', 'Weinreb','Jaccard'}.
+    normalize:
+        We normalize the count matrix first within each cluster, then, within each clone separately
+        for each time point. It is default to be on, a change from off as before. This option is only for calculating coupling using the X_clone.
     silence:
         Suppress information printing.
     ignore_cell_number:
@@ -209,6 +218,14 @@ def fate_coupling(
         contribution towards a cluster. This only works when 'source=X_clone'
         This biases towards large clusters, which will host many clones (most of them just
         a few cells)
+    fate_normalize_source:
+        Source for cluster-wise normalization: {'X_clone','state_info'}. 'X_clone': directly row-normalize coarse_X_clone; 'state_info': compute each cluster size directly, and then normalize coarse_X_clone. The latter method is useful if we have single-cell resolution for each fate.
+    select_clones_with_fates: list = None,
+        Select clones that labels fates from this list.
+    select_clones_without_fates: list = None,
+        Exclude clones that labels fates from this list.
+    select_clones_mode: str = {'or','and'}
+        Logic rule for selection.
 
     Returns
     -------
@@ -223,7 +240,15 @@ def fate_coupling(
         raise ValueError(f"source should be among {choices}")
     elif source == "X_clone":
         coarse_X_clone, fate_names = _clone.coarse_grain_clone_over_cell_clusters(
-            adata, selected_times=selected_times, selected_fates=selected_fates
+            adata,
+            selected_times=selected_times,
+            selected_fates=selected_fates,
+            normalize=normalize,
+            fate_normalize_source=fate_normalize_source,
+            select_clones_with_fates=select_clones_with_fates,
+            select_clones_without_fates=select_clones_without_fates,
+            select_clones_mode=select_clones_mode,
+            **kwargs,
         )
         if ignore_cell_number:
             coarse_X_clone = (coarse_X_clone > 0).astype(int)
