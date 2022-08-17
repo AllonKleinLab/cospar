@@ -324,6 +324,13 @@ def heatmap(
         If col_range is set within [0,100], it will plot the percentile of the values,
         and the color_bar will show range [0,1]. This re-scaling is useful for
         visualizing gene expression.
+
+    Returns
+    ax,
+    order_x,
+        An integer index for ordered x axis
+    order_y,
+        An integer index for ordered y axis
     """
 
     from matplotlib.colors import Normalize as mpl_Normalize
@@ -408,7 +415,7 @@ def heatmap(
         cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=color_map))
         cbar.set_label(f"{color_bar_label}{label_}", rotation=270, labelpad=20)
     plt.gcf().set_size_inches((fig_width, fig_height))
-    return ax
+    return ax, order_x, order_y
 
 
 def fate_map_embedding(

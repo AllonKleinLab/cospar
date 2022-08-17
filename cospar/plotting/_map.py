@@ -75,10 +75,12 @@ def fate_coupling(
     if "y_ticks" not in kwargs.keys():
         kwargs["y_ticks"] = rename_fates
 
-    vmax = (
-        np.percentile(X_coupling - np.diag(np.diag(X_coupling)), 95)
-        + np.percentile(X_coupling - np.diag(np.diag(X_coupling)), 98)
-    ) / 2
+    # vmax = (
+    #     np.percentile(X_coupling - np.diag(np.diag(X_coupling)), 95)
+    #     + np.percentile(X_coupling - np.diag(np.diag(X_coupling)), 98)
+    # ) / 2
+    vmax = np.max(X_coupling - np.diag(np.diag(X_coupling)))
+
     ax = pl_util.heatmap(
         X_coupling,
         color_bar_label=color_bar_label,
