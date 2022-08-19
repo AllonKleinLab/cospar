@@ -692,18 +692,21 @@ def computer_sister_cell_distance(
                         if j != i
                     ]
                 )
-            distance_list.append(np.array(distance_tmp).min(axis=1).mean())
+            distance_list.append(np.array(distance_tmp).mean(axis=1).mean())  # min.mean
         return distance_list, selected_clone_idx
 
     distance_list, selected_clone_idx = get_distance(X_clone)
 
     random_dis = []
-    random_dis_mean = []
+    random_dis_stat = []
     for _ in range(1000):
         np.random.shuffle(X_clone)
         temp, __ = get_distance(X_clone)
         random_dis += temp
-        random_dis_mean.append(np.mean(temp))
+        random_dis_stat.append(
+            [np.mean(temp), np.min(temp), np.median(temp), np.max(temp)]
+        )
+    random_dis_stat = np.array(random_dis_stat)
 
     # random_dis = norm_distance[np.triu(np.ones(norm_distance.shape), k=1).astype(bool)]
     df_distance = pd.DataFrame(
@@ -714,7 +717,7 @@ def computer_sister_cell_distance(
         }
     )
 
-    fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+    fig, axs = plt.subplots(1, 5, figsize=(20, 4))
     ax = sns.histplot(
         random_dis,
         label="random",
@@ -743,17 +746,31 @@ def computer_sister_cell_distance(
     else:
         ax.set_title(title)
 
-    ax = sns.histplot(
-        random_dis_mean, bins=20, stat="density", ax=axs[1], label="random"
-    )
-    x = np.mean(distance_list)
-    axs[1].plot([x, x], [0, plot_random_mean_height], "-r", label="data")
-    ax.legend()
-    ax.set_xlabel("Average sister-cell distance")
-    below_random = np.mean(random_dis_mean < x)
-    if title is None:
-        ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
-    else:
-        ax.set_title(title)
+    ########
+    obs_stat = [
+        np.mean(distance_list),
+        np.min(distance_list),
+        np.median(distance_list),
+        np.max(distance_list),
+    ]
+    method_stat = ["Mean", "Min", "Median", "Max"]
+    for j in range(4):
+        ax = sns.histplot(
+            random_dis_stat[:, j],
+            bins=20,
+            stat="density",
+            ax=axs[1 + j],
+            label="random",
+        )
+        x = obs_stat[j]
+        axs[1 + j].plot([x, x], [0, plot_random_mean_height], "-r", label="data")
+        ax.legend()
+        ax.set_xlabel(f"{method_stat[j]} sister-cell distance")
+        below_random = np.mean(random_dis_stat[:, j] < x)
+        if title is None:
+            ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
+        else:
+            ax.set_title(title)
+
     plt.tight_layout()
     return df_distance

@@ -415,7 +415,7 @@ def heatmap(
         cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=color_map))
         cbar.set_label(f"{color_bar_label}{label_}", rotation=270, labelpad=20)
     plt.gcf().set_size_inches((fig_width, fig_height))
-    return ax, order_x, order_y
+    return ax
 
 
 def fate_map_embedding(
@@ -553,8 +553,9 @@ def fate_map_embedding(
         ax.set_title(f"Ave.: {np.mean(fate_map_temp):.2f}")
 
 
-def rand_jitter(arr, std):
-    stdev = std * (max(arr) - min(arr))
+def rand_jitter(arr, fraction):
+    stdev = fraction * np.mean(arr)
+    # stdev = fraction * (max(arr) - min(arr))
     return arr + np.random.randn(len(arr)) * stdev
 
 
