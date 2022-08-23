@@ -519,11 +519,15 @@ def add_clone_id_for_each_cell(adata):
     logg.info("add information at obs['clone_id']")
 
 
-def remove_multiclone_cell(
+def remove_multiclone_cell(adata, **kwargs):
+    return filter_cells(adata, **kwargs)
+
+
+def filter_cells(
     adata, clone_threshold=2, keep_discarded_clones=True, update_X_clone=True
 ):
     """
-    cells with clones >= clone_threshold will be removed (set to 0) from the X_clone.
+    cells with clone number >= clone_threshold will be removed (set to 0) from the X_clone.
     """
     barcode_N_per_cell = adata.obsm["X_clone"].sum(1).A.flatten()
     print("Multiclone cell fraction:", (barcode_N_per_cell > 1).mean())
@@ -565,13 +569,28 @@ def remove_multiclone_cell(
     return removed_clones
 
 
-def remove_multicell_clone(adata, clone_size_threshold=3):
+def remove_multicell_clone(adata, **kwargs):
+    return filter_clones(adata, **kwargs)
+
+
+def filter_clones(adata, clone_size_threshold=3, filter_larger_clones=True):
     """
-    clones with clone_size >= clone_size_threshold will be removed from the X_clone.
+    if filter_larger_clones=True,
+        clones with clone_size >= clone_size_threshold will be removed from the X_clone.
+    else:
+        filter smaller clones
     """
     df_clone = clone_statistics(adata)
-    clone_idx = df_clone["cell_number"] < clone_size_threshold
-    logg.info(f"Removed clone fraction {1-clone_idx.mean():.2f}")
+    if filter_larger_clones:
+        clone_idx = df_clone["cell_number"] < clone_size_threshold
+        logg.info(
+            f"Removed clone with size >= {clone_size_threshold}; fraction {1-clone_idx.mean():.2f}"
+        )
+    else:
+        clone_idx = df_clone["cell_number"] >= clone_size_threshold
+        logg.info(
+            f"Removed clone with size < {clone_size_threshold}; fraction {1-clone_idx.mean():.2f}"
+        )
 
     sel_clone_ids = df_clone[clone_idx]["clone_id"].to_list()
     X_clone_new = adata.obsm["X_clone"][:, sel_clone_ids]
@@ -692,7 +711,7 @@ def computer_sister_cell_distance(
                         if j != i
                     ]
                 )
-            distance_list.append(np.array(distance_tmp).mean(axis=1).mean())  # min.mean
+            distance_list.append(np.array(distance_tmp).min(axis=1).mean())  # min.mean
         return distance_list, selected_clone_idx
 
     distance_list, selected_clone_idx = get_distance(X_clone)
