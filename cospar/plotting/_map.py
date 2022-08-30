@@ -32,6 +32,7 @@ def fate_coupling(
     color_map=color_map_reds,
     figure_index="",
     color_bar_label="Fate coupling",
+    vmax=None,
     **kwargs,
 ):
     """
@@ -75,11 +76,12 @@ def fate_coupling(
     if "y_ticks" not in kwargs.keys():
         kwargs["y_ticks"] = rename_fates
 
-    # vmax = (
-    #     np.percentile(X_coupling - np.diag(np.diag(X_coupling)), 95)
-    #     + np.percentile(X_coupling - np.diag(np.diag(X_coupling)), 98)
-    # ) / 2
-    vmax = np.max(X_coupling - np.diag(np.diag(X_coupling)))
+    if vmax is None:
+        # vmax = (
+        #     np.percentile(X_coupling - np.diag(np.diag(X_coupling)), 95)
+        #     + np.percentile(X_coupling - np.diag(np.diag(X_coupling)), 98)
+        # ) / 2
+        vmax = np.max(X_coupling - np.diag(np.diag(X_coupling)))
 
     ax = pl_util.heatmap(
         X_coupling,
