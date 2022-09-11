@@ -582,12 +582,12 @@ def filter_clones(adata, clone_size_threshold=3, filter_larger_clones=True):
     """
     df_clone = clone_statistics(adata)
     if filter_larger_clones:
-        clone_idx = df_clone["cell_number"] < clone_size_threshold
+        clone_idx = df_clone["clone_size"] < clone_size_threshold
         logg.info(
             f"Removed clone with size >= {clone_size_threshold}; fraction {1-clone_idx.mean():.2f}"
         )
     else:
-        clone_idx = df_clone["cell_number"] >= clone_size_threshold
+        clone_idx = df_clone["clone_size"] >= clone_size_threshold
         logg.info(
             f"Removed clone with size < {clone_size_threshold}; fraction {1-clone_idx.mean():.2f}"
         )
@@ -602,7 +602,7 @@ def filter_clones(adata, clone_size_threshold=3, filter_larger_clones=True):
     logg.info(f"Check removed clones with adata.obsm['X_clone_old']")
 
 
-def clone_statistics(adata,joint_variable='time_info'):
+def clone_statistics(adata, joint_variable="time_info"):
     """
     Extract the number of clones and clonal cells for each time point
     """
@@ -636,10 +636,24 @@ def clone_statistics(adata,joint_variable='time_info'):
         .agg(clone_N=("time_points", "count"))
         .assign(clone_fraction=lambda x: x["clone_N"] / x["clone_N"].sum())
     )
-    print(df_clone.reset_index().rename(columns={"time_points":joint_variable}).set_index(joint_variable))
+    print(
+        df_clone.reset_index()
+        .rename(columns={"time_points": joint_variable})
+        .set_index(joint_variable)
+    )
     print("-----------")
-    print(df_cell.reset_index().rename(columns={"time_info":joint_variable}).set_index(joint_variable))
-    return df.reset_index().rename(columns={'time_point_N':f'{joint_variable}_N','time_points':joint_variable,'cell_number':'clone_size'})
+    print(
+        df_cell.reset_index()
+        .rename(columns={"time_info": joint_variable})
+        .set_index(joint_variable)
+    )
+    return df.reset_index().rename(
+        columns={
+            "time_point_N": f"{joint_variable}_N",
+            "time_points": joint_variable,
+            "cell_number": "clone_size",
+        }
+    )
 
 
 def computer_sister_cell_distance(
@@ -710,7 +724,7 @@ def computer_sister_cell_distance(
                         if j != i
                     ]
                 )
-            #distance_list.append(np.array(distance_tmp).min(axis=1).mean())  # min.mean
+            # distance_list.append(np.array(distance_tmp).min(axis=1).mean())  # min.mean
             distance_list.append(np.array(distance_tmp).flatten().max())  # min.mean
         return distance_list, selected_clone_idx
 
