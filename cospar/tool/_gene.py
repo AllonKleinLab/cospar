@@ -27,6 +27,8 @@ def differential_genes(
     cell_group_B=None,
     FDR_cutoff=0.05,
     sort_by="ratio",
+    min_frac_expr=0.05, 
+    pseudocount=1
 ):
     """
     Perform differential gene expression analysis and plot top DGE genes.
@@ -49,6 +51,11 @@ def differential_genes(
         cutoff will be shown.
     sort_by: `float`, optional (default: 'ratio')
         The key to sort the differentially expressed genes. The key can be: 'ratio' or 'Qvalue'.
+    min_frac_expr: `float`, optional (default: 0.05)
+        Minimum expression fraction among selected states for a
+        gene to be considered for DGE analysis.
+    pseudocount: `int`, optional (default: 1)
+        pseudo count for taking the gene expression ratio between the two groups
 
     Returns
     -------
@@ -89,16 +96,16 @@ def differential_genes(
 
     else:
 
-        dge = hf.get_dge_SW(adata, selections[0], selections[1])
-
-        dge = dge.sort_values(by=sort_by, ascending=True)
-        diff_gene_A_0 = dge
-        diff_gene_A = diff_gene_A_0[(dge["Qvalue"] < FDR_cutoff) & (dge["ratio"] < 0)]
-        diff_gene_A = diff_gene_A.reset_index()
+        dge = hf.get_dge_SW(adata, selections[0], selections[1],min_frac_expr=min_frac_expr,pseudocount=pseudocount)
 
         dge = dge.sort_values(by=sort_by, ascending=False)
+        diff_gene_A_0 = dge
+        diff_gene_A = diff_gene_A_0[(dge["Qvalue"] < FDR_cutoff) & (dge["ratio"] > 0)]
+        diff_gene_A = diff_gene_A.reset_index()
+
+        dge = dge.sort_values(by=sort_by, ascending=True)
         diff_gene_B_0 = dge
-        diff_gene_B = diff_gene_B_0[(dge["Qvalue"] < FDR_cutoff) & (dge["ratio"] > 0)]
+        diff_gene_B = diff_gene_B_0[(dge["Qvalue"] < FDR_cutoff) & (dge["ratio"] < 0)]
         diff_gene_B = diff_gene_B.reset_index()
 
     return diff_gene_A, diff_gene_B
