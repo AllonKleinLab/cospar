@@ -474,13 +474,11 @@ def filter_genes(
         plt.show()
 
     if FanoFactor[-1] < FanoFactor[0]:
-        logg.error(
+        logg.warn(
             f"The estimated Fano factor is NOT in expected form, which would affect the results.\n"
             "Please make sure that the count matrix adata.X is NOT log-transformed."
         )
-        return None
-    else:
-        return gene_ix[ix]
+    return gene_ix[ix]
 
 
 # We found that this does not work
