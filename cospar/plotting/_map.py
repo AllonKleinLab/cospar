@@ -32,6 +32,7 @@ def fate_coupling(
     color_map=color_map_reds,
     figure_index="",
     color_bar_label="Fate coupling",
+    title=None,
     vmax=None,
     **kwargs,
 ):
@@ -95,7 +96,11 @@ def fate_coupling(
     )
 
     plt.tight_layout()
-    ax.set_title(f"source: {source}")
+    if title is None:
+        ax.set_title(f"source: {source}")
+    else:
+        ax.set_title(title)
+
     if figure_index != "":
         figure_index == f"_{figure_index}"
     plt.savefig(
