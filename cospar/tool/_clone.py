@@ -21,6 +21,7 @@ from cospar.tool import _utils as tl_util
 from .. import help_functions as hf
 from .. import logging as logg
 from .. import plotting as pl
+from .. import settings
 
 
 def clonal_fate_bias(adata, selected_fate="", alternative="two-sided"):
@@ -656,7 +657,7 @@ def clone_statistics(adata, joint_variable="time_info"):
     )
 
 
-def computer_sister_cell_distance(
+def compute_sister_cell_distance(
     adata,
     selected_time=None,
     method="2D",
@@ -667,6 +668,7 @@ def computer_sister_cell_distance(
     color_data="#fdbb84",
     plot_random_mean=True,
     plot_random_mean_height=0.5,
+    plot_pvalue_stats=True,
 ):
     """
     Parameters
@@ -724,7 +726,6 @@ def computer_sister_cell_distance(
                         if j != i
                     ]
                 )
-            # distance_list.append(np.array(distance_tmp).min(axis=1).mean())  # min.mean
             distance_list.append(np.array(distance_tmp).flatten().max())  # min.mean
         return distance_list, selected_clone_idx
 
@@ -741,43 +742,58 @@ def computer_sister_cell_distance(
         )
     random_dis_stat = np.array(random_dis_stat)
 
-    # random_dis = norm_distance[np.triu(np.ones(norm_distance.shape), k=1).astype(bool)]
-    df_distance = pd.DataFrame(
+    df_obs = pd.DataFrame(
         {
             "clone_id": selected_clone_idx,
-            "clone_distance": distance_list,
-            "random_distance": np.random.choice(random_dis, len(selected_clone_idx)),
+            "distance": distance_list,
         }
     )
+    df_obs["source"] = "Observed"
 
-    fig, axs = plt.subplots(1, 5, figsize=(20, 4))
+    df_rand = pd.DataFrame(
+        {
+            "clone_id": np.arange(len(random_dis)).astype(str),
+            "distance": random_dis,
+        }
+    )
+    df_rand["clone_id"] = "rand_" + df_rand["clone_id"]
+    df_rand["source"] = "Random"
+
+    df_distance = pd.concat([df_obs, df_rand], ignore_index=True)
+    df_distance["source"] = pd.Categorical(df_distance["source"]).set_categories(
+        ["Random", "Observed"], ordered=True
+    )
+
+    bins = np.linspace(df_distance["distance"].min(), df_distance["distance"].max(), 50)
     ax = sns.histplot(
-        random_dis,
-        label="random",
-        bins=20,
-        stat="density",
+        data=df_distance[df_distance["source"] == "Random"],
+        label="Random",
+        bins=bins,
+        stat="probability",
         color=color_random,
-        ax=axs[0],
     )
     ax = sns.histplot(
-        data=df_distance,
-        x="clone_distance",
-        label="data",
-        bins=20,
-        stat="density",
-        ax=axs[0],
+        data=df_distance[df_distance["source"] == "Observed"],
+        x="distance",
+        label="Observed",
+        bins=bins,
+        stat="probability",
         color=color_data,
+        alpha=0.5,
     )
     ax.legend()
     ax.set_xlabel("Sister-cell distance")
     x = np.mean(random_dis)
     if plot_random_mean:
         ax.plot([x, x], [0, plot_random_mean_height], "-r")
-    below_random = np.mean(df_distance["clone_distance"] < x)
+    below_random = np.mean(df_obs["distance"] < x)
     if title is None:
         ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
     else:
         ax.set_title(title)
+    plt.tight_layout()
+    data_des = adata.uns["data_des"][-1]
+    plt.savefig(f"{settings.figure_path}/transcriptome_memory{data_des}.pdf")
 
     ########
     obs_stat = [
@@ -788,22 +804,31 @@ def computer_sister_cell_distance(
     ]
     method_stat = ["Mean", "Min", "Median", "Max"]
     for j in range(4):
-        ax = sns.histplot(
-            random_dis_stat[:, j],
-            bins=20,
-            stat="density",
-            ax=axs[1 + j],
-            label="random",
-        )
         x = obs_stat[j]
-        axs[1 + j].plot([x, x], [0, plot_random_mean_height], "-r", label="data")
-        ax.legend()
-        ax.set_xlabel(f"{method_stat[j]} sister-cell distance")
         below_random = np.mean(random_dis_stat[:, j] < x)
-        if title is None:
-            ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
-        else:
-            ax.set_title(title)
+        print(
+            f"{method_stat[j]} sister-cell distance: ",
+            f"below random: {below_random:.2f}",
+        )
 
-    plt.tight_layout()
+    if plot_pvalue_stats:
+        fig, axs = plt.subplots(1, 4, figsize=(20, 4))
+        for j in range(4):
+            ax = sns.histplot(
+                random_dis_stat[:, j],
+                bins=20,
+                stat="density",
+                ax=axs[j],
+                label="random",
+            )
+            x = obs_stat[j]
+            axs[j].plot([x, x], [0, plot_random_mean_height], "-r", label="data")
+            ax.legend()
+            ax.set_xlabel(f"{method_stat[j]} sister-cell distance")
+            if title is None:
+                below_random = np.mean(random_dis_stat[:, j] < x)
+                ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
+            else:
+                ax.set_title(title)
+
     return df_distance
