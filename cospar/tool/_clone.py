@@ -217,7 +217,7 @@ def get_coarse_grained_X_clone_for_clone_assignment(adata, cluster_key="leiden")
     #     # Finally, normalize cluster wise, as we are interested where each cluster comes from
     #     # The risk here is that if a cluster is uniquely labled by only one clone, but the number
     #     # of clonal cells there is very small, it could lead to errors.
-    print("only normlaize per cluster")
+    logg.info("only normlaize per cluster")
     sum_X_2 = 10 ** (-10) + norm_X_cluster.sum(1)
     norm_X_cluster_clone = norm_X_cluster / sum_X_2[:, np.newaxis]
 
@@ -531,8 +531,8 @@ def filter_cells(
     cells with clone number >= clone_threshold will be removed (set to 0) from the X_clone.
     """
     barcode_N_per_cell = adata.obsm["X_clone"].sum(1).A.flatten()
-    print("Multiclone cell fraction:", (barcode_N_per_cell > 1).mean())
-    print(
+    logg.info("Multiclone cell fraction:", (barcode_N_per_cell > 1).mean())
+    logg.info(
         "Fraction of clones related to a multiclone cell:",
         (adata.obsm["X_clone"][barcode_N_per_cell > 1].sum(0) > 0).mean(),
     )
@@ -637,13 +637,13 @@ def clone_statistics(adata, joint_variable="time_info"):
         .agg(clone_N=("time_points", "count"))
         .assign(clone_fraction=lambda x: x["clone_N"] / x["clone_N"].sum())
     )
-    print(
+    logg.info(
         df_clone.reset_index()
         .rename(columns={"time_points": joint_variable})
         .set_index(joint_variable)
     )
-    print("-----------")
-    print(
+    logg.info("-----------")
+    logg.info(
         df_cell.reset_index()
         .rename(columns={"time_info": joint_variable})
         .set_index(joint_variable)
@@ -696,12 +696,12 @@ def compute_sister_cell_distance(
         adata_t1 = adata[adata.obs["time_info"] == selected_time]
 
     if method == "2D":
-        print("Use 2-dimension embedding")
+        logg.info("Use 2-dimension embedding")
         X = adata_t1.obsm[key]
         norm_distance = squareform(pdist(X))
 
     elif method == "high":
-        print("Use high-dimension")
+        logg.info("Use high-dimension")
         norm_distance = hf.compute_shortest_path_distance(
             adata_t1, normalize=False, num_neighbors_target=neighbor_number
         )
@@ -792,7 +792,10 @@ def compute_sister_cell_distance(
     else:
         ax.set_title(title)
     plt.tight_layout()
-    data_des = adata.uns["data_des"][-1]
+    if 'data_des' in adata.uns.keys():
+        data_des = adata.uns["data_des"][-1]
+    else:
+        data_des=''
     plt.savefig(f"{settings.figure_path}/transcriptome_memory{data_des}.pdf")
 
     ########
@@ -803,13 +806,15 @@ def compute_sister_cell_distance(
         np.max(distance_list),
     ]
     method_stat = ["Mean", "Min", "Median", "Max"]
+    pvalue={}
     for j in range(4):
         x = obs_stat[j]
         below_random = np.mean(random_dis_stat[:, j] < x)
-        print(
+        logg.info(
             f"{method_stat[j]} sister-cell distance: ",
             f"below random: {below_random:.2f}",
         )
+        pvalue[method_stat[j]]=below_random
 
     if plot_pvalue_stats:
         fig, axs = plt.subplots(1, 4, figsize=(20, 4))
@@ -817,7 +822,7 @@ def compute_sister_cell_distance(
             ax = sns.histplot(
                 random_dis_stat[:, j],
                 bins=20,
-                stat="density",
+                stat="probability",
                 ax=axs[j],
                 label="random",
             )
@@ -831,4 +836,4 @@ def compute_sister_cell_distance(
             else:
                 ax.set_title(title)
 
-    return df_distance
+    return df_distance,pvalue
