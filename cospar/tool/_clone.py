@@ -669,6 +669,7 @@ def compute_sister_cell_distance(
     plot_random_mean=True,
     plot_random_mean_height=0.5,
     plot_pvalue_stats=True,
+    use_existing_KNN_graph=False,
 ):
     """
     Parameters
@@ -703,7 +704,10 @@ def compute_sister_cell_distance(
     elif method == "high":
         logg.info("Use high-dimension")
         norm_distance = hf.compute_shortest_path_distance(
-            adata_t1, normalize=False, num_neighbors_target=neighbor_number
+            adata_t1,
+            normalize=False,
+            num_neighbors_target=neighbor_number,
+            use_existing_KNN_graph=use_existing_KNN_graph,
         )
     else:
         raise ValueError("method should be among {'2D' or 'high'}")
@@ -792,10 +796,10 @@ def compute_sister_cell_distance(
     else:
         ax.set_title(title)
     plt.tight_layout()
-    if 'data_des' in adata.uns.keys():
+    if "data_des" in adata.uns.keys():
         data_des = adata.uns["data_des"][-1]
     else:
-        data_des=''
+        data_des = ""
     plt.savefig(f"{settings.figure_path}/transcriptome_memory{data_des}.pdf")
 
     ########
@@ -806,7 +810,7 @@ def compute_sister_cell_distance(
         np.max(distance_list),
     ]
     method_stat = ["Mean", "Min", "Median", "Max"]
-    pvalue={}
+    pvalue = {}
     for j in range(4):
         x = obs_stat[j]
         below_random = np.mean(random_dis_stat[:, j] < x)
@@ -814,7 +818,7 @@ def compute_sister_cell_distance(
             f"{method_stat[j]} sister-cell distance: ",
             f"below random: {below_random:.2f}",
         )
-        pvalue[method_stat[j]]=below_random
+        pvalue[method_stat[j]] = below_random
 
     if plot_pvalue_stats:
         fig, axs = plt.subplots(1, 4, figsize=(20, 4))
@@ -836,4 +840,4 @@ def compute_sister_cell_distance(
             else:
                 ax.set_title(title)
 
-    return df_distance,pvalue
+    return df_distance, pvalue
