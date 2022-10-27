@@ -762,9 +762,9 @@ def compute_shortest_path_distance(
 
     else:
         logg.info(
-            "Use existing KNN graph at adata.obsp['connectivities'] for generating the smooth matrix"
+            f"Use existing KNN graph at adata.obsp[{mode}] for generating the smooth matrix"
         )
-        adj_matrix = adata.obsp["connectivities"]
+        adj_matrix = adata.obsp[mode]
 
     ShortPath_dis = ssp.csgraph.dijkstra(
         csgraph=ssp.csr_matrix(adj_matrix), directed=False, return_predecessors=False
