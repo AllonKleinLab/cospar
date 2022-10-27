@@ -668,7 +668,7 @@ def visualize_tree(
 
         for n in input_tree:
             for key, value in color_coding.items():
-                if n.name.startswith(key):
+                if n.name == key:
                     nst1 = NodeStyle(size=1)
                     nst1["bgcolor"] = value
                     n.set_style(nst1)
