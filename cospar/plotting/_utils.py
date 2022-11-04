@@ -387,7 +387,7 @@ def heatmap(
                 vmax = np.max(col_data)
 
     fig, ax = plt.subplots()
-    ax.imshow(new_data, aspect="auto", cmap=color_map, vmin=vmin, vmax=vmax)
+    ax.imshow(new_data, aspect="auto", cmap=color_map, vmin=vmin, vmax=vmax,interpolation='none')
 
     if x_ticks is None:
         plt.xticks([])
