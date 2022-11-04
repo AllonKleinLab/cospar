@@ -228,6 +228,7 @@ def clones_on_manifold(
     title=True,
     clone_markersize=12,
     clone_markeredgewidth=1,
+    markeredgecolor="black",
     **kwargs,
 ):
     """
@@ -303,7 +304,7 @@ def clones_on_manifold(
                     ".",
                     color=color_list[j % len(color_list)],
                     markersize=clone_markersize,
-                    markeredgecolor="white",
+                    markeredgecolor=markeredgecolor,
                     markeredgewidth=clone_markeredgewidth,
                     **kwargs,
                 )
