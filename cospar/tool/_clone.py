@@ -741,7 +741,7 @@ def compute_sister_cell_distance(
 
     random_dis = []
     random_dis_stat = []
-    for _ in range(max_N_simutation):
+    for _ in tqdm(range(max_N_simutation)):
         np.random.shuffle(X_clone)
         temp, __ = get_distance(X_clone)
         random_dis += temp
