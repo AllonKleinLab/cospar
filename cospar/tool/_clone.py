@@ -20,7 +20,7 @@ from cospar.tool import _utils as tl_util
 
 from .. import help_functions as hf
 from .. import logging as logg
-from .. import plotting as pl 
+from .. import plotting as pl
 from .. import settings
 
 
@@ -670,6 +670,7 @@ def compute_sister_cell_distance(
     plot_random_mean_height=0.5,
     plot_pvalue_stats=True,
     use_existing_KNN_graph=False,
+    max_N_simutation=1000,
 ):
     """
     Parameters
@@ -682,6 +683,9 @@ def compute_sister_cell_distance(
             If method='2D', decide which 2-D embedding to use. Could be 'X_umap', or 'X_emb' etc.
         neighbor_number:
             If method='high', decide the neighbor_number to construct the KNN graph.
+        max_N_simutation:
+            Max number to perform simulation to generate a null distribution. A higher number may give more stronger
+            statistical statement.
 
     Returns
     -------
@@ -737,7 +741,7 @@ def compute_sister_cell_distance(
 
     random_dis = []
     random_dis_stat = []
-    for _ in range(1000):
+    for _ in range(max_N_simutation):
         np.random.shuffle(X_clone)
         temp, __ = get_distance(X_clone)
         random_dis += temp
