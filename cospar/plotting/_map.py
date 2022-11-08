@@ -192,6 +192,7 @@ def fate_map(
     figure_index="",
     mask=None,
     color_map=color_map_reds,
+    **kwargs,
 ):
     """
     Plot transition probability to given fate/ancestor clusters.
@@ -276,6 +277,7 @@ def fate_map(
                 color_bar=color_bar,
                 target_transparency=target_transparency,
                 color_map=color_map,
+                **kwargs,
             )
 
             plt.tight_layout()
@@ -313,6 +315,7 @@ def fate_potency(
     figure_index="",
     mask=None,
     color_map=color_map_reds,
+    **kwargs,
 ):
     """
     Plot fate potency.
@@ -364,6 +367,7 @@ def fate_potency(
         auto_color_scale=auto_color_scale,
         color_bar=color_bar,
         color_map=color_map,
+        **kwargs,
     )
 
     plt.tight_layout()
@@ -408,6 +412,7 @@ def fate_bias(
     mask=None,
     color_bar_title=None,
     color_map=color_map_coolwarm,
+    **kwargs,
 ):
     """
     Plot fate bias.
@@ -507,6 +512,7 @@ def fate_bias(
         target_transparency=target_transparency,
         histogram_scales=[0, 1],
         order_method="fate_bias",
+        **kwargs,
     )
 
     plt.tight_layout()
@@ -546,6 +552,7 @@ def progenitor(
     target_transparency=0.2,
     figure_index="",
     mask=None,
+    **kwargs,
 ):
     """
     Plot the progenitors of given fate clusters.
@@ -623,6 +630,7 @@ def progenitor(
             auto_color_scale=auto_color_scale,
             color_bar=False,
             target_transparency=target_transparency,
+            **kwargs,
         )
 
         plt.tight_layout()

@@ -387,7 +387,14 @@ def heatmap(
                 vmax = np.max(col_data)
 
     fig, ax = plt.subplots()
-    ax.imshow(new_data, aspect="auto", cmap=color_map, vmin=vmin, vmax=vmax,interpolation='none')
+    ax.imshow(
+        new_data,
+        aspect="auto",
+        cmap=color_map,
+        vmin=vmin,
+        vmax=vmax,
+        interpolation="none",
+    )
 
     if x_ticks is None:
         plt.xticks([])
@@ -397,9 +404,9 @@ def heatmap(
             np.array(x_ticks)[order_x],
             rotation=90,
         )
-        
+
         if print_ordered_labels:
-            x_ticks_print="\',\'".join(np.array(x_ticks)[order_x])
+            x_ticks_print = "','".join(np.array(x_ticks)[order_x])
             print(f"x_order: [{','.join(np.array(order_x).astype(str))}]")
             print(f"x_ticks: ['{x_ticks_print}']")
 
@@ -410,16 +417,15 @@ def heatmap(
             y_array,
             np.array(y_ticks)[order_y],
         )
-        
+
         if print_ordered_labels:
-            y_ticks_print="\',\'".join(np.array(y_ticks)[order_y])
+            y_ticks_print = "','".join(np.array(y_ticks)[order_y])
             print(f"y_order: [{','.join(np.array(order_y).astype(str))}]")
             print(f"y_ticks: ['{y_ticks_print}']")
 
     if x_label is not None:
         ax.set_xlabel(x_label)
 
-        
     if y_label is not None:
         ax.set_ylabel(y_label)
 
@@ -450,6 +456,7 @@ def fate_map_embedding(
     histogram_scales=None,
     color_map=None,
     order_method=None,
+    vmax=None,
 ):
     """
     Note: sp_idx is a bool array, of the length len(cell_id_t1)
@@ -671,26 +678,35 @@ def visualize_tree(
     from IPython.display import Image, display
 
     def layout(node):
-        if node.is_leaf(): # this is the part showing the leaf
+        if node.is_leaf():  # this is the part showing the leaf
             N = AttrFace("name", fsize=5)
             faces.add_face_to_node(N, node, 100, position="aligned")
             # pass
 
     if color_coding is not None:
         print("coding")
-        for n in input_tree.traverse(): # internal node
-            nst1 = NodeStyle(size=marker_size_internal, fgcolor="#f0f0f0",vt_line_width=line_width,hz_line_width=line_width)
+        for n in input_tree.traverse():  # internal node
+            nst1 = NodeStyle(
+                size=marker_size_internal,
+                fgcolor="#f0f0f0",
+                vt_line_width=line_width,
+                hz_line_width=line_width,
+            )
             n.set_style(nst1)
 
         for n in input_tree:
             for key, value in color_coding.items():
-                if n.name==key:
-                    nst1 = NodeStyle(size=marker_size_leaf,hz_line_width=line_width, fgcolor="#000000")
+                if n.name == key:
+                    nst1 = NodeStyle(
+                        size=marker_size_leaf,
+                        hz_line_width=line_width,
+                        fgcolor="#000000",
+                    )
                     nst1["bgcolor"] = value
                     n.set_style(nst1)
 
     ts = TreeStyle()
-    #ts.layout_fn = layout # layout not used. It will add faces to each node, and each fates is the leaf name
+    # ts.layout_fn = layout # layout not used. It will add faces to each node, and each fates is the leaf name
     ts.mode = mode
     ts.show_leaf_name = False
     # ts.extra_branch_line_color = "red"
