@@ -535,7 +535,8 @@ def fate_map_embedding(
         vmax = None
         vmin = None
     else:
-        vmax = 1
+        if vmax is None:
+            vmax = 1
         vmin = 0
 
     if order_method == "fate_bias":
