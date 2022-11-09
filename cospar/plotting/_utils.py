@@ -457,6 +457,7 @@ def fate_map_embedding(
     color_map=None,
     order_method=None,
     vmax=None,
+    vmin=None,
 ):
     """
     Note: sp_idx is a bool array, of the length len(cell_id_t1)
@@ -537,7 +538,8 @@ def fate_map_embedding(
     else:
         if vmax is None:
             vmax = 1
-        vmin = 0
+        if vmin is None:
+            vmin = 0
 
     if order_method == "fate_bias":
         new_idx = np.argsort(abs(fate_map_temp - 0.5))
