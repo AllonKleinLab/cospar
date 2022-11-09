@@ -209,6 +209,7 @@ def gene_expression_dynamics(
                 Clb = fig.colorbar(
                     plt.cm.ScalarMappable(cmap=plt.cm.Reds), ax=ax1, label="Pseudo time"
                 )
+                plt.tight_layout()
                 fig.savefig(
                     os.path.join(
                         figure_path,
