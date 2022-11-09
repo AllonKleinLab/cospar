@@ -299,6 +299,7 @@ def heatmap(
     y_label=None,
     print_ordered_labels=False,
     pseudo_count=10 ** (-10),
+    ax=None,
 ):
     """
     Plot ordered heat map of non-square data_matrix matrix
@@ -386,7 +387,11 @@ def heatmap(
             if (vmax == 0) & (np.max(col_data) <= 1):
                 vmax = np.max(col_data)
 
-    fig, ax = plt.subplots()
+    if ax is None:
+        fig, ax = plt.subplots()
+        ax_=None
+    else:
+        ax_=ax
     ax.imshow(
         new_data,
         aspect="auto",
@@ -433,7 +438,8 @@ def heatmap(
         norm = mpl_Normalize(vmin=vmin, vmax=vmax)
         cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=color_map))
         cbar.set_label(f"{color_bar_label}{label_}", rotation=270, labelpad=20)
-    plt.gcf().set_size_inches((fig_width, fig_height))
+    if ax_ is None:
+        plt.gcf().set_size_inches((fig_width, fig_height))
     return ax
 
 
