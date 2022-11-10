@@ -657,20 +657,38 @@ def clone_statistics(adata, joint_variable="time_info"):
     )
 
 
+def get_distance_within_each_clone(X_clone, norm_distance):
+    # get distance vector for each clone
+    t1_clone_size = (X_clone).sum(0)
+    selected_clone_idx = np.nonzero(t1_clone_size >= 2)[0]
+    distance_list = []
+    for x in selected_clone_idx:
+        ids_all = np.nonzero(X_clone[:, x] > 0)[0]
+        distance_tmp = []
+        for i in range(len(ids_all)):
+            distance_tmp.append(
+                [
+                    norm_distance[ids_all[i], ids_all[j]]
+                    for j in range(len(ids_all))
+                    if j != i
+                ]
+            )
+        distance_list.append(np.array(distance_tmp).flatten().max())  # min.mean
+    return distance_list, selected_clone_idx
+
+
 def compute_sister_cell_distance(
     adata,
     selected_time=None,
     method="2D",
+    precomputed_distance_matrix=None,
     key="X_emb",
     neighbor_number=10,
     title=None,
     color_random="#a6bddb",
     color_data="#fdbb84",
-    plot_random_mean=True,
-    plot_random_mean_height=0.5,
-    plot_pvalue_stats=True,
-    use_existing_KNN_graph=False,
     max_N_simutation=1000,
+    alternative="less",
 ):
     """
     Parameters
@@ -686,6 +704,8 @@ def compute_sister_cell_distance(
         max_N_simutation:
             Max number to perform simulation to generate a null distribution. A higher number may give more stronger
             statistical statement.
+        alternative:
+            'less', 'greater','two-sided'
 
     Returns
     -------
@@ -700,50 +720,37 @@ def compute_sister_cell_distance(
     else:
         adata_t1 = adata[adata.obs["time_info"] == selected_time]
 
-    if method == "2D":
-        logg.info("Use 2-dimension embedding")
-        X = adata_t1.obsm[key]
-        norm_distance = squareform(pdist(X))
-
-    elif method == "high":
-        logg.info("Use high-dimension")
-        norm_distance = hf.compute_shortest_path_distance(
-            adata_t1,
-            normalize=False,
-            num_neighbors_target=neighbor_number,
-            use_existing_KNN_graph=use_existing_KNN_graph,
-        )
+    if precomputed_distance_matrix is not None:
+        logg.info("use precomputed distance matrix")
+        norm_distance = precomputed_distance_matrix
     else:
-        raise ValueError("method should be among {'2D' or 'high'}")
+        if method == "2D":
+            logg.info("Use 2-dimension embedding")
+            X = adata_t1.obsm[key]
+            norm_distance = squareform(pdist(X))
+
+        elif method == "high":
+            logg.info("Use high-dimension")
+            norm_distance = hf.compute_shortest_path_distance(
+                adata_t1,
+                normalize=False,
+                num_neighbors_target=neighbor_number,
+            )
+        else:
+            raise ValueError("method should be among {'2D' or 'high'}")
 
     X_clone = (adata_t1.obsm["X_clone"].A.copy() > 0).astype(int)
     logg.info(np.sum(X_clone.sum(0) >= 2), " clones with >=2 cells selected")
 
-    def get_distance(X_clone):
-        t1_clone_size = (X_clone).sum(0)
-        selected_clone_idx = np.nonzero(t1_clone_size >= 2)[0]
-        distance_list = []
-        for x in selected_clone_idx:
-            ids_all = np.nonzero(X_clone[:, x] > 0)[0]
-            distance_tmp = []
-            for i in range(len(ids_all)):
-                distance_tmp.append(
-                    [
-                        norm_distance[ids_all[i], ids_all[j]]
-                        for j in range(len(ids_all))
-                        if j != i
-                    ]
-                )
-            distance_list.append(np.array(distance_tmp).flatten().max())  # min.mean
-        return distance_list, selected_clone_idx
+    # observed distances
+    distance_list, selected_clone_idx = compute_sister_cell_distance(X_clone)
 
-    distance_list, selected_clone_idx = get_distance(X_clone)
-
+    # randomized distances
     random_dis = []
     random_dis_stat = []
     for _ in tqdm(range(max_N_simutation)):
         np.random.shuffle(X_clone)
-        temp, __ = get_distance(X_clone)
+        temp, __ = compute_sister_cell_distance(X_clone)
         random_dis += temp
         random_dis_stat.append(
             [np.mean(temp), np.min(temp), np.median(temp), np.max(temp)]
@@ -791,12 +798,13 @@ def compute_sister_cell_distance(
     )
     ax.legend()
     ax.set_xlabel("Sister-cell distance")
-    x = np.mean(random_dis)
-    if plot_random_mean:
-        ax.plot([x, x], [0, plot_random_mean_height], "-r")
-    below_random = np.mean(df_obs["distance"] < x)
+
+    stat_score, pvalue = stats.ranksums(
+        df_obs["distance"].to_numpy(), random_dis, alternative=alternative
+    )
+
     if title is None:
-        ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
+        ax.set_title(f"t={selected_time}, Pvalue: {pvalue:.2f}")
     else:
         ax.set_title(title)
     plt.tight_layout()
@@ -806,42 +814,55 @@ def compute_sister_cell_distance(
         data_des = ""
     plt.savefig(f"{settings.figure_path}/transcriptome_memory{data_des}.pdf")
 
-    ########
-    obs_stat = [
-        np.mean(distance_list),
-        np.min(distance_list),
-        np.median(distance_list),
-        np.max(distance_list),
-    ]
-    method_stat = ["Mean", "Min", "Median", "Max"]
-    pvalue = {}
-    for j in range(4):
-        x = obs_stat[j]
-        below_random = np.mean(random_dis_stat[:, j] < x)
-        logg.info(
-            f"{method_stat[j]} sister-cell distance: ",
-            f"below random: {below_random:.2f}",
-        )
-        pvalue[method_stat[j]] = below_random
+    # ########
+    # obs_stat = [
+    #     np.mean(distance_list),
+    #     np.min(distance_list),
+    #     np.median(distance_list),
+    #     np.max(distance_list),
+    # ]
+    # method_stat = ["Mean", "Min", "Median", "Max"]
+    # pvalue = {}
+    # for j in range(4):
+    #     x = obs_stat[j]
 
-    if plot_pvalue_stats:
-        fig, axs = plt.subplots(1, 4, figsize=(20, 4))
-        for j in range(4):
-            ax = sns.histplot(
-                random_dis_stat[:, j],
-                bins=20,
-                stat="probability",
-                ax=axs[j],
-                label="random",
-            )
-            x = obs_stat[j]
-            axs[j].plot([x, x], [0, plot_random_mean_height], "-r", label="data")
-            ax.legend()
-            ax.set_xlabel(f"{method_stat[j]} sister-cell distance")
-            if title is None:
-                below_random = np.mean(random_dis_stat[:, j] < x)
-                ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
-            else:
-                ax.set_title(title)
+    #     if pvalue_stats == "less":
+    #         logg.info("one side pvalue: less")
+    #         below_random = np.mean(df_obs["distance"] < x)
+    #     elif pvalue_stats == "more":
+    #         logg.info("one side pvalue: more")
+    #         below_random = np.mean(df_obs["distance"] > x)
+    #     else:
+    #         logg.info("two-side pvalue")
+    #         below_random = np.mean(df_obs["distance"] < x) + np.mean(
+    #             df_obs["distance"] > x
+    #         )
+
+    #     below_random = np.mean(random_dis_stat[:, j] < x)
+    #     logg.info(
+    #         f"{method_stat[j]} sister-cell distance: ",
+    #         f"below random: {below_random:.2f}",
+    #     )
+    #     pvalue[method_stat[j]] = below_random
+
+    # if plot_pvalue_stats:
+    #     fig, axs = plt.subplots(1, 4, figsize=(20, 4))
+    #     for j in range(4):
+    #         ax = sns.histplot(
+    #             random_dis_stat[:, j],
+    #             bins=20,
+    #             stat="probability",
+    #             ax=axs[j],
+    #             label="random",
+    #         )
+    #         x = obs_stat[j]
+    #         axs[j].plot([x, x], [0, plot_random_mean_height], "-r", label="data")
+    #         ax.legend()
+    #         ax.set_xlabel(f"{method_stat[j]} sister-cell distance")
+    #         if title is None:
+    #             below_random = np.mean(random_dis_stat[:, j] < x)
+    #             ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
+    #         else:
+    #             ax.set_title(title)
 
     return df_distance, pvalue
