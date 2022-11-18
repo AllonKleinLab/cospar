@@ -743,14 +743,14 @@ def compute_sister_cell_distance(
     logg.info(np.sum(X_clone.sum(0) >= 2), " clones with >=2 cells selected")
 
     # observed distances
-    distance_list, selected_clone_idx = compute_sister_cell_distance(X_clone)
+    distance_list, selected_clone_idx = get_distance_within_each_clone(X_clone,norm_distance)
 
     # randomized distances
     random_dis = []
     random_dis_stat = []
     for _ in tqdm(range(max_N_simutation)):
         np.random.shuffle(X_clone)
-        temp, __ = compute_sister_cell_distance(X_clone)
+        temp, __ = get_distance_within_each_clone(X_clone,norm_distance)
         random_dis += temp
         random_dis_stat.append(
             [np.mean(temp), np.min(temp), np.median(temp), np.max(temp)]
@@ -813,56 +813,5 @@ def compute_sister_cell_distance(
     else:
         data_des = ""
     plt.savefig(f"{settings.figure_path}/transcriptome_memory{data_des}.pdf")
-
-    # ########
-    # obs_stat = [
-    #     np.mean(distance_list),
-    #     np.min(distance_list),
-    #     np.median(distance_list),
-    #     np.max(distance_list),
-    # ]
-    # method_stat = ["Mean", "Min", "Median", "Max"]
-    # pvalue = {}
-    # for j in range(4):
-    #     x = obs_stat[j]
-
-    #     if pvalue_stats == "less":
-    #         logg.info("one side pvalue: less")
-    #         below_random = np.mean(df_obs["distance"] < x)
-    #     elif pvalue_stats == "more":
-    #         logg.info("one side pvalue: more")
-    #         below_random = np.mean(df_obs["distance"] > x)
-    #     else:
-    #         logg.info("two-side pvalue")
-    #         below_random = np.mean(df_obs["distance"] < x) + np.mean(
-    #             df_obs["distance"] > x
-    #         )
-
-    #     below_random = np.mean(random_dis_stat[:, j] < x)
-    #     logg.info(
-    #         f"{method_stat[j]} sister-cell distance: ",
-    #         f"below random: {below_random:.2f}",
-    #     )
-    #     pvalue[method_stat[j]] = below_random
-
-    # if plot_pvalue_stats:
-    #     fig, axs = plt.subplots(1, 4, figsize=(20, 4))
-    #     for j in range(4):
-    #         ax = sns.histplot(
-    #             random_dis_stat[:, j],
-    #             bins=20,
-    #             stat="probability",
-    #             ax=axs[j],
-    #             label="random",
-    #         )
-    #         x = obs_stat[j]
-    #         axs[j].plot([x, x], [0, plot_random_mean_height], "-r", label="data")
-    #         ax.legend()
-    #         ax.set_xlabel(f"{method_stat[j]} sister-cell distance")
-    #         if title is None:
-    #             below_random = np.mean(random_dis_stat[:, j] < x)
-    #             ax.set_title(f"t={selected_time}, below random: {below_random:.2f}")
-    #         else:
-    #             ax.set_title(title)
 
     return df_distance, pvalue
