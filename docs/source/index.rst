@@ -26,7 +26,7 @@ Recorded Talks
 ^^^^^^^^^^^^^^
 - `Jun 1: Single-Cell Data Science 2022 <https://singlecell2022.hku.hk/>`_. This is a 20-min short talk focusing more on the utility of CoSpar: `talk video <https://www.youtube.com/watch?v=HrDQpW3kJFo>`_
 
-- `Oct 19, 2022: Invited MIA talk at Broad Institute <https://www.broadinstitute.org/talks/learning-cell-differentiation-dynamics-lineage-tracing-datasets>`_. This is an one-hour talk focusing on the Machine Learning part of CoSpar: `talk video <https://www.youtube.com/watch?v=rYzQUYPPNlU>`_. The talk slides can be found `here <https://github.com/AllonKleinLab/cospar/files/10042131/20221118_public_posted_slides.pdf>_`.
+- `Oct 19, 2022: Invited MIA talk at Broad Institute <https://www.broadinstitute.org/talks/learning-cell-differentiation-dynamics-lineage-tracing-datasets>`_. This is an one-hour talk focusing on the Machine Learning part of CoSpar: `talk video <https://www.youtube.com/watch?v=rYzQUYPPNlU>`_. The talk slides can be found `here <https://github.com/AllonKleinLab/cospar/files/10042131/20221118_public_posted_slides.pdf>`_.
 
 
 .. Upcoming talks
