@@ -15,7 +15,11 @@ Dynamic inference based on single-cell state measurement alone requires serious 
 
 See `<https://cospar.readthedocs.io>`_ for documentation and tutorials.
 
-Also, checkout this `video <https://www.youtube.com/watch?v=HrDQpW3kJFo>`_ about CoSpar!
+Recorded talks
+--------
+`Jun 1: Single-Cell Data Science 2022 <https://singlecell2022.hku.hk/>`_. This is a 20-min short talk focusing more on the utility of CoSpar: `talk video <https://www.youtube.com/watch?v=HrDQpW3kJFo>`_
+
+`Oct 19, 2022: Invited MIA talk at Broad Institute <https://www.broadinstitute.org/talks/learning-cell-differentiation-dynamics-lineage-tracing-datasets>`_. This is an one-hour talk focusing on the Machine Learning part of CoSpar: `talk video <https://www.youtube.com/watch?v=rYzQUYPPNlU>`_
 
 Reference
 ---------
