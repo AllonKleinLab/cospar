@@ -35,6 +35,7 @@ def gene_expression_dynamics(
     n_neighbors=8,
     plot_raw_data=False,
     stat_smooth_method="loess",
+    ggplot_font_size=11,
 ):
     """
     Plot gene trend along the inferred dynamic trajectory.
@@ -202,12 +203,12 @@ def gene_expression_dynamics(
                     y_emb[sel_cell_idx],
                     PseudoTime,
                     ax=ax1,
-                    title="Pseudo Time",
+                    title="Pseudotime",
                     point_size=point_size,
                 )
                 # customized_embedding(x_emb[final_id],y_emb[final_id],PseudoTime,ax=ax1,title='Pseudo time')
                 Clb = fig.colorbar(
-                    plt.cm.ScalarMappable(cmap=plt.cm.Reds), ax=ax1, label="Pseudo time"
+                    plt.cm.ScalarMappable(cmap=plt.cm.Reds), ax=ax1, label="Pseudotime"
                 )
                 plt.tight_layout()
                 fig.savefig(
@@ -251,9 +252,9 @@ def gene_expression_dynamics(
                         if plot_raw_data
                         else stat_smooth(method=stat_smooth_method)
                     )
-                    + theme_classic()
+                    + theme_classic(base_size=ggplot_font_size)
                     + labs(
-                        x="Pseudo time",
+                        x="Pseudotime",
                         y="Normalized gene expression",
                         color="Gene name",
                     )
@@ -314,7 +315,7 @@ def gene_expression_heatmap(
         If true, show the color bar.
     fig_width: `int`, optional (default: 6)
         Figure width.
-    fig_width: `int`, optional (default: 3)
+    fig_height: `int`, optional (default: 3)
         Figure height.
     horizontal: `bool`, optional (default: True)
         Figure orientation.
@@ -500,6 +501,7 @@ def gene_expression_on_manifold(
             ax=ax,
             col_range=(0, 99.8),
             color_bar=color_bar,
+            point_size=point_size,
             color_bar_label="Normalized expression",
         )
 

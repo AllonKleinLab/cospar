@@ -550,7 +550,8 @@ def get_X_clone(
 
 def refine_state_info_by_leiden_clustering(
     adata,
-    selected_times=None,
+    selected_key='state_info',
+    selected_values=None,
     resolution=0.5,
     n_neighbors=20,
     confirm_change=False,
@@ -567,9 +568,11 @@ def refine_state_info_by_leiden_clustering(
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
-    selected_times: `list`, optional (default: include all)
-        A list of selected time points for clustering. Should be
-        among adata.obs['time_info'].
+    selected_key: 
+        A key in adata.obs, including 'state_info', or 'time_info'
+    selected_values: `list`, optional (default: include all)
+        A list of clusters/time_points for further sub-clustering. Should be
+        among adata.obs[selected_key].
     adata: :class:`~anndata.AnnData` object
     n_neighbors: `int`, optional (default: 20)
         Neighber number for constructing the KNN graph, using the UMAP method.
@@ -587,20 +590,22 @@ def refine_state_info_by_leiden_clustering(
     Update adata.obs['state_info'] if confirm_change=True.
     """
 
-    time_info = adata.obs["time_info"]
+    time_info = adata.obs[selected_key]
     available_time_points = list(set(time_info))
 
-    if selected_times == None:
-        selected_times = available_time_points
+    if selected_values == None:
+        selected_values = available_time_points
+    if type(selected_values)==str:
+        selected_values=[selected_values]
 
-    if np.sum(np.in1d(selected_times, available_time_points)) != len(selected_times):
+    if np.sum(np.in1d(selected_values, available_time_points)) != len(selected_values):
         logg.error(
             f"Selected time points not available. Please select from {available_time_points}"
         )
 
     else:
         sp_idx = np.zeros(adata.shape[0], dtype=bool)
-        for xx in selected_times:
+        for xx in selected_values:
             idx = time_info == xx
             sp_idx[idx] = True
 
@@ -630,7 +635,8 @@ def refine_state_info_by_marker_genes(
     adata,
     marker_genes,
     express_threshold=0.1,
-    selected_times=None,
+    selected_key='state_info',
+    selected_values=None,
     new_cluster_name="new_cluster",
     confirm_change=False,
     add_neighbor_N=5,
@@ -657,9 +663,11 @@ def refine_state_info_by_marker_genes(
         Relative threshold of marker gene expression, in the range [0,1].
         A state must have an expression above this threshold for all genes
         to be included.
-    selected_times: `list`, optional (default: all)
-        A list of selected time points for performing clustering,
-        among adata.obs['time_info'].
+    selected_key: 
+        A key in adata.obs, including 'state_info', or 'time_info'
+    selected_values: `list`, optional (default: include all)
+        A list of clusters/time_points for further sub-clustering. Should be
+        among adata.obs[selected_key].
     new_cluster_name: `str`, optional (default: 'new_cluster')
     confirm_change: `bool`, optional (default: False)
         If True, update adata.obs['state_info'].
@@ -673,16 +681,18 @@ def refine_state_info_by_marker_genes(
     Update the adata.obs['state_info'] if confirm_change=True.
     """
 
-    time_info = adata.obs["time_info"]
+    time_info = adata.obs[selected_key]
     x_emb = adata.obsm["X_emb"][:, 0]
     y_emb = adata.obsm["X_emb"][:, 1]
     available_time_points = list(set(time_info))
 
-    if selected_times == None:
-        selected_times = available_time_points
+    if selected_values == None:
+        selected_values = available_time_points
+    if type(selected_values)==str:
+        selected_values=[selected_values]
 
     sp_idx = np.zeros(adata.shape[0], dtype=bool)
-    for xx in selected_times:
+    for xx in selected_values:
         idx = time_info == xx
         sp_idx[idx] = True
 

@@ -31,7 +31,7 @@ def fate_coupling(
     rename_fates=None,
     color_map=color_map_reds,
     figure_index="",
-    color_bar_label="Fate coupling",
+    color_bar_label="Clonal coupling",
     title=None,
     vmax=None,
     **kwargs,
