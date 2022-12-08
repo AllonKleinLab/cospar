@@ -289,6 +289,8 @@ def heatmap(
     order_map_y=True,
     x_ticks=None,
     y_ticks=None,
+    x_tick_style=None,
+    y_tick_style=None,
     col_range=[0, 99],
     color_bar_label="",
     log_transform=False,
@@ -300,6 +302,8 @@ def heatmap(
     color_bar=True,
     x_label=None,
     y_label=None,
+    x_label_style=None,
+    y_label_style=None,
     print_ordered_labels=False,
     pseudo_count=10 ** (-10),
     ax=None,
@@ -411,6 +415,7 @@ def heatmap(
             x_array,
             np.array(x_ticks)[order_x],
             rotation=90,
+            style=x_tick_style,
         )
 
         if print_ordered_labels:
@@ -424,6 +429,7 @@ def heatmap(
         plt.yticks(
             y_array,
             np.array(y_ticks)[order_y],
+            style=y_tick_style,
         )
 
         if print_ordered_labels:
@@ -432,10 +438,10 @@ def heatmap(
             print(f"y_ticks: ['{y_ticks_print}']")
 
     if x_label is not None:
-        ax.set_xlabel(x_label)
+        ax.set_xlabel(x_label,style=x_label_style)
 
     if y_label is not None:
-        ax.set_ylabel(y_label)
+        ax.set_ylabel(y_label,style=y_label_style)
 
     if color_bar:
         norm = mpl_Normalize(vmin=vmin, vmax=vmax)
