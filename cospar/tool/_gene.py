@@ -109,3 +109,52 @@ def differential_genes(
         diff_gene_B = diff_gene_B.reset_index()
 
     return diff_gene_A, diff_gene_B
+
+def identify_TF_and_surface_marker(gene_list,species='mouse',go_term_keywards=['cell surface','cell cycle','regulation of transcription','DNA-binding transcription factor activity','regulation of transcription by RNA polymerase II']):
+    """
+    From an input gene list, return the go term and annotation for each gene,
+    and further select the genes identified as TF or cell surface protein
+    
+    Returns
+    ------
+        results:
+            Full annotation for each gene
+        df_anno
+            Only include genes identified as TF or cell surface protein
+    """
+    
+    if species not in ['mouse','human']:
+        raise ValueError('species must be either mouse or human')
+    else:
+        if species=='mouse':
+            dataset='mmusculus_gene_ensembl'
+        elif species=='human':
+            dataset='hsapiens_gene_ensembl'
+            
+        
+    
+    from gseapy.parser import Biomart
+    bm = Biomart()
+    ## view validated marts
+    marts = bm.get_marts()
+    ## view validated dataset
+    datasets = bm.get_datasets(mart='ENSEMBL_MART_ENSEMBL')
+    ## view validated attributes
+    attrs = bm.get_attributes(dataset=dataset) #hsapiens_gene_ensembl: Human genes (GRCh38.p13);  mmusculus_gene_ensembl for 'Mouse genes (GRCm39)'
+    ## view validated filters
+    filters = bm.get_filters(dataset=dataset) #Gene Name(s) [e.g. MT-TF]
+    ## query results
+
+
+    results = bm.query(dataset=dataset,
+                           attributes=['ensembl_gene_id', 'external_gene_name', 'namespace_1003','name_1006'],
+                           filters={'external_gene_name': gene_list})
+    results=results.dropna()
+    df_list=[]
+    for term in go_term_keywards:
+        tmp_genes=list(set(results[results['name_1006'].apply(lambda x: term == x)]['external_gene_name']))
+        df_tmp=pd.DataFrame({'gene':tmp_genes})
+        df_tmp['annotation']=term
+        df_list.append(df_tmp)
+    df_anno=pd.concat(df_list,ignore_index=True)
+    return results,df_anno
