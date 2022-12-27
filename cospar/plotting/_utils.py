@@ -214,12 +214,10 @@ def customized_embedding(
     if color_bar:
 
         norm = mpl_Normalize(vmin=vmin, vmax=vmax)
-        Clb = plt.colorbar(
-            plt.cm.ScalarMappable(norm=norm, cmap=color_map),
-            ax=ax)
+        Clb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=color_map), ax=ax)
         Clb.set_label(
             color_bar_label,
-            rotation=270, 
+            rotation=270,
             labelpad=20,
         )
         Clb.ax.set_title(color_bar_title)
@@ -396,9 +394,9 @@ def heatmap(
 
     if ax is None:
         fig, ax = plt.subplots()
-        ax_=None
+        ax_ = None
     else:
-        ax_=ax
+        ax_ = ax
     ax.imshow(
         new_data,
         aspect="auto",
@@ -438,10 +436,10 @@ def heatmap(
             print(f"y_ticks: ['{y_ticks_print}']")
 
     if x_label is not None:
-        ax.set_xlabel(x_label,style=x_label_style)
+        ax.set_xlabel(x_label, style=x_label_style)
 
     if y_label is not None:
-        ax.set_ylabel(y_label,style=y_label_style)
+        ax.set_ylabel(y_label, style=y_label_style)
 
     if color_bar:
         norm = mpl_Normalize(vmin=vmin, vmax=vmax)
@@ -747,8 +745,10 @@ def visualize_tree(
 
     display(Image(filename=os.path.join(figure_path, f"{data_des}.png")))
 
-    
-def plot_adata_with_prefered_order(adata,obs_key,basis='X_umap',plot_order=None,palette=None,**kwargs):
+
+def plot_adata_with_prefered_order(
+    adata, obs_key, basis="X_umap", plot_order=None, palette=None, **kwargs
+):
     """
     An example code
     ```python
@@ -760,15 +760,31 @@ def plot_adata_with_prefered_order(adata,obs_key,basis='X_umap',plot_order=None,
     ```
     """
     if plot_order is None:
-        plot_order=list(adata.obs[obs_key].unique())
+        plot_order = list(adata.obs[obs_key].unique())
     if palette is None:
-        palette=dict(zip(plot_order,np.array(sns.color_palette().as_hex())[:len(plot_order)]))
-    
-    df_fate_map=pd.DataFrame({obs_key:adata.obs[obs_key],'x':adata.obsm[basis][:,0],'y':adata.obsm[basis][:,1]})
-    df_list=[]
+        palette = dict(
+            zip(plot_order, np.array(sns.color_palette().as_hex())[: len(plot_order)])
+        )
+
+    df_fate_map = pd.DataFrame(
+        {
+            obs_key: adata.obs[obs_key],
+            "x": adata.obsm[basis][:, 0],
+            "y": adata.obsm[basis][:, 1],
+        }
+    )
+    df_list = []
     for z in plot_order:
-        df_list.append(df_fate_map[df_fate_map[obs_key]==z])
-        
-    df_map_v2=pd.concat(df_list,ignore_index=True)
-    g=sns.relplot(kind='scatter',data=df_map_v2,x='x',y='y',hue=obs_key,palette=palette,**kwargs)
-    g.ax.axis('off');
+        df_list.append(df_fate_map[df_fate_map[obs_key] == z])
+
+    df_map_v2 = pd.concat(df_list, ignore_index=True)
+    g = sns.relplot(
+        kind="scatter",
+        data=df_map_v2,
+        x="x",
+        y="y",
+        hue=obs_key,
+        palette=palette,
+        **kwargs,
+    )
+    g.ax.axis("off")

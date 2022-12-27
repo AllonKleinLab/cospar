@@ -581,7 +581,7 @@ def filter_clones(adata, clone_size_threshold=2, filter_larger_clones=False):
     else:
         filter smaller clones
     """
-    clone_size=adata.obsm['X_clone'].sum(0).A.flatten()
+    clone_size = adata.obsm["X_clone"].sum(0).A.flatten()
     if filter_larger_clones:
         clone_idx = clone_size < clone_size_threshold
         logg.info(
@@ -596,8 +596,8 @@ def filter_clones(adata, clone_size_threshold=2, filter_larger_clones=False):
     X_clone_new = adata.obsm["X_clone"][:, clone_idx]
 
     adata.obsm["X_clone_old"] = adata.obsm["X_clone"]
-    if 'clone_id' not in adata.uns:
-        adata.uns['clone_id']=np.arange(adata.obsm['X_clone'].shape[1])
+    if "clone_id" not in adata.uns:
+        adata.uns["clone_id"] = np.arange(adata.obsm["X_clone"].shape[1])
     adata.uns["clone_id"] = np.array(adata.uns["clone_id"])[clone_idx]
     adata.obsm["X_clone"] = ssp.csr_matrix(X_clone_new)
     logg.info("Updated X_clone")
@@ -608,10 +608,10 @@ def clone_statistics(adata, joint_variable="time_info"):
     """
     Extract the number of clones and clonal cells for each time point
     """
-    
-    if 'clone_id' not in adata.uns:
-        adata.uns['clone_id']=np.arange(adata.obsm['X_clone'].shape[1])
-    adata.obs[joint_variable]=adata.obs[joint_variable].astype(str)
+
+    if "clone_id" not in adata.uns:
+        adata.uns["clone_id"] = np.arange(adata.obsm["X_clone"].shape[1])
+    adata.obs[joint_variable] = adata.obs[joint_variable].astype(str)
 
     df = (
         pd.DataFrame(adata.obsm["X_clone"].A)
@@ -748,14 +748,16 @@ def compute_sister_cell_distance(
     logg.info(np.sum(X_clone.sum(0) >= 2), " clones with >=2 cells selected")
 
     # observed distances
-    distance_list, selected_clone_idx = get_distance_within_each_clone(X_clone,norm_distance)
+    distance_list, selected_clone_idx = get_distance_within_each_clone(
+        X_clone, norm_distance
+    )
 
     # randomized distances
     random_dis = []
     random_dis_stat = []
     for _ in tqdm(range(max_N_simutation)):
         np.random.shuffle(X_clone)
-        temp, __ = get_distance_within_each_clone(X_clone,norm_distance)
+        temp, __ = get_distance_within_each_clone(X_clone, norm_distance)
         random_dis += temp
         random_dis_stat.append(
             [np.mean(temp), np.min(temp), np.median(temp), np.max(temp)]

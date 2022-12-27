@@ -409,7 +409,7 @@ def gene_expression_heatmap(
             vmax=vmax,
             color_bar_label=color_bar_label,
             order_map_x=order_map_x,
-            x_tick_style='italic',
+            x_tick_style="italic",
             order_map_y=order_map_y,
             **kwargs,
         )
@@ -427,7 +427,7 @@ def gene_expression_heatmap(
             vmax=vmax,
             color_bar_label=color_bar_label,
             order_map_x=order_map_x,
-            y_tick_style='italic',
+            y_tick_style="italic",
             order_map_y=order_map_y,
             **kwargs,
         )
@@ -506,7 +506,7 @@ def gene_expression_on_manifold(
             point_size=point_size,
             color_bar_label="Normalized expression",
         )
-        plt.title(g,style='italic')
+        plt.title(g, style="italic")
 
         plt.tight_layout()
         if savefig:

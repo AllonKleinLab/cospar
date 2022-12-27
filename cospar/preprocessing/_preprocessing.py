@@ -550,7 +550,7 @@ def get_X_clone(
 
 def refine_state_info_by_leiden_clustering(
     adata,
-    selected_key='state_info',
+    selected_key="state_info",
     selected_values=None,
     resolution=0.5,
     n_neighbors=20,
@@ -568,7 +568,7 @@ def refine_state_info_by_leiden_clustering(
     Parameters
     ----------
     adata: :class:`~anndata.AnnData` object
-    selected_key: 
+    selected_key:
         A key in adata.obs, including 'state_info', or 'time_info'
     selected_values: `list`, optional (default: include all)
         A list of clusters/time_points for further sub-clustering. Should be
@@ -595,8 +595,8 @@ def refine_state_info_by_leiden_clustering(
 
     if selected_values == None:
         selected_values = available_time_points
-    if type(selected_values)==str:
-        selected_values=[selected_values]
+    if type(selected_values) == str:
+        selected_values = [selected_values]
 
     if np.sum(np.in1d(selected_values, available_time_points)) != len(selected_values):
         logg.error(
@@ -635,7 +635,7 @@ def refine_state_info_by_marker_genes(
     adata,
     marker_genes,
     express_threshold=0.1,
-    selected_key='state_info',
+    selected_key="state_info",
     selected_values=None,
     new_cluster_name="new_cluster",
     confirm_change=False,
@@ -663,7 +663,7 @@ def refine_state_info_by_marker_genes(
         Relative threshold of marker gene expression, in the range [0,1].
         A state must have an expression above this threshold for all genes
         to be included.
-    selected_key: 
+    selected_key:
         A key in adata.obs, including 'state_info', or 'time_info'
     selected_values: `list`, optional (default: include all)
         A list of clusters/time_points for further sub-clustering. Should be
@@ -688,8 +688,8 @@ def refine_state_info_by_marker_genes(
 
     if selected_values == None:
         selected_values = available_time_points
-    if type(selected_values)==str:
-        selected_values=[selected_values]
+    if type(selected_values) == str:
+        selected_values = [selected_values]
 
     sp_idx = np.zeros(adata.shape[0], dtype=bool)
     for xx in selected_values:
