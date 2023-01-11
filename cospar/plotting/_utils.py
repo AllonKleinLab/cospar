@@ -747,7 +747,15 @@ def visualize_tree(
 
 
 def plot_adata_with_prefered_order(
-    adata, obs_key, basis="X_umap", plot_order=None, palette=None, **kwargs
+    adata,
+    obs_key,
+    basis="X_umap",
+    plot_order=None,
+    palette=None,
+    background=None,
+    background_color="#d9d9d9",
+    background_size=50,
+    **kwargs,
 ):
     """
     An example code
@@ -774,17 +782,34 @@ def plot_adata_with_prefered_order(
         }
     )
     df_list = []
+
+    if background is not None:
+        if background in plot_order:
+            plot_order.remove(background)
+        df_map_bk = df_fate_map[df_fate_map[obs_key] == background]
+        ax = sns.scatterplot(
+            data=df_map_bk,
+            x="x",
+            y="y",
+            hue=obs_key,
+            palette={background: background_color},
+            s=background_size,
+            edgecolor=background_color,
+        )
+
     for z in plot_order:
         df_list.append(df_fate_map[df_fate_map[obs_key] == z])
 
     df_map_v2 = pd.concat(df_list, ignore_index=True)
-    g = sns.relplot(
-        kind="scatter",
+    ax = sns.scatterplot(
         data=df_map_v2,
         x="x",
         y="y",
         hue=obs_key,
         palette=palette,
+        ax=ax,
         **kwargs,
     )
-    g.ax.axis("off")
+    plt.axis("off")
+    plt.legend(loc=[1.05, 0], frameon=False)
+    return ax
