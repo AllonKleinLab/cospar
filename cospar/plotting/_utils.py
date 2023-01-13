@@ -807,7 +807,6 @@ def plot_adata_with_prefered_order(
         y="y",
         hue=obs_key,
         palette=palette,
-        ax=ax,
         **kwargs,
     )
     plt.axis("off")
