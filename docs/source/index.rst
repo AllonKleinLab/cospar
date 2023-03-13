@@ -22,11 +22,15 @@ CoSpar's key applications
 - predict genes whose expression correlates with future fate outcome.
 - generate a putative fate hierarchy, ordering fates by their lineage distances.
 
+Package development relocation
+------------------------------
+Effective on April 1st 2023, Shou-Wen Wang is leaving the Klein lab to start `his own group at Westlake University <https://www.shouwenwang-lab.com/>`_, and he will no longer maintain this repository. Further development of CoSpar will continue in his own lab under this respository `https://github.com/ShouWenWang-Lab/cospar <https://github.com/ShouWenWang-Lab/cospar>`_. Please reach out there for any issues related to CoSpar.
+
 Recorded Talks
 ^^^^^^^^^^^^^^
 - `Jun 1: Single-Cell Data Science 2022 <https://singlecell2022.hku.hk/>`_. This is a 20-min short talk focusing more on the utility of CoSpar: `talk video <https://www.youtube.com/watch?v=HrDQpW3kJFo>`_
 
-- `Oct 19, 2022: Invited MIA talk at Broad Institute <https://www.broadinstitute.org/talks/learning-cell-differentiation-dynamics-lineage-tracing-datasets>`_. This is an one-hour talk focusing on the Machine Learning part of CoSpar: `talk video <https://www.youtube.com/watch?v=rYzQUYPPNlU>`_. The talk slides can be found `here <https://github.com/AllonKleinLab/cospar/files/10042131/20221118_public_posted_slides.pdf>`_.
+- `Oct 19, 2022: Invited MIA talk at Broad Institute <https://www.broadinstitute.org/talks/learning-cell-differentiation-dynamics-lineage-tracing-datasets>`_. This is an one-hour talk focusing on the Machine Learning part of CoSpar: `talk video <https://www.youtube.com/watch?v=rYzQUYPPNlU>`_. The talk slides can be found `here <https://github.com/ShouWenWang-Lab/cospar/files/10042131/20221118_public_posted_slides.pdf>`_.
 
 
 .. Upcoming talks
@@ -44,8 +48,8 @@ Reference
 
 Support
 ^^^^^^^
-Feel free to submit an `issue <https://github.com/AllonKleinLab/cospar/issues/new/choose>`_
-or send us an `email <mailto:wangsw09@gmail.com>`_.
+Feel free to submit an `issue <https://github.com/ShouWenWang-Lab/cospar/issues/new/choose>`_
+or send us an `email <mailto:wangshouwen@westlake.edu.cn>`_.
 Your help to improve CoSpar is highly appreciated.
 
 Acknowledgment

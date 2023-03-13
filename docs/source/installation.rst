@@ -27,11 +27,11 @@ Development Version
 
 To work with the latest development version, install from GitHub_ using::
 
-    pip install git+https://github.com/AllonKleinLab/cospar
+    pip install git+https://github.com/ShouWenWang-Lab/cospar
 
 or::
 
-    git clone https://github.com/AllonKleinLab/cospar
+    git clone https://github.com/ShouWenWang-Lab/cospar
     pip install -e cospar
 
 ``-e`` is short for ``--editable`` and links the package to the original cloned location such that pulled changes are also reflected in the environment.
@@ -62,8 +62,8 @@ If you run into issues, do not hesitate to approach us or raise a `GitHub issue`
 
 .. _Miniconda: http://conda.pydata.org/miniconda.html
 .. _PyPI: https://pypi.org/project/cospar
-.. _Github: https://github.com/AllonKleinLab/cospar/
-.. _`Github issue`: https://github.com/AllonKleinLab/cospar/issues/new/choose
+.. _Github: https://github.com/ShouWenWang-Lab/cospar/
+.. _`Github issue`: https://github.com/ShouWenWang-Lab/cospar/issues/new/choose
 
 
 Testing CoSpar in a new environment

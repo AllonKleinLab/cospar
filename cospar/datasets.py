@@ -38,7 +38,7 @@ def raw_data_for_import_exercise():
 
     """
 
-    url = "https://github.com/AllonKleinLab/cospar/files/6573057/test_data.zip"
+    url = "https://github.com/ShouWenWang-Lab/cospar/files/6573057/test_data.zip"
     path = "test_data.zip"
     path = Path(path)
     _check_datafile_present_and_download(path, backup_url=url)

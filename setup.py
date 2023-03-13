@@ -25,8 +25,8 @@ setup(
     description="CoSpar: integrating state and lineage information for dynamic inference",
     long_description=Path("pypi.rst").read_text("utf-8"),
     license="BSD",
-    url="https://github.com/AllonKleinLab/cospar",
-    download_url="https://github.com/AllonKleinLab/cospar",
+    url="https://github.com/ShouWenWang-Lab/cospar",
+    download_url="https://github.com/ShouWenWang-Lab/cospar",
     keywords=[
         "dynamic inference",
         "lineage tracing",

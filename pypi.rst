@@ -22,8 +22,8 @@ Reference
 
 Support
 -------
-Feel free to submit an `issue <https://github.com/AllonKleinLab/cospar/issues/new/choose>`_
-or send us an `email <mailto:wangsw09@gmail.com>`_.
+Feel free to submit an `issue <https://github.com/ShouWenWang-Lab/cospar/issues/new/choose>`_
+or send us an `email <mailto:wangshouwen@westlake.edu.cn>`_.
 Your help to improve CoSpar is highly appreciated.
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/cospar.svg
