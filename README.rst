@@ -7,6 +7,10 @@ CoSpar - dynamic inference by integrating state and lineage information
    :width: 300px
    :align: left
 
+Package development relocation
+------------------------------
+Effective on April 1st 2023, Shou-Wen Wang is leaving the Klein lab to start `his own group at Westlake University <https://www.shouwenwang-lab.com/>`, and he will no longer maintain this repository. Further development of CoSpar will continue in his own lab under this respository `https://github.com/ShouWenWang-Lab/cospar <https://github.com/ShouWenWang-Lab/cospar>`. Please reach out there for any issues related to CoSpar.
+
 **CoSpar** is a toolkit for dynamic inference from lineage-traced single cells.
 The methods are based on
 `Wang et al. Nat. Biotech. (2022) <https://www.nature.com/articles/s41587-022-01209-1>`_.
