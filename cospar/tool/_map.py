@@ -163,7 +163,7 @@ def fate_coupling(
     selected_times=None,
     fate_map_method="sum",
     method="SW",
-    normalize=True,
+    normalize=False,
     silence=False,
     ignore_cell_number: bool = False,
     fate_normalize_source="X_clone",
@@ -210,7 +210,7 @@ def fate_coupling(
         Method to normalize the coupling matrix: {'SW', 'Weinreb','Jaccard'}.
     normalize:
         We normalize the count matrix first within each cluster, then, within each clone separately
-        for each time point. It is default to be on, a change from off as before. This option is only for calculating coupling using the X_clone.
+        for each time point. This is default to be off, to be consistent with the CoSpar paper report. Turning it on may have interesting effect.
     silence:
         Suppress information printing.
     ignore_cell_number:
@@ -250,6 +250,15 @@ def fate_coupling(
             select_clones_mode=select_clones_mode,
             **kwargs,
         )
+        exclude_idx = coarse_X_clone.sum(1) == 0
+        if np.sum(exclude_idx) > 0:
+            coarse_X_clone = coarse_X_clone[~exclude_idx]
+            fate_names = np.array(fate_names)
+            logg.warn(
+                f"{fate_names[exclude_idx]} is excluded due to lack of any clones"
+            )
+            fate_names = fate_names[~exclude_idx]
+
         if ignore_cell_number:
             coarse_X_clone = (coarse_X_clone > 0).astype(int)
         X_coupling = _utils.get_normalized_covariance(coarse_X_clone.T, method=method)
