@@ -24,7 +24,7 @@ CoSpar's key applications
 
 Package development relocation
 ------------------------------
-Effective on April 1st 2023, Shou-Wen Wang is leaving the Klein lab to start `his own group at Westlake University <https://www.shouwenwang-lab.com/>`_, and he will no longer maintain this repository. Further development of CoSpar will continue in his own lab under this respository `https://github.com/ShouWenWang-Lab/cospar <https://github.com/ShouWenWang-Lab/cospar>`_. Please reach out there for any issues related to CoSpar. This is a test!
+Effective on April 1st 2023, Shou-Wen Wang is leaving the Klein lab to start `his own group at Westlake University <https://www.shouwenwang-lab.com/>`_, and he will no longer maintain this repository. Further development of CoSpar will continue in his own lab under this respository `https://github.com/ShouWenWang-Lab/cospar <https://github.com/ShouWenWang-Lab/cospar>`_. Please reach out there for any issues related to CoSpar.
 
 Recorded Talks
 ^^^^^^^^^^^^^^

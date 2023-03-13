@@ -335,7 +335,6 @@ def clonal_fate_bias(adata, show_histogram=True, FDR=0.05):
         False-discovery rate after the Benjamini-Hochberg correction.
     """
 
-    print("test")
     if "clonal_fate_bias" not in adata.uns.keys():
         raise ValueError(
             "clonal_fate_bias has not been computed. Run cs.tl.clonal_fate_bias first"
