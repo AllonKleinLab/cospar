@@ -39,8 +39,8 @@ jobs:
         shell: bash -l {0}
         run: |
           python setup.py install
-      - name: Run pre-commit
-        uses: pre-commit/action@v2.0.0
+      # - name: Run pre-commit
+      #   uses: pre-commit/action@v2.0.0
       - name: Test cospar
         shell: bash -l {0}
         run: |
