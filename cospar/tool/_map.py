@@ -307,6 +307,64 @@ def fate_coupling(
         logg.info(f"Results saved as dictionary at adata.uns['fate_coupling_{source}']")
 
 
+def pvalue_for_fate_coupling(adata, selected_fates=None, max_N_simutation=1000):
+    """
+    Compute the pvalue for the fate coupling matrix. Pvalues are stored at adata.uns['fate_coupling_X_clone']
+    """
+
+    from tqdm import tqdm
+
+    adata_rand = adata.copy()
+    adata_rand.uns["data_des"] = ["rand"]
+    X_clone = adata.obsm["X_clone"].A
+
+    fate_coupling(adata, selected_fates=selected_fates, source="X_clone")
+
+    old_verbosity = settings.verbosity
+    settings.verbosity = 1
+    X_coupling_true = adata.uns["fate_coupling_X_clone"]["X_coupling"]
+    X_coupling_random = []
+    for _ in tqdm(range(max_N_simutation)):
+        np.random.shuffle(X_clone)
+        adata_rand.obsm["X_clone"] = ssp.csr_matrix(X_clone)
+
+        fate_coupling(
+            adata_rand, selected_fates=selected_fates, source="X_clone"
+        )  # compute the fate coupling
+        X_coupling_random.append(adata_rand.uns["fate_coupling_X_clone"]["X_coupling"])
+
+    X_coupling_random = np.array(X_coupling_random)
+    fate_names = adata.uns["fate_coupling_X_clone"]["fate_names"]
+
+    settings.verbosity = old_verbosity
+
+    pvalue = np.zeros((len(fate_names), len(fate_names)))
+    pvalue_greater = np.zeros((len(fate_names), len(fate_names)))
+    pvalue_less = np.zeros((len(fate_names), len(fate_names)))
+    for i in range(len(fate_names)):
+        for j in range(len(fate_names)):
+            greater = (
+                np.sum(np.array(X_coupling_random)[:, i, j] > X_coupling_true[i, j])
+                / max_N_simutation
+            )
+            less = (
+                np.sum(np.array(X_coupling_random)[:, i, j] < X_coupling_true[i, j])
+                / max_N_simutation
+            )
+            pvalue_greater[i, j] = greater
+            pvalue_less[i, j] = less
+            pvalue[i, j] = np.min([greater, less])
+            if i == j:
+                pvalue[i, j] = np.nan
+                pvalue_greater[i, j] = np.nan
+                pvalue_less[i, j] = np.nan
+
+    adata.uns["fate_coupling_X_clone"]["pvalue"] = pvalue
+    adata.uns["fate_coupling_X_clone"]["pvalue_greater"] = pvalue_greater
+    adata.uns["fate_coupling_X_clone"]["pvalue_less"] = pvalue_less
+    logg.warn(f"pvalue updated at adata.uns['fate_coupling_X_clone']")
+
+
 def fate_map(
     adata,
     selected_fates=None,
