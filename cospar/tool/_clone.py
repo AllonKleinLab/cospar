@@ -24,7 +24,12 @@ from .. import plotting as pl
 from .. import settings
 
 
-def clonal_fate_bias(adata, selected_fate="", alternative="two-sided"):
+def clonal_fate_bias(
+    adata,
+    selected_fate="",
+    alternative="two-sided",
+    multiple_hypothesis_correction=False,
+):
     """
     Compute clonal fate bias towards a cluster.
 
@@ -33,7 +38,8 @@ def clonal_fate_bias(adata, selected_fate="", alternative="two-sided"):
     test (accounting for clone size). The P-value is then corrected to
     give a Q-value by Benjamini-Hochberg procedure. The alternative
     hypothesis options are: {'two-sided', 'greater', 'less'}.
-    The default is 'two-sided'.
+    The default is 'two-sided'. With two-sided, we simply take less likely
+    scenario either 'greater' and 'less' hypothesis.
 
     Parameters
     ----------
@@ -78,53 +84,80 @@ def clonal_fate_bias(adata, selected_fate="", alternative="two-sided"):
         return None, None
     else:
         fate_name = mega_cluster_list[0]
-        target_idx = sel_index_list[0]
+        target_idx = sel_index_list[0]  # whether or not a cell is in a target cluster
 
         ## target clone
         target_ratio_array = np.zeros(clone_N)
-        P_value = np.zeros(clone_N)
+        P_value = np.zeros(clone_N) + 0.5
 
         for m in tqdm(range(clone_N)):
-            target_cell_idx = (X_clone[:, m].sum(1).A > 0).flatten()
-            target_clone_size = np.sum(target_cell_idx)
+            clone_cell_idx = (
+                X_clone[:, m].sum(1).A > 0
+            ).flatten()  # cell index of clone m
+            clone_size = np.sum(clone_cell_idx)  # size of this clone
 
-            if target_clone_size > 0:
-                target_ratio = np.sum(target_idx[target_cell_idx]) / target_clone_size
+            if clone_size > 0:
+                target_ratio = (
+                    np.sum(target_idx[clone_cell_idx]) / clone_size
+                )  # fraction of cells from this clone in the target cluster
                 target_ratio_array[m] = target_ratio
-                cell_N_in_target = np.sum(target_idx[target_cell_idx])
+                cell_N_in_target = np.sum(
+                    target_idx[clone_cell_idx]
+                )  # number of cells from this clone that are in the target cluster
+                target_size = np.sum(target_idx)
+                clone_size = np.sum(clone_cell_idx)
 
-                remain_cell_idx = ~target_cell_idx
-                remain_cell_N_in_target = np.sum(target_idx[remain_cell_idx])
-                oddsratio, pvalue = stats.fisher_exact(
-                    [
-                        [cell_N_in_target, target_clone_size - cell_N_in_target],
-                        [remain_cell_N_in_target, cell_N - remain_cell_N_in_target],
-                    ],
-                    alternative=alternative,
-                )
+                p1 = stats.hypergeom(M=cell_N, n=target_size, N=clone_size).cdf(
+                    cell_N_in_target
+                )  # observing events <=x
+                p2 = stats.hypergeom(M=cell_N, n=target_size, N=clone_size).sf(
+                    cell_N_in_target - 1
+                )  # observing events >=x
+                if alternative == "greater":
+                    pvalue = p1
+                elif alternative == "less":
+                    pvalue = p2
+                else:
+                    pvalue = np.min(
+                        [p1, p2]
+                    )  # comparing the two hypothesis, and selecting the less likely one
+
                 P_value[m] = pvalue
 
-        P_value = statsmodels.sandbox.stats.multicomp.multipletests(
-            P_value, alpha=0.05, method="fdr_bh"
-        )[1]
-
         clone_size_array = X_clone.sum(0).A.flatten()
-        resol = 10 ** (-20)
-        sort_idx = np.argsort(P_value)
-        P_value = P_value[sort_idx] + resol
-        fate_bias = -np.log10(P_value)
-
         result = pd.DataFrame(
             {
-                "Clone_ID": sort_idx,
-                "Clone_size": clone_size_array[sort_idx],
-                "Q_value": P_value,
-                "Fate_bias": fate_bias,
-                "clonal_fraction_in_target_fate": target_ratio_array[sort_idx],
+                "Clone_ID": np.arange(len(clone_size_array)),
+                "Clone_size": clone_size_array,
+                "P_value": P_value,
+                "clonal_fraction_in_target_fate": target_ratio_array,
             }
         )
 
-        adata.uns["clonal_fate_bias"] = result
+        if multiple_hypothesis_correction:
+
+            def hypothesis_testing(pv):
+                qv = statsmodels.sandbox.stats.multicomp.multipletests(
+                    list(pv), alpha=0.05, method="fdr_bh"
+                )[1]
+                return qv
+
+            df_list = []
+            for x in result["Clone_size"].unique():
+                # display(result[result['P_value']==1])
+                df_tmp = result[(result["Clone_size"] == x)]
+                if len(df_tmp) > 0:
+                    df_tmp["Q_value"] = hypothesis_testing(df_tmp["P_value"])
+                    df_list.append(df_tmp)
+            df_final = pd.concat(df_list)
+            df_final["Fate_bias"] = -np.log10(df_final["Q_value"])
+        else:
+            df_final = result
+            df_final["Fate_bias"] = -np.log10(df_final["P_value"])
+
+        df_final = df_final.sort_values("Fate_bias", ascending=False)
+
+        adata.uns["clonal_fate_bias"] = df_final[df_final["Clone_size"] > 0]
         logg.info("Data saved at adata.uns['clonal_fate_bias']")
 
 
