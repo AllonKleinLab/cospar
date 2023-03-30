@@ -307,29 +307,73 @@ def fate_coupling(
         logg.info(f"Results saved as dictionary at adata.uns['fate_coupling_{source}']")
 
 
-def pvalue_for_fate_coupling(adata, selected_fates=None, max_N_simutation=1000):
+def pvalue_for_fate_coupling(
+    adata_orig, selected_fates=None, max_N_simutation=1000, normalize=False
+):
     """
     Compute the pvalue for the fate coupling matrix. Pvalues are stored at adata.uns['fate_coupling_X_clone']
+
+    Returns:
+        adata: a new adata that contains the pvalue and the observed X_coupling matrix
+        X_coupling_random: X_coupling matrix from all permutation test
     """
+    (
+        mega_cluster_list,
+        valid_fate_list,
+        fate_array_flat,
+        sel_index_list,
+    ) = hf.analyze_selected_fates(adata_orig.obs["state_info"], selected_fates)
+    all_sel_idx = sel_index_list.sum(0) > 0
+
+    # only select cells with clonal barcodes and within targeted clusters, so that
+    # the permutation does not affect the clone size and the number of clonal cells in each cell type
+    adata = adata_orig[(adata_orig.obsm["X_clone"].A.sum(1) > 0) & all_sel_idx]
+    adata.obs["time_info"] = pd.Categorical(adata.obs["time_info"].astype(str))
+    ordered_index = adata.obs["time_info"].sort_values(ascending=True).index
+    adata = adata[ordered_index]
+    time_info_order = sorted(
+        adata.obs["time_info"].unique()
+    )  # this is by default in ascending order
 
     from tqdm import tqdm
+
+    from cospar import logging as logg
 
     adata_rand = adata.copy()
     adata_rand.uns["data_des"] = ["rand"]
     X_clone = adata.obsm["X_clone"].A
 
-    fate_coupling(adata, selected_fates=selected_fates, source="X_clone")
+    # compute the actual coupling matrix
+    fate_coupling(
+        adata, selected_fates=selected_fates, source="X_clone", normalize=normalize
+    )
 
     old_verbosity = settings.verbosity
     settings.verbosity = 1
     X_coupling_true = adata.uns["fate_coupling_X_clone"]["X_coupling"]
+
+    # compute the permuted coupling matrix. Permute separately within each time point, as the normalization is within each time point
     X_coupling_random = []
     for _ in tqdm(range(max_N_simutation)):
-        np.random.shuffle(X_clone)
+        X_clone_list = []
+        for t0 in time_info_order:
+            t0_index = np.nonzero((adata.obs["time_info"] == t0).to_numpy())[0]
+            # mask=np.zeros(X_clone.shape).astype(bool)
+            # mask[t0_index]=True
+            X_clone_t0 = X_clone[t0_index]
+            np.random.shuffle(X_clone_t0)
+            # np.putmask(X_clone,mask,X_clone_t0)
+            X_clone_list.append(X_clone_t0)
+        X_clone = np.vstack(X_clone_list)
+        # print(X_clone.sum(0))
+        # print(X_clone.sum(1))
         adata_rand.obsm["X_clone"] = ssp.csr_matrix(X_clone)
 
         fate_coupling(
-            adata_rand, selected_fates=selected_fates, source="X_clone"
+            adata_rand,
+            selected_fates=selected_fates,
+            source="X_clone",
+            normalize=normalize,
         )  # compute the fate coupling
         X_coupling_random.append(adata_rand.uns["fate_coupling_X_clone"]["X_coupling"])
 
@@ -363,6 +407,8 @@ def pvalue_for_fate_coupling(adata, selected_fates=None, max_N_simutation=1000):
     adata.uns["fate_coupling_X_clone"]["pvalue_greater"] = pvalue_greater
     adata.uns["fate_coupling_X_clone"]["pvalue_less"] = pvalue_less
     logg.warn(f"pvalue updated at adata.uns['fate_coupling_X_clone']")
+
+    return adata, X_coupling_random
 
 
 def fate_map(
