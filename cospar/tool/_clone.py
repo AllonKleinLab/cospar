@@ -127,8 +127,8 @@ def clonal_fate_bias(
         clone_size_array = X_clone.sum(0).A.flatten()
         result = pd.DataFrame(
             {
-                "Clone_ID": np.arange(len(clone_size_array)),
-                "Clone_size": clone_size_array,
+                "clone_id": np.arange(len(clone_size_array)),
+                "clone_size": clone_size_array,
                 "P_value": P_value,
                 "clonal_fraction_in_target_fate": target_ratio_array,
             }
@@ -143,9 +143,9 @@ def clonal_fate_bias(
                 return qv
 
             df_list = []
-            for x in result["Clone_size"].unique():
+            for x in result["clone_size"].unique():
                 # display(result[result['P_value']==1])
-                df_tmp = result[(result["Clone_size"] == x)]
+                df_tmp = result[(result["clone_size"] == x)]
                 if len(df_tmp) > 0:
                     df_tmp["Q_value"] = hypothesis_testing(df_tmp["P_value"])
                     df_list.append(df_tmp)
@@ -157,7 +157,7 @@ def clonal_fate_bias(
 
         df_final = df_final.sort_values("Fate_bias", ascending=False)
 
-        adata.uns["clonal_fate_bias"] = df_final[df_final["Clone_size"] > 0]
+        adata.uns["clonal_fate_bias"] = df_final[df_final["clone_size"] > 0]
         logg.info("Data saved at adata.uns['clonal_fate_bias']")
 
 
@@ -637,7 +637,7 @@ def filter_clones(adata, clone_size_threshold=2, filter_larger_clones=False):
     logg.info(f"Check removed clones with adata.obsm['X_clone_old']")
 
 
-def clone_statistics(adata, joint_variable="time_info"):
+def clone_statistics(adata, joint_variable="time_info", display_clone_stat=True):
     """
     Extract the number of clones and clonal cells for each time point
     """
@@ -675,17 +675,19 @@ def clone_statistics(adata, joint_variable="time_info"):
         .agg(clone_N=("time_points", "count"))
         .assign(clone_fraction=lambda x: x["clone_N"] / x["clone_N"].sum())
     )
-    logg.info(
-        df_clone.reset_index()
-        .rename(columns={"time_points": joint_variable})
-        .set_index(joint_variable)
-    )
-    logg.info("-----------")
-    logg.info(
-        df_cell.reset_index()
-        .rename(columns={"time_info": joint_variable})
-        .set_index(joint_variable)
-    )
+
+    if display_clone_stat:
+        logg.info(
+            df_clone.reset_index()
+            .rename(columns={"time_points": joint_variable})
+            .set_index(joint_variable)
+        )
+        logg.info("-----------")
+        logg.info(
+            df_cell.reset_index()
+            .rename(columns={"time_info": joint_variable})
+            .set_index(joint_variable)
+        )
     return df.reset_index().rename(
         columns={
             "time_point_N": f"{joint_variable}_N",
