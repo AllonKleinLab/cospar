@@ -64,7 +64,7 @@ def barcode_heatmap(
         For this to be effective, the new name list needs to have names
         in exact correspondence to those in the old list.
     normalize:
-        To perform cluster-wise then clone-wise normalization
+        To perform cluster-wise then clone-wise normalization per time point
     binarize: `bool`
         Binarize the coarse-grained barcode count matrix, just for the purpose of plotting.
     log_transform: `bool`, optional (default: False)

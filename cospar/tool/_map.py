@@ -29,6 +29,7 @@ def fate_hierarchy(
     source: str = "X_clone",
     selected_times: list = None,
     method: str = "SW",
+    normalize: bool=True,
     ignore_cell_number: bool = False,
 ):
     """
@@ -53,6 +54,8 @@ def fate_hierarchy(
         The default choice is not to constrain the cell states to show.
     method: `str`, optional (default: 'SW')
         Method to normalize the coupling matrix: {'SW', 'Weinreb'}.
+    normalize:
+        We normalize the count matrix first within each cluster, then, within each clone separately for each time point. This was set to be off in the original CoSpar publication.
     ignore_cell_number:
         Ignore the cell number of a clone within a cluster. i.e., binarize a clone's
         contribution towards a cluster. This only works when 'source=X_clone'
@@ -95,6 +98,7 @@ def fate_hierarchy(
             source=source,
             selected_times=selected_times,
             method=method,
+            normalize=normalize,
             silence=True,
             ignore_cell_number=ignore_cell_number,
         )
@@ -163,7 +167,7 @@ def fate_coupling(
     selected_times=None,
     fate_map_method="sum",
     method="SW",
-    normalize=False,
+    normalize=True,
     silence=False,
     ignore_cell_number: bool = False,
     fate_normalize_source="X_clone",
@@ -209,8 +213,7 @@ def fate_coupling(
     method: `str`, optional (default: 'SW')
         Method to normalize the coupling matrix: {'SW', 'Weinreb','Jaccard'}.
     normalize:
-        We normalize the count matrix first within each cluster, then, within each clone separately
-        for each time point. This is default to be off, to be consistent with the CoSpar paper report. Turning it on may have interesting effect.
+        We normalize the count matrix first within each cluster, then, within each clone separately for each time point. This was set to be off in the original CoSpar publication.
     silence:
         Suppress information printing.
     ignore_cell_number:
