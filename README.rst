@@ -8,6 +8,7 @@ CoSpar - dynamic inference by integrating state and lineage information
 -------------------------------------
 Effective on April 1st 2023, Shou-Wen Wang is leaving the Klein lab to start `his own group at Westlake University <https://www.shouwenwang-lab.com/>`_, and he will no longer maintain this repository. Further development of CoSpar will continue in his own lab under this respository `https://github.com/ShouWenWang-Lab/cospar <https://github.com/ShouWenWang-Lab/cospar>`_. Please **reach out there for any issues related to CoSpar**.
 
+=======================================================================
 
 .. image:: https://user-images.githubusercontent.com/4595786/104988296-b987ce00-59e5-11eb-8dbe-a463b355a9fd.png
    :width: 300px
