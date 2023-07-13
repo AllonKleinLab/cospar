@@ -124,7 +124,7 @@ def fate_hierarchy(
     plot_history=False,
 ):
     """
-    Plot fate coupling determined by the transition map.
+    Plot fate hierarchy determined by the transition map.
 
     The results should be pre-computed from :func:`cospar.tl.fate_hierarchy`.
 
