@@ -1,7 +1,7 @@
 Release notes
 -------------
 
-v0.3.0
+v0.3.1
 ''''''
 - Update cospar.tl.fate_coupling. The coupling score now account for sampling heterogeneity between cell types (so that each row adds to 1). Besides, each clone represents an independent measurement and therefore should contribute equally to the coupling calculation, we then normalize the matrix per column to calculate within each clone the fraction of cells in each cell type (clone normalization).
 
