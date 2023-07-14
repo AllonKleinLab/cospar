@@ -68,96 +68,99 @@ def fate_hierarchy(
     """
 
     state_info = np.array(adata.obs["state_info"])
-    mega_cluster_list, valid_fate_list, __, __ = hf.analyze_selected_fates(
-        state_info, selected_fates
-    )
-
-    fate_N = len(valid_fate_list)
-    X_history = []
-    merged_pairs_history = []
-    node_names_history = []
-    node_groups = {i: [i] for i in range(fate_N)}
-
-    parent_map = {}
-    selected_fates_tmp = []
-    for xx in valid_fate_list:
-        if type(xx) is not list:
-            xx = [xx]
-        selected_fates_tmp.append(xx)
-    node_names = list(range(fate_N))
-    next_node = fate_N
-
-    counter = 0
-    while len(node_names) > 2:
-        counter += 1
-        fate_N_tmp = len(selected_fates_tmp)
-        node_names_history.append(node_names)
-        fate_coupling(
-            adata,
-            selected_fates=selected_fates_tmp,
-            source=source,
-            selected_times=selected_times,
-            method=method,
-            normalize=normalize,
-            silence=True,
-            ignore_cell_number=ignore_cell_number,
-        )
-        X_coupling = adata.uns[f"fate_coupling_{source}"]["X_coupling"]
-        if counter == 1:
-            fate_names = adata.uns[f"fate_coupling_{source}"]["fate_names"]
-
-        X_history.append(np.array(X_coupling))
-        floor = X_coupling.min() - 100
-        for i in range(X_coupling.shape[0]):
-            for j in range(X_coupling.shape[1]):
-                if i >= j:
-                    X_coupling[i, j] = floor
-
-        ii = np.argmax(X_coupling.max(1))
-        jj = np.argmax(X_coupling.max(0))
-        merged_pairs_history.append((ii, jj))
-        node_groups[next_node] = (
-            node_groups[node_names[ii]] + node_groups[node_names[jj]]
+    if len(set(state_info))==1:
+        print('Only one cluster, skip hierarchy generation')
+    else:
+        mega_cluster_list, valid_fate_list, __, __ = hf.analyze_selected_fates(
+            state_info, selected_fates
         )
 
-        parent_map[node_names[ii]] = next_node
-        parent_map[node_names[jj]] = next_node
+        fate_N = len(valid_fate_list)
+        X_history = []
+        merged_pairs_history = []
+        node_names_history = []
+        node_groups = {i: [i] for i in range(fate_N)}
 
-        ix = np.min([ii, jj])
-        node_names = [
-            n for n in node_names if not n in np.array(node_names)[np.array([ii, jj])]
-        ]
-        new_ix = np.array([i for i in range(fate_N_tmp) if not i in [ii, jj]])
+        parent_map = {}
+        selected_fates_tmp = []
+        for xx in valid_fate_list:
+            if type(xx) is not list:
+                xx = [xx]
+            selected_fates_tmp.append(xx)
+        node_names = list(range(fate_N))
+        next_node = fate_N
 
-        if len(new_ix) == 0:
-            break
-        new_fate = selected_fates_tmp[ii] + selected_fates_tmp[jj]
-        selected_fates_tmp_1 = [selected_fates_tmp[new_ix[xx]] for xx in range(ix)]
-        selected_fates_tmp_1.append(new_fate)
-        for xx in range(ix, fate_N_tmp - 2):
-            selected_fates_tmp_1.append(selected_fates_tmp[new_ix[xx]])
-        selected_fates_tmp = selected_fates_tmp_1
-        node_names.insert(ix, next_node)
-        next_node += 1
+        counter = 0
+        while len(node_names) > 2:
+            counter += 1
+            fate_N_tmp = len(selected_fates_tmp)
+            node_names_history.append(node_names)
+            fate_coupling(
+                adata,
+                selected_fates=selected_fates_tmp,
+                source=source,
+                selected_times=selected_times,
+                method=method,
+                normalize=normalize,
+                silence=True,
+                ignore_cell_number=ignore_cell_number,
+            )
+            X_coupling = adata.uns[f"fate_coupling_{source}"]["X_coupling"]
+            if counter == 1:
+                fate_names = adata.uns[f"fate_coupling_{source}"]["fate_names"]
 
-    for i in node_names:
-        parent_map[i] = next_node
+            X_history.append(np.array(X_coupling))
+            floor = X_coupling.min() - 100
+            for i in range(X_coupling.shape[0]):
+                for j in range(X_coupling.shape[1]):
+                    if i >= j:
+                        X_coupling[i, j] = floor
 
-    node_mapping = {}
-    for key, value in node_groups.items():
-        node_mapping[key] = [fate_names[xx] for xx in value]
+            ii = np.argmax(X_coupling.max(1))
+            jj = np.argmax(X_coupling.max(0))
+            merged_pairs_history.append((ii, jj))
+            node_groups[next_node] = (
+                node_groups[node_names[ii]] + node_groups[node_names[jj]]
+            )
 
-    history = (X_history, merged_pairs_history, node_names_history)
-    t = _utils.convert_to_tree(parent_map, fate_names)
+            parent_map[node_names[ii]] = next_node
+            parent_map[node_names[jj]] = next_node
 
-    adata.uns[f"fate_hierarchy_{source}"] = {
-        "parent_map": parent_map,
-        "node_mapping": node_mapping,
-        "history": history,
-        "fate_names": fate_names,
-        "tree": t,
-    }
-    logg.info(f"Results saved as dictionary at adata.uns['fate_hierarchy_{source}']")
+            ix = np.min([ii, jj])
+            node_names = [
+                n for n in node_names if not n in np.array(node_names)[np.array([ii, jj])]
+            ]
+            new_ix = np.array([i for i in range(fate_N_tmp) if not i in [ii, jj]])
+
+            if len(new_ix) == 0:
+                break
+            new_fate = selected_fates_tmp[ii] + selected_fates_tmp[jj]
+            selected_fates_tmp_1 = [selected_fates_tmp[new_ix[xx]] for xx in range(ix)]
+            selected_fates_tmp_1.append(new_fate)
+            for xx in range(ix, fate_N_tmp - 2):
+                selected_fates_tmp_1.append(selected_fates_tmp[new_ix[xx]])
+            selected_fates_tmp = selected_fates_tmp_1
+            node_names.insert(ix, next_node)
+            next_node += 1
+
+        for i in node_names:
+            parent_map[i] = next_node
+
+        node_mapping = {}
+        for key, value in node_groups.items():
+            node_mapping[key] = [fate_names[xx] for xx in value]
+
+        history = (X_history, merged_pairs_history, node_names_history)
+        t = _utils.convert_to_tree(parent_map, fate_names)
+
+        adata.uns[f"fate_hierarchy_{source}"] = {
+            "parent_map": parent_map,
+            "node_mapping": node_mapping,
+            "history": history,
+            "fate_names": fate_names,
+            "tree": t,
+        }
+        logg.info(f"Results saved as dictionary at adata.uns['fate_hierarchy_{source}']")
 
 
 def fate_coupling(
@@ -238,7 +241,7 @@ def fate_coupling(
 
     hf.check_available_map(adata)
     time_info = np.array(adata.obs["time_info"])
-    choices = list(adata.uns["available_map"]) + ["X_clone"]
+    choices = list(adata.uns["available_map"]) + ["X_clone","X_similarity"]
     if source not in choices:
         raise ValueError(f"source should be among {choices}")
     elif source == "X_clone":
@@ -265,6 +268,40 @@ def fate_coupling(
         if ignore_cell_number:
             coarse_X_clone = (coarse_X_clone > 0).astype(int)
         X_coupling = _utils.get_normalized_covariance(coarse_X_clone.T, method=method)
+    elif source == "X_similarity":
+        
+        time_info = np.array(adata.obs["time_info"])
+        if selected_times is not None:
+            if type(selected_times) is not list:
+                selected_times = [selected_times]
+        sp_idx_0 = hf.selecting_cells_by_time_points(time_info, selected_times)
+        state_annote = adata[sp_idx_0].obs["state_info"]
+        (
+            mega_cluster_list,
+            valid_fate_list,
+            fate_array_flat,
+            sel_index_list,
+        ) = hf.analyze_selected_fates(state_annote, selected_fates)
+
+        Smatrix_0=adata.obsm['X_similarity']
+        Smatrix=Smatrix_0[sp_idx_0][:,sp_idx_0]
+        X_coupling = np.zeros((len(mega_cluster_list), len(mega_cluster_list)))
+        for j, idx_0 in enumerate(sel_index_list):
+            for k, idx_1 in enumerate(sel_index_list):
+                # print('S',Smatrix.shape)
+                # print('idx_0',idx_0)
+                # print('idx_1',idx_1)
+                tmp=Smatrix[idx_0][:,idx_1]
+                X_coupling[j, k]=np.median(tmp.flatten())
+                # print(tmp)
+
+                # # Extract the upper triangular part of the matrix
+                # upper_triangle = tmp[np.triu_indices(tmp.shape[0], k = 1)]
+                # # Calculate the average value of the upper triangle
+                # X_coupling[j, k] = upper_triangle.mean()
+
+        fate_names = mega_cluster_list
+
     else:
         cell_id_t1 = adata.uns["Tmap_cell_id_t1"]
         sp_idx = hf.selecting_cells_by_time_points(
