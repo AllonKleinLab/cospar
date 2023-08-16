@@ -225,7 +225,7 @@ def clones_on_manifold(
     selected_clone_list=[0],
     color_list=["red", "blue", "purple", "green", "cyan", "black"],
     selected_times=None,
-    title=True,
+    title=None,
     clone_markersize=12,
     clone_markeredgewidth=1,
     markeredgecolor="black",
@@ -243,8 +243,8 @@ def clones_on_manifold(
         The list of color that defines color at respective time points.
     selected_times: `list`, optional (default: all)
         Select time points to show corresponding states. If set to be [], use all states.
-    title: `bool`, optional (default: True)
-        If ture, show the clone id as panel title.
+    title: None
+        Default, show the clone id as panel title. Otherwise, show the text string from input 'title'
     clone_markersize: `int`, optional (default: 12)
         Clone marker size
     clone_markeredgewidth: `int`, optional (default: 1)
@@ -309,8 +309,10 @@ def clones_on_manifold(
                     **kwargs,
                 )
 
-                if title:
+                if title is None:
                     ax.set_title(f"ID: {my_id}")
+                else:
+                    ax.set_title(title)
 
             fig.savefig(
                 os.path.join(
@@ -318,6 +320,7 @@ def clones_on_manifold(
                     f"{data_des}_different_clones_{my_id}.{settings.file_format_figs}",
                 )
             )
+    return ax
 
 
 def clonal_fate_bias(adata, show_histogram=True, FDR=0.05):

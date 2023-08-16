@@ -857,3 +857,92 @@ def compute_sister_cell_distance(
     plt.savefig(f"{settings.figure_path}/transcriptome_memory{data_des}.pdf")
 
     return df_distance, pvalue
+
+
+def generate_adata_from_X_clone(X_clone, state_info=None, time_info=None):
+    """
+    Convert X_clone matrix to adata, and also add it to adata.obsm['X_clone'].
+    You can run cospar on it directly.
+    """
+    import scanpy as sc
+
+    adata_orig = sc.AnnData(X_clone)
+    adata_orig.obsm["X_clone"] = X_clone
+    adata_orig.uns["data_des"] = ["hi"]
+    if state_info is None:
+        adata_orig.obs["state_info"] = pd.Categorical(
+            np.arange(X_clone.shape[0]).astype(str)
+        )
+    else:
+        adata_orig.obs["state_info"] = pd.Categorical(state_info)
+
+    if time_info is None:
+        adata_orig.obs["time_info"] = ["0"] * X_clone.shape[0]
+    else:
+        adata_orig.obs["time_info"] = pd.Categorical(time_info)
+    return adata_orig
+
+
+def conditional_heatmap(
+    coarse_X_clone,
+    fate_names: list,
+    time_info=None,
+    included_fates: list = None,
+    excluded_fates: list = None,
+    binarize=False,
+    normalize=False,
+    mode="and",
+    fig_height=1.3 * plt.rcParams["figure.figsize"][0],
+    fig_width=plt.rcParams["figure.figsize"][0],
+    **kwargs,
+):
+    """
+    Plot a heatmap by conditionally including or removing a set of fates
+
+    log_transform: True or False
+    """
+    fate_names = np.array(fate_names)
+
+    if mode == "and":
+        valid_clone_idx = np.ones(coarse_X_clone.shape[1]).astype(bool)
+        if included_fates is not None:
+            for x_name in included_fates:
+                valid_clone_idx_tmp = coarse_X_clone[fate_names == x_name].sum(0) > 0
+                valid_clone_idx = valid_clone_idx & valid_clone_idx_tmp
+
+        if excluded_fates is not None:
+            for x_name in excluded_fates:
+                valid_clone_idx_tmp = coarse_X_clone[fate_names == x_name].sum(0) > 0
+                valid_clone_idx = valid_clone_idx & ~valid_clone_idx_tmp
+    elif mode == "or":
+        valid_clone_idx = np.zeros(coarse_X_clone.shape[1]).astype(bool)
+        if included_fates is not None:
+            for x_name in included_fates:
+                valid_clone_idx_tmp = coarse_X_clone[fate_names == x_name].sum(0) > 0
+                valid_clone_idx = valid_clone_idx | valid_clone_idx_tmp
+
+        if excluded_fates is not None:
+            for x_name in excluded_fates:
+                valid_clone_idx_tmp = coarse_X_clone[fate_names == x_name].sum(0) > 0
+                valid_clone_idx = valid_clone_idx | ~valid_clone_idx_tmp
+
+    adata = generate_adata_from_X_clone(
+        ssp.csr_matrix(coarse_X_clone[:, valid_clone_idx]),
+        state_info=fate_names,
+        time_info=time_info,
+    )
+
+    pl.barcode_heatmap(
+        adata,
+        normalize=normalize,
+        binarize=binarize,
+        selected_fates=fate_names,
+        order_map_x=False,
+        order_map_y=True,
+        fig_height=fig_height,
+        fig_width=fig_width,
+        **kwargs,
+    )
+    X_count = adata.uns["barcode_heatmap"]["coarse_X_clone"]
+
+    return X_count
