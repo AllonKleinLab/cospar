@@ -25,3 +25,4 @@ dependencies:
   - ete3>=3.1.2
   - click==8.0.4 # related to black import
   - black==22.1.0 # related to black import
+  - python_version ==3.8
