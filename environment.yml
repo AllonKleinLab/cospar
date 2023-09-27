@@ -3,26 +3,28 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
+  # Runtime
+  - python=3.8
   - pip
-  - pytest
-  - pytest-cov
-  - pytest-datadir
   - ipywidgets
   - numpy<=1.21
   - scipy>=1.5.4
-  - scikit-learn==1.1.1
+  - scikit-learn=1.1.1
   - scanpy>=1.6.0
   - pandas>=1.1.4
-  - statsmodels==0.13.2
+  - statsmodels=0.13.2
   - plotnine>=0.7.1
   - matplotlib>=3.3.3
-  - gseapy==0.9.13
+  - gseapy=0.9.13
   - fastcluster>=1.1.26 # used to generate the clustered heat map of barcodes
   - anndata>=0.7.5
   - numba>=0.52.0  # related to issues of GPUipatch error
   - scikit-misc>=0.1.3 # used for loess smoothing
   - leidenalg>=0.7.0
   - ete3>=3.1.2
-  - click==8.0.4 # related to black import
-  - black==22.1.0 # related to black import
-  - python_version ==3.8
+  # Dev
+  - click=8.0.4 # related to black import
+  - black=22.1.0 # related to black import
+  - pytest
+  - pytest-cov
+  - pytest-datadir
