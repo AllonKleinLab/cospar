@@ -1,7 +1,7 @@
 Installation
 ------------
 
-CoSpar requires Python 3.6 or later. We recommend using Miniconda_ for package management. For a computer that does not have a package management tool yet, please install Miniconda_ first, and activate it by running the following command in the terminal::
+CoSpar requires Python 3.8 or later. We recommend using Miniconda_ for package management. For a computer that does not have a package management tool yet, please install Miniconda_ first, and activate it by running the following command in the terminal::
 
 	source ~/.bash_profile
 
@@ -71,7 +71,7 @@ Testing CoSpar in a new environment
 
 In case you want to test cospar without affecting existing python packages, you can create a new conda environment and install CoSpar there::
 
-	conda create -n test_cospar python=3.6
+	conda create -n test_cospar python=3.8
 	conda activate test_cospar
 	pip install cospar
 
