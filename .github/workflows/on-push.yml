@@ -18,30 +18,32 @@ jobs:
       matrix:
         os: ["ubuntu-latest"]
     steps:
-      - uses: actions/checkout@v2
-      - name: cache conda
-        uses: actions/cache@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Cache Conda
+        uses: actions/cache@v3
         env:
-          CACHE_NUMBER: 1 # bump to reset cache
+          CACHE_NUMBER: 0 # bump to reset cache
         with:
           path: ~/conda_pkgs_dir
           key: ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
-      - uses: conda-incubator/setup-miniconda@v2
+      - name: Set up Conda
+        uses: conda-incubator/setup-miniconda@v2
         with:
-          miniconda-version: "latest"
-          channels: conda-forge,bioconda,defaults
-          auto-update-conda: false
           activate-environment: cospar
+          auto-update-conda: false
+          channels: conda-forge,bioconda,defaults
           environment-file: environment.yml
+          miniforge-variant: Mambaforge
+          use-mamba: true
           use-only-tar-bz2: true
-          mamba-version: "*"
-      - name: Install cospar
-        shell: bash -l {0}
+      - name: Install CoSpar
+        shell: bash -elo pipefail {0}
         run: |
           python setup.py install
       # - name: Run pre-commit
       #   uses: pre-commit/action@v2.0.0
-      - name: Test cospar
-        shell: bash -l {0}
+      - name: Test CoSpar
+        shell: bash -elo pipefail {0}
         run: |
           pytest -v --cov=cospar --cov-report=term-missing
