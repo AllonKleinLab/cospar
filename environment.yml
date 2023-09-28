@@ -6,7 +6,7 @@ dependencies:
   # Runtime
   - pip
   - ipywidgets
-  - numpy
+  - numpy>=1.21
   - scipy>=1.5.4
   - scikit-learn>=1.1.1
   - scanpy>=1.6.0
