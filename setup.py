@@ -12,7 +12,7 @@ setup(
     version=__version__,
     python_requires=">=3.6",
     install_requires=[
-        l.strip() for l in Path("requirements.txt").read_text("utf-8").splitlines(),
+        l.strip() for l in Path("requirements.txt").read_text("utf-8").splitlines()
     ],
     extras_require=dict(
         dev=["black==19.10b0", "pre-commit==2.5.1"],
