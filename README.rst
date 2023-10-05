@@ -46,10 +46,10 @@ Your help to improve CoSpar is highly appreciated.
    :target: https://pepy.tech/project/cospar
 
 .. |Anaconda| image:: https://anaconda.org/bioconda/cospar/badges/version.svg
-   :target: https://https://anaconda.org/bioconda/cospar
+   :target: https://anaconda.org/bioconda/cospar
 
 .. |Bioconda| image:: https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square
-   :target: https://https://anaconda.org/bioconda/cospar
+   :target: https://anaconda.org/bioconda/cospar
 
 .. |Docs| image:: https://readthedocs.org/projects/cospar/badge/?version=latest
    :target: https://cospar.readthedocs.io
