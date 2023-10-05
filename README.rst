@@ -1,7 +1,7 @@
-|PyPI| |PyPIDownloads| |Docs|
-
 CoSpar - dynamic inference by integrating state and lineage information
 =======================================================================
+
+|PyPI| |PyPIDownloads| |Anaconda| |Bioconda| |Docs|
 
 .. image:: https://user-images.githubusercontent.com/4595786/104988296-b987ce00-59e5-11eb-8dbe-a463b355a9fd.png
    :width: 300px
@@ -44,6 +44,12 @@ Your help to improve CoSpar is highly appreciated.
 
 .. |PyPIDownloads| image:: https://pepy.tech/badge/cospar
    :target: https://pepy.tech/project/cospar
+
+.. |Anaconda| image:: https://anaconda.org/bioconda/cospar/badges/version.svg
+   :target: https://https://anaconda.org/bioconda/cospar
+
+.. |Bioconda| image:: https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square
+   :target: https://https://anaconda.org/bioconda/cospar
 
 .. |Docs| image:: https://readthedocs.org/projects/cospar/badge/?version=latest
    :target: https://cospar.readthedocs.io
