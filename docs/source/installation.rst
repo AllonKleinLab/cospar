@@ -5,6 +5,13 @@ CoSpar requires Python 3.8 or later. We recommend using Miniconda_ for package m
 
 	source ~/.bash_profile
 
+Conda
+^^^^
+
+Install CoSpar to the activated Conda environment using::
+
+    conda install -c bioconda cospar
+
 PyPI
 ^^^^
 
