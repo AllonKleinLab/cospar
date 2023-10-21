@@ -25,6 +25,13 @@ Recorded talks
 
 `Oct 19, 2022: Invited MIA talk at Broad Institute <https://www.broadinstitute.org/talks/learning-cell-differentiation-dynamics-lineage-tracing-datasets>`_. This is an one-hour talk focusing on the Machine Learning part of CoSpar: `talk video <https://www.youtube.com/watch?v=rYzQUYPPNlU>`_.  The talk slides can be found `here <https://github.com/ShouWenWang-Lab/cospar/files/10042131/20221118_public_posted_slides.pdf>`_.
 
+
+Community usage
+---------------
+- Our analysis of in vivo cell fate choice of HSCs from DARLIN mice, having only a single time point (with both lineage and transcriptome information in single cells). Ref: `L. Li,...,S.-W. Wang, F. Camargo, Cell (2023) <https://doi.org/10.1016/j.cell.2023.09.019>`_. Notebooks available `here <https://github.com/ShouWenWang-Lab/DARLIN_notebooks>`_.
+
+- Analysis of in vitro lineage tracing data of HSPCs in `Jindal et.al., Nat. Biotech. (2023) <https://www.nature.com/articles/s41587-023-01931-4>`_.
+
 Reference
 ---------
 `S.-W. Wang*, M. Herriges, K. Hurley, D. Kotton, A. M. Klein*, CoSpar identifies early cell fate biases from single cell transcriptomic and lineage information, Nat. Biotech. (2022) <https://www.nature.com/articles/s41587-022-01209-1>`_. [* corresponding authors]

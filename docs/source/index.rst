@@ -26,6 +26,13 @@ Package development relocation
 ------------------------------
 Effective on April 1st 2023, Shou-Wen Wang is leaving the Klein lab to start `his own group at Westlake University <https://www.shouwenwang-lab.com/>`_, and he will no longer maintain this repository. Further development of CoSpar will continue in his own lab under this respository `https://github.com/ShouWenWang-Lab/cospar <https://github.com/ShouWenWang-Lab/cospar>`_. Please reach out there for any issues related to CoSpar.
 
+
+Community usage
+---------------
+- Our analysis of in vivo cell fate choice of HSCs from DARLIN mice, having only a single time point (with both lineage and transcriptome information in single cells). Ref: `L. Li,...,S.-W. Wang, F. Camargo, Cell (2023) <https://doi.org/10.1016/j.cell.2023.09.019>`_. Notebooks available `here <https://github.com/ShouWenWang-Lab/DARLIN_notebooks>`_.
+
+- Analysis of in vitro lineage tracing data of HSPCs in `Jindal et.al., Nat. Biotech. (2023) <https://www.nature.com/articles/s41587-023-01931-4>`_.
+
 Recorded Talks
 ^^^^^^^^^^^^^^
 - `Jun 1: Single-Cell Data Science 2022 <https://singlecell2022.hku.hk/>`_. This is a 20-min short talk focusing more on the utility of CoSpar: `talk video <https://www.youtube.com/watch?v=HrDQpW3kJFo>`_
