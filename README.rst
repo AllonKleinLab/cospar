@@ -28,7 +28,7 @@ Recorded talks
 
 Community usage
 ---------------
-- Our analysis of in vivo cell fate choice of HSCs from DARLIN mice, having only a single time point (with both lineage and transcriptome information in single cells). Ref: `L. Li,...,S.-W. Wang, F. Camargo, Cell (2023) <https://doi.org/10.1016/j.cell.2023.09.019>`_. Notebooks available `here <https://github.com/ShouWenWang-Lab/DARLIN_notebooks>`_. It is available in the `EXAMPLES`` session of this website.
+- Our analysis of in vivo cell fate choice of HSCs from DARLIN mice, having only a single time point (with both lineage and transcriptome information in single cells). Ref: `L. Li,...,S.-W. Wang, F. Camargo, Cell (2023) <https://doi.org/10.1016/j.cell.2023.09.019>`_. Notebooks available `here <https://github.com/ShouWenWang-Lab/DARLIN_notebooks>`_. It is available in the `EXAMPLES` session of this website.
 
 - Analysis of in vitro lineage tracing data of HSPCs in `Jindal et.al., Nat. Biotech. (2023) <https://www.nature.com/articles/s41587-023-01931-4>`_.
 
