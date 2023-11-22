@@ -97,6 +97,7 @@ Shou-Wen Wang wants to acknowledge `Xiaojie Qiu <https://dynamo-release.readthed
    20210121_lung_data_v2
    20210120_bifurcation_model_static_barcoding
    20220402_simulate_differentiation
+   20231122_DARLIN_in_vivo_hematopoiesis
 
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/cospar.svg
