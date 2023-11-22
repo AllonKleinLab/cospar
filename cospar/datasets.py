@@ -7,6 +7,7 @@ from . import logging as logg
 from . import settings
 
 url_prefix_0 = "https://kleintools.hms.harvard.edu/tools/downloads/cospar"
+url_prefix_1 = "https://wangshouwen.lab.westlake.edu.cn/app/filebrowser/api/public/dl"
 
 
 def synthetic_bifurcation(data_des="bifur"):
@@ -104,6 +105,28 @@ def reprogramming(data_des="CellTagging"):
     figure_path = settings.figure_path
     data_name = "CellTagging_adata_preprocessed.h5ad"
     return load_data_core(data_path, figure_path, data_name, data_des)
+
+
+def DARLIN_in_vivo_hematopoiesis(data_des="DARLIN"):
+    """
+    Hematopoiesis dataset from `Li, L., ..., S.-.W. Wang, F. Camargo, Cell 186, (2023)`.
+
+    The DARLIN lineage tracing mouse was induced with Dox for lineage barcoding at E17. This dataset contains cells collected at multiple tissues (left leg, spleen, and skull) 10 weeks after induction.  We will focus on the analysis of the skull-derived cells as most blood cell types were well-represented in this dataset and study the fate bias of HSPCs in this dataset.
+
+    There is only one time point. We manually assign the early progenitor (HSPC) as the initial population with time t0, and the remaining cells as the later population with time t1. This is needed for running cospar.
+
+    Parameters
+    ----------
+    data_des: `str`
+        A key to label this dataset.
+    """
+
+    data_path = settings.data_path
+    figure_path = settings.figure_path
+    data_name = "QLkWJaIL/shared_readonly/shared_with_public/tissue_adata_refined_20221106_joint.h5ad"
+    return load_data_core(
+        data_path, figure_path, data_name, data_des, url_prefix=url_prefix_1
+    )
 
 
 def reprogramming_Day0_3_28(data_des="Reprog_128"):
