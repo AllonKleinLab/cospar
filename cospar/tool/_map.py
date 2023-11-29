@@ -29,7 +29,7 @@ def fate_hierarchy(
     source: str = "X_clone",
     selected_times: list = None,
     method: str = "SW",
-    normalize: bool=True,
+    normalize: bool = True,
     ignore_cell_number: bool = False,
 ):
     """
@@ -68,8 +68,8 @@ def fate_hierarchy(
     """
 
     state_info = np.array(adata.obs["state_info"])
-    if len(set(state_info))==1:
-        print('Only one cluster, skip hierarchy generation')
+    if len(set(state_info)) == 1:
+        print("Only one cluster, skip hierarchy generation")
     else:
         mega_cluster_list, valid_fate_list, __, __ = hf.analyze_selected_fates(
             state_info, selected_fates
@@ -128,7 +128,9 @@ def fate_hierarchy(
 
             ix = np.min([ii, jj])
             node_names = [
-                n for n in node_names if not n in np.array(node_names)[np.array([ii, jj])]
+                n
+                for n in node_names
+                if not n in np.array(node_names)[np.array([ii, jj])]
             ]
             new_ix = np.array([i for i in range(fate_N_tmp) if not i in [ii, jj]])
 
@@ -160,7 +162,9 @@ def fate_hierarchy(
             "fate_names": fate_names,
             "tree": t,
         }
-        logg.info(f"Results saved as dictionary at adata.uns['fate_hierarchy_{source}']")
+        logg.info(
+            f"Results saved as dictionary at adata.uns['fate_hierarchy_{source}']"
+        )
 
 
 def fate_coupling(
@@ -241,7 +245,7 @@ def fate_coupling(
 
     hf.check_available_map(adata)
     time_info = np.array(adata.obs["time_info"])
-    choices = list(adata.uns["available_map"]) + ["X_clone","X_similarity"]
+    choices = list(adata.uns["available_map"]) + ["X_clone", "X_similarity"]
     if source not in choices:
         raise ValueError(f"source should be among {choices}")
     elif source == "X_clone":
@@ -269,7 +273,7 @@ def fate_coupling(
             coarse_X_clone = (coarse_X_clone > 0).astype(int)
         X_coupling = _utils.get_normalized_covariance(coarse_X_clone.T, method=method)
     elif source == "X_similarity":
-        
+
         time_info = np.array(adata.obs["time_info"])
         if selected_times is not None:
             if type(selected_times) is not list:
@@ -283,23 +287,23 @@ def fate_coupling(
             sel_index_list,
         ) = hf.analyze_selected_fates(state_annote, selected_fates)
 
-        Smatrix_0=adata.obsm['X_similarity']
-        Smatrix=Smatrix_0[sp_idx_0][:,sp_idx_0]
+        Smatrix_0 = adata.obsm["X_similarity"]
+        Smatrix = Smatrix_0[sp_idx_0][:, sp_idx_0]
         X_coupling = np.zeros((len(mega_cluster_list), len(mega_cluster_list)))
         for j, idx_0 in enumerate(sel_index_list):
             for k, idx_1 in enumerate(sel_index_list):
-                # print('S',Smatrix.shape)
-                # print('idx_0',idx_0)
-                # print('idx_1',idx_1)
-                tmp=Smatrix[idx_0][:,idx_1]
-                X_coupling[j, k]=np.median(tmp.flatten())
-                # print(tmp)
+                if j != k:
+                    tmp = Smatrix[idx_0][:, idx_1].flatten()
+                else:
+                    X_sub = Smatrix[idx_0][:, idx_0]
+                    tmp = X_sub[np.triu_indices_from(X_sub, k=1)]
+                X_coupling[j, k] = np.median(tmp)
 
-                # # Extract the upper triangular part of the matrix
-                # upper_triangle = tmp[np.triu_indices(tmp.shape[0], k = 1)]
-                # # Calculate the average value of the upper triangle
-                # X_coupling[j, k] = upper_triangle.mean()
-
+        diag_temp = np.sqrt(np.diag(X_coupling))
+        for j in range(len(diag_temp)):
+            for k in range(j, len(diag_temp)):
+                X_coupling[j, k] = X_coupling[j, k] / (diag_temp[j] * diag_temp[k])
+                X_coupling[k, j] = X_coupling[j, k]
         fate_names = mega_cluster_list
 
     else:
