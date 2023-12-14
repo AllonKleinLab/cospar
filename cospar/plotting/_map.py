@@ -34,6 +34,7 @@ def fate_coupling(
     color_bar_label="Clonal coupling score",
     title=None,
     vmax=None,
+    semi_triangular=False,
     **kwargs,
 ):
     """
@@ -92,6 +93,7 @@ def fate_coupling(
         fig_height=fig_height,
         color_map=color_map,
         vmax=vmax,
+        semi_triangular=semi_triangular,
         **kwargs,
     )
 

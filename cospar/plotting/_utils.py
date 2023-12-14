@@ -305,6 +305,7 @@ def heatmap(
     print_ordered_labels=False,
     pseudo_count=10 ** (-10),
     ax=None,
+    semi_triangular=False,
 ):
     """
     Plot ordered heat map of non-square data_matrix matrix
@@ -397,6 +398,11 @@ def heatmap(
         ax_ = None
     else:
         ax_ = ax
+
+    if semi_triangular:
+        upper_triangle_indices = np.triu_indices(new_data.shape[0])
+        new_data[upper_triangle_indices] = np.nan
+
     ax.imshow(
         new_data,
         aspect="auto",
