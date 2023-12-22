@@ -224,7 +224,8 @@ def clones_on_manifold(
     adata,
     selected_clone_list=[0],
     color_list=["red", "blue", "purple", "green", "cyan", "black"],
-    selected_times=None,
+    selected_annotation_key="time_info",
+    selected_annotation_info=None,
     title=None,
     clone_markersize=12,
     clone_markeredgewidth=1,
@@ -241,7 +242,7 @@ def clones_on_manifold(
         List of selected clone ID's.
     color_list: `list`, optional (default: ['red','blue','purple','green','cyan','black'])
         The list of color that defines color at respective time points.
-    selected_times: `list`, optional (default: all)
+    selected_annotation_info: `list`, optional (default: all)
         Select time points to show corresponding states. If set to be [], use all states.
     title: None
         Default, show the clone id as panel title. Otherwise, show the text string from input 'title'
@@ -260,11 +261,11 @@ def clones_on_manifold(
     # data_path=settings.data_path
     figure_path = settings.figure_path
     X_clone = adata.obsm["X_clone"]
-    time_info = np.array(adata.obs["time_info"])
+    time_info = np.array(adata.obs[selected_annotation_key])
 
     # use only valid time points
-    sp_idx = hf.selecting_cells_by_time_points(time_info, selected_times)
-    selected_times = np.sort(list(set(time_info[sp_idx])))
+    sp_idx = hf.selecting_cells_by_time_points(time_info, selected_annotation_info)
+    selected_annotation_info = np.sort(list(set(time_info[sp_idx])))
 
     selected_clone_list = np.array(selected_clone_list)
     full_id_list = np.arange(X_clone.shape[1])
@@ -283,8 +284,8 @@ def clones_on_manifold(
             fig = plt.figure(figsize=(fig_width, fig_height))
             ax = plt.subplot(1, 1, 1)
             idx_t = np.zeros(len(time_info), dtype=bool)
-            for j, xx in enumerate(selected_times):
-                idx_t0 = time_info == selected_times[j]
+            for j, xx in enumerate(selected_annotation_info):
+                idx_t0 = time_info == selected_annotation_info[j]
                 idx_t = idx_t0 | idx_t
 
             pl_util.customized_embedding(
@@ -294,8 +295,8 @@ def clones_on_manifold(
                 ax=ax,
                 point_size=point_size,
             )
-            for j, xx in enumerate(selected_times):
-                idx_t = time_info == selected_times[j]
+            for j, xx in enumerate(selected_annotation_info):
+                idx_t = time_info == selected_annotation_info[j]
                 idx_clone = X_clone[:, my_id].A.flatten() > 0
                 idx = idx_t & idx_clone
                 ax.plot(
