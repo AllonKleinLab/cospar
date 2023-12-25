@@ -181,6 +181,7 @@ def fate_coupling(
     select_clones_with_fates: list = None,
     select_clones_without_fates: list = None,
     select_clones_mode: str = "or",
+    normalized_X_similarity=False,
     **kwargs,
 ):
     """
@@ -299,11 +300,18 @@ def fate_coupling(
                     tmp = X_sub[np.triu_indices_from(X_sub, k=1)]
                 X_coupling[j, k] = np.median(tmp)
 
-        diag_temp = np.sqrt(np.diag(X_coupling))
-        for j in range(len(diag_temp)):
-            for k in range(j, len(diag_temp)):
-                X_coupling[j, k] = X_coupling[j, k] / (diag_temp[j] * diag_temp[k])
-                X_coupling[k, j] = X_coupling[j, k]
+
+        if normalized_X_similarity:
+            diag_temp = np.sqrt(np.diag(X_coupling))
+            for j in range(len(diag_temp)):
+                for k in range(j, len(diag_temp)):
+                    X_coupling[j, k] = X_coupling[j, k] / (diag_temp[j] * diag_temp[k])
+                    X_coupling[k, j] = X_coupling[j, k]
+
+            max_value=np.max(X_coupling)
+            for j in range(len(diag_temp)):
+                X_coupling[j,j]=max_value
+            X_coupling=X_coupling/max_value
         fate_names = mega_cluster_list
 
     else:
